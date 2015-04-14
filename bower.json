@@ -1,6 +1,6 @@
 {
   "name": "route-manager",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "homepage": "https://github.com/mkay581/route-manager",
   "authors": [
     "Mark Kennedy <mkay581@gmail.com>"
@@ -34,7 +34,6 @@
     "element-kit": "^0.5.0",
     "module.js": "^1.0.5",
     "handlebars": "^3.0.0",
-    "handlebars-helper-slugify": "^0.3.2",
-    "module.js": "^1.0.5"
+    "handlebars-helper-slugify": "^0.3.2"
   }
 }
