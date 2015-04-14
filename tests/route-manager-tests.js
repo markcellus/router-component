@@ -2,8 +2,8 @@ var sinon = require('sinon');
 var ResourceManager = require('resource-manager-js');
 var assert = require('assert');
 var Promise = require('promise');
-var Page = require('page');
-var Module = require('module');
+var Page = require('../src/page');
+var Module = require('module.js');
 var _ = require('underscore');
 
 describe('Route Manager', function () {
