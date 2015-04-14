@@ -1,5 +1,5 @@
 'use strict';
-var Module = require('module');
+var Module = require('module.js');
 var Promise = require('promise');
 
 // start element kit

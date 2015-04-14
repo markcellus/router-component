@@ -1,12 +1,12 @@
 var sinon = require('sinon');
 var assert = require('assert');
-var Module = require('module');
+var Module = require('module.js');
 var Promise = require('promise');
+var Page = require('./../src/page');
 
 describe('Page', function () {
 
     it('should apply active class when show() is called', function () {
-        var Page = require('page');
         var pageInstance = new Page();
         return pageInstance.show().then(function () {
             assert.ok(pageInstance.el.classList.contains('page-active'), 'generated page div now has active class');
@@ -15,7 +15,6 @@ describe('Page', function () {
     });
 
     it('should be assigned an el that has a "page" class on instantiation', function () {
-        var Page = require('page');
         var pageContainerEl = document.createElement('div');
         var pageInstance = new Page({el: pageContainerEl});
         var generatedPageEl = pageContainerEl.getElementsByClassName('page')[0];
@@ -26,7 +25,6 @@ describe('Page', function () {
     });
 
     it('should call Module prototype\'s show() when show() is called', function () {
-        var Page = require('page');
         var moduleShowStub = sinon.stub(Module.prototype, 'show').returns(Promise.resolve());
         var moduleLoadStub = sinon.stub(Module.prototype, 'load').returns(Promise.resolve());
         var pageInstance = new Page({el: document.createDocumentFragment()});
@@ -39,7 +37,6 @@ describe('Page', function () {
     });
 
     it('should call Module prototype\'s hide() when hide() is called', function () {
-        var Page = require('page');
         var moduleHideStub = sinon.stub(Module.prototype, 'hide').returns(Promise.resolve());
         var moduleLoadStub = sinon.stub(Module.prototype, 'load').returns(Promise.resolve());
         var pageInstance = new Page({el: document.createDocumentFragment()});

@@ -7,7 +7,7 @@ var Handlebars = require('handlebars');
 var slugify = require('handlebars-helper-slugify');
 var _ = require('underscore');
 var Page = require('./page');
-var Module = require('module');
+var Module = require('module.js');
 
 /**
  * The function that is triggered the selected dropdown value changes
