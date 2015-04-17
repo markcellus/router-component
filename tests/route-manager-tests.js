@@ -884,4 +884,41 @@ describe('Route Manager', function () {
             });
         });
     });
+
+    it('navigating back to a previously loaded page, after navigating away, cause page\'s show method again', function () {
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var pageScriptUrl = 'path/to/page/script';
+        var secondPageScript = 'second/path/to/page/script';
+        routesConfig.pages[pageUrl] = {
+            script: pageScriptUrl
+        };
+        var secondPageUrl = 'path/to/second/page';
+        routesConfig.pages[secondPageUrl] = {
+            script: secondPageScript
+        };
+        var RouteManager = require('route-manager')({config: routesConfig});
+        var secondPageInstance = new Page();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(secondPageScript).returns(secondPageInstance);
+        // hijack url history registrar for internal test implementation
+        RouteManager.registerUrlHistory = function (path) {
+            //ensure history reflects first path state
+            RouteManager.history.push({path: path});
+        };
+        RouteManager.start();
+        var firstPageShowCount = 0;
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            firstPageShowCount++;
+            return RouteManager.triggerRoute(secondPageUrl).then(function () {
+                return RouteManager.triggerRoute(pageUrl).then(function () {
+                firstPageShowCount++;
+                    assert.equal(mockPage.show.callCount, firstPageShowCount, 'first page show() method was called twice');
+                    RouteManager.stop();
+                });
+            });
+        });
+    });
+
+
 });

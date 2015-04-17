@@ -315,11 +315,11 @@ RouteManager.prototype = /** @lends RouteManager */{
             }.bind(this));
             return pageMap.promise;
         } else {
-            return this._pageMaps[pageKey].promise.then(function () {
-                // call show on modules
+            return this._pageMaps[pageKey].promise.then(function (page) {
                 _.each(this._pageMaps[pageKey].modules, function (moduleMap) {
                     moduleMap.module.show();
                 });
+                return page;
             }.bind(this));
         }
     },
@@ -331,17 +331,15 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     _handlePreviousPage: function () {
         var prevHistory = this.history[this.history.length - 2] || {},
-            previousPath = this._getRouteMapKeyByPath(prevHistory.path),
-            moduleShowPromises = [];
+            previousPath = this._getRouteMapKeyByPath(prevHistory.path);
         // hide previous page if exists
         if (previousPath && this._pageMaps[previousPath] && this._pageMaps[previousPath].promise) {
             return this._pageMaps[previousPath].promise.then(function (page) {
                 page.hide().then(function () {
                     // call hide on all of pages modules
                     _.each(this._pageMaps[previousPath].modules, function (moduleMap) {
-                        moduleShowPromises.push(moduleMap.module.hide());
+                        moduleMap.module.hide();
                     }.bind(this));
-                    return Promise.all(moduleShowPromises);
                 }.bind(this));
             }.bind(this));
         } else {
@@ -398,7 +396,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                     frag.appendChild(moduleMap.el);
                 }
             });
-            if (pageMap.page.el) {
+            if (pageMap.page.el && pageMap.page.el.children[0]) {
                 pageMap.page.el.children[0].appendChild(frag);
             }
         });
