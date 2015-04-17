@@ -1,5 +1,5 @@
 /** 
-* route-manager - v1.1.0.
+* route-manager - v1.1.2.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -1291,7 +1291,7 @@ ImageElement.prototype = utils.extend({}, Element.prototype, {
 });
 
 module.exports = ImageElement;
-},{"./element":8,"./utils":10,"promise":45}],10:[function(require,module,exports){
+},{"./element":8,"./utils":10,"promise":46}],10:[function(require,module,exports){
 module.exports = {
     /**
      * Creates an HTML Element from an html string.
@@ -17136,6 +17136,254 @@ return jQuery;
 }));
 
 },{}],44:[function(require,module,exports){
+var Promise = require('promise');
+var $ = require('jquery');
+
+/**
+ * Custom request function (work in progress).
+ * @returns {*}
+ */
+var request = function (url, options) {
+    var client = new XMLHttpRequest();
+
+    options = options || {};
+    options.method = options.method || 'GET';
+    options.headers = options.headers || {};
+    options.async = typeof options.async === 'undefined' ? true : options.async;
+
+
+    return new Promise(
+        function (resolve, reject) {
+            // open connection
+            client.open(options.method, url);
+
+            // deal with headers
+            for (var i in options.headers) {
+                if (options.headers.hasOwnProperty(i)) {
+                    client.setRequestHeader(i, options.headers[i]);
+                }
+            }
+            // listener
+            client.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    resolve.call(this, this.responseText);
+                } else if (this.readyState == 4) {
+                    reject.call(this, this.status, this.statusText);
+                }
+            };
+            // send off
+            client.send(options.data);
+        });
+};
+
+'use strict';
+/**
+ The Resource Manager.
+ @class ResourceManager
+ @description Represents a manager that loads any CSS and Javascript Resources on the fly.
+ */
+var ResourceManager = function () {
+    this.initialize();
+};
+
+ResourceManager.prototype = {
+
+    /**
+     * Upon initialization.
+     * @memberOf ResourceManager
+     */
+    initialize: function () {
+        this._head = document.getElementsByTagName('head')[0];
+        this._cssPaths = {};
+        this._scriptPaths = {};
+        this._dataPromises = {};
+    },
+
+    /**
+     * Loads a javascript file.
+     * @param {string|Array} paths - The path to the view's js file
+     * @memberOf ResourceManager
+     * @return {Promise}
+     */
+    loadScript: function (paths) {
+        var script;
+        if (!this._loadScriptPromise) {
+            this._loadScriptPromise = new Promise(function (resolve) {
+                paths = this._ensurePathArray(paths);
+                paths.forEach(function (path) {
+                    if (!this._scriptPaths[path]) {
+                        this._scriptPaths[path] = path;
+                        script = this.createScriptElement();
+                        script.setAttribute('type','text/javascript');
+                        script.src = path;
+                        script.addEventListener('load', resolve);
+                        this._head.appendChild(script);
+                    }
+                }.bind(this));
+            }.bind(this));
+        } else {
+            this._loadScriptPromise = Promise.resolve();
+        }
+        return this._loadScriptPromise;
+    },
+
+    /**
+     * Removes a script that has the specified path from the head of the document.
+     * @param {string|Array} paths - The paths of the scripts to unload
+     * @memberOf ResourceManager
+     */
+    unloadScript: function (paths) {
+        var file;
+        return new Promise(function (resolve) {
+            paths = this._ensurePathArray(paths);
+            paths.forEach(function (path) {
+                file = this._head.querySelectorAll('script[src="' + path + '"]')[0];
+                if (file) {
+                    this._head.removeChild(file);
+                    this._scriptPaths[path] = null;
+                }
+            }.bind(this));
+            resolve();
+        }.bind(this));
+    },
+
+    /**
+     * Creates a new script element.
+     * @returns {HTMLElement}
+     */
+    createScriptElement: function () {
+        return document.createElement('script');
+    },
+
+    /**
+     * Makes a request to get data and caches it.
+     * @param {string} url - The url to fetch data from
+     * @param [options] - ajax options
+     * @returns {*}
+     */
+    fetchData: function (url, options) {
+        var objId = options ? JSON.stringify(options) : '',
+            cacheId = url + objId;
+
+        options = options || {};
+
+        if (!url) {
+            return Promise.resolve();
+        } else if (this._dataPromises[cacheId]) {
+            return this._dataPromises[cacheId];
+        } else {
+            this._dataPromises[cacheId] = new Promise(function (resolve, reject) {
+                $.ajax(url, options).done(resolve).fail(reject);
+            }.bind(this));
+            return this._dataPromises[cacheId].catch(function () {
+                    // if failure, remove cache so that subsequent
+                    // requests will trigger new ajax call
+                    this._dataPromises[cacheId] = null;
+                    reject(new Error('ResourceManager Failure: request for data at ' + url + ' failed.'));
+            }.bind(this));
+        }
+    },
+
+    /**
+     * Loads css files.
+     * @param {Array|String} paths - An array of css paths files to load
+     * @memberOf ResourceManager
+     * @return {Promise}
+     */
+    loadCss: function (paths) {
+        return new Promise(function (resolve) {
+            paths = this._ensurePathArray(paths);
+            paths.forEach(function (path) {
+                // TODO: figure out a way to find out when css is guaranteed to be loaded,
+                // and make this return a truely asynchronous promise
+                if (!this._cssPaths[path]) {
+                    var el = document.createElement('link');
+                    el.setAttribute('rel','stylesheet');
+                    el.setAttribute('href', path);
+                    this._head.appendChild(el);
+                    this._cssPaths[path] = el;
+                }
+            }.bind(this));
+            resolve();
+        }.bind(this));
+    },
+
+    /**
+     * Unloads css paths.
+     * @param {string|Array} paths - The css paths to unload
+     * @memberOf ResourceManager
+     * @return {Promise}
+     */
+    unloadCss: function (paths) {
+        var el;
+        return new Promise(function (resolve) {
+            paths = this._ensurePathArray(paths);
+            paths.forEach(function (path) {
+                el = this._cssPaths[path];
+                if (el) {
+                    this._head.removeChild(el);
+                    this._cssPaths[path] = null;
+                }
+            }.bind(this));
+            resolve();
+        }.bind(this));
+    },
+
+    /**
+     * Parses a template into a DOM element, then returns element back to you.
+     * @param {string} path - The path to the template
+     * @param {HTMLElement} [el] - The element to attach template to
+     * @returns {Promise} Returns a promise that resolves with contents of template file
+     */
+    loadTemplate: function (path, el) {
+        return new Promise(function (resolve) {
+            if (path) {
+                return request(path).then(function (contents) {
+                    if (el) {
+                        el.innerHTML = contents;
+                        contents = el;
+                    }
+                    resolve(contents);
+                });
+            } else {
+                // no path was supplied
+                resolve();
+            }
+        });
+    },
+
+    /**
+     * Makes sure that a path is converted to an array.
+     * @param paths
+     * @returns {*}
+     * @private
+     */
+    _ensurePathArray: function (paths) {
+        if (!paths) {
+            paths = [];
+        } else if (typeof paths === 'string') {
+            paths = [paths];
+        }
+        return paths;
+    },
+
+    /**
+     * Removes all cached resources.
+     * @memberOf ResourceManager
+     */
+    flush: function () {
+        this.unloadCss(Object.getOwnPropertyNames(this._cssPaths));
+        this._cssPaths = {};
+        this.unloadScript(Object.getOwnPropertyNames(this._scriptPaths));
+        this._scriptPaths = {};
+        this._dataPromises = {};
+        this._loadScriptPromise = null;
+    }
+
+};
+
+module.exports = new ResourceManager();
+},{"jquery":43,"promise":46}],45:[function(require,module,exports){
 'use strict';
 
 var Promise = require('promise');
@@ -17310,25 +17558,22 @@ Module.prototype = {
     },
 
     /**
-     * Gets the data for the template to show on the page.
+     * Makes a request to get the data for the module.
+     * @returns {Promise}
+     * @deprecated since 1.0.5
+     */
+    getData: function () {
+        return this.fetchData.apply(this, arguments);
+    },
+
+    /**
+     * Makes a request to get the data for the module.
+     * @param {string} url - The url to fetch data from
+     * @param [options] - ajax options
      * @returns {*}
      */
-    getData: function (dataUrl) {
-        return new Promise(function (resolve, reject) {
-            if (dataUrl) {
-                var defaultOptions = {
-                    url: dataUrl,
-                    success: function (data) {
-                        data = this.serializeData(data);
-                        resolve(data);
-                    }.bind(this),
-                    error: reject
-                };
-                $.ajax(defaultOptions);
-            } else {
-                resolve();
-            }
-        }.bind(this));
+    fetchData: function (url, options) {
+        return ResourceManager.fetchData(url, options);
     },
 
     /**
@@ -17375,12 +17620,12 @@ Module.prototype = {
 
 
 module.exports = Module;
-},{"jquery":43,"promise":45,"resource-manager-js":55,"underscore":56}],45:[function(require,module,exports){
+},{"jquery":43,"promise":46,"resource-manager-js":44,"underscore":57}],46:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib')
 
-},{"./lib":50}],46:[function(require,module,exports){
+},{"./lib":51}],47:[function(require,module,exports){
 'use strict';
 
 var asap = require('asap/raw')
@@ -17552,7 +17797,7 @@ function doResolve(fn, promise) {
     promise._67(LAST_ERROR)
   }
 }
-},{"asap/raw":54}],47:[function(require,module,exports){
+},{"asap/raw":55}],48:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js')
@@ -17566,7 +17811,7 @@ Promise.prototype.done = function (onFulfilled, onRejected) {
     }, 0)
   })
 }
-},{"./core.js":46}],48:[function(require,module,exports){
+},{"./core.js":47}],49:[function(require,module,exports){
 'use strict';
 
 //This file contains the ES6 extensions to the core Promises/A+ API
@@ -17672,7 +17917,7 @@ Promise.prototype['catch'] = function (onRejected) {
   return this.then(null, onRejected);
 }
 
-},{"./core.js":46,"asap/raw":54}],49:[function(require,module,exports){
+},{"./core.js":47,"asap/raw":55}],50:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js')
@@ -17690,7 +17935,7 @@ Promise.prototype['finally'] = function (f) {
   })
 }
 
-},{"./core.js":46}],50:[function(require,module,exports){
+},{"./core.js":47}],51:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./core.js')
@@ -17699,7 +17944,7 @@ require('./finally.js')
 require('./es6-extensions.js')
 require('./node-extensions.js')
 
-},{"./core.js":46,"./done.js":47,"./es6-extensions.js":48,"./finally.js":49,"./node-extensions.js":51}],51:[function(require,module,exports){
+},{"./core.js":47,"./done.js":48,"./es6-extensions.js":49,"./finally.js":50,"./node-extensions.js":52}],52:[function(require,module,exports){
 'use strict';
 
 //This file contains then/promise specific extensions that are only useful for node.js interop
@@ -17764,7 +18009,7 @@ Promise.prototype.nodeify = function (callback, ctx) {
   })
 }
 
-},{"./core.js":46,"asap":52}],52:[function(require,module,exports){
+},{"./core.js":47,"asap":53}],53:[function(require,module,exports){
 "use strict";
 
 // rawAsap provides everything we need except exception management.
@@ -17832,7 +18077,7 @@ RawTask.prototype.call = function () {
     }
 };
 
-},{"./raw":53}],53:[function(require,module,exports){
+},{"./raw":54}],54:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -18057,7 +18302,7 @@ rawAsap.makeRequestCallFromTimer = makeRequestCallFromTimer;
 
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],54:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 (function (process){
 "use strict";
 
@@ -18163,7 +18408,7 @@ function requestFlush() {
 
 
 }).call(this,require('_process'))
-},{"_process":5,"domain":2}],55:[function(require,module,exports){
+},{"_process":5,"domain":2}],56:[function(require,module,exports){
 var Promise = require('promise');
 
 /**
@@ -18379,7 +18624,7 @@ ResourceManager.prototype = {
 };
 
 module.exports = new ResourceManager();
-},{"promise":45}],56:[function(require,module,exports){
+},{"promise":46}],57:[function(require,module,exports){
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -19929,7 +20174,7 @@ module.exports = new ResourceManager();
   }
 }.call(this));
 
-},{}],57:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 'use strict';
 var Module = require('module.js');
 var Promise = require('promise');
@@ -20005,7 +20250,7 @@ var Page = Module.extend({
 });
 
 module.exports = Page;
-},{"element-kit":6,"module.js":44,"promise":45}],58:[function(require,module,exports){
+},{"element-kit":6,"module.js":45,"promise":46}],59:[function(require,module,exports){
 'use strict';
 var ResourceManager = require('resource-manager-js');
 var Promise = require('promise');
@@ -20058,7 +20303,6 @@ RouteManager.prototype = /** @lends RouteManager */{
 
         this._pageMaps = {};
         this._globalModuleMaps = {};
-        this._pageMethodMap = {};
         this.history = [];
 
         // setup helpers
@@ -20103,8 +20347,6 @@ RouteManager.prototype = /** @lends RouteManager */{
         this._pageMaps = {};
         this._config.pages = {};
         this._config.modules = {};
-        this._globalModuleMaps = {};
-        this._pageMethodMap = {};
     },
 
     /**
@@ -20112,6 +20354,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     stop: function () {
         this.reset();
+        this._globalModuleMaps = {};
         window.removeEventListener('popstate', this._getOnPopStateListener());
         EventHandler.destroyTarget(this);
     },
@@ -20301,9 +20544,9 @@ RouteManager.prototype = /** @lends RouteManager */{
             pageMap.promise = this.loadGlobalModules().then(function () {
                 return this.loadPageScript(config.script).then(function (page) {
                     pageMap.page = page;
-                    return this.triggerPageMethod(pageKey, 'getStyles', config.styles).then(function () {
-                        return this.triggerPageMethod(pageKey, 'getTemplate', config.template).then(function (html) {
-                            return this.triggerPageMethod(pageKey, 'getData', config.data).then(function (data) {
+                    return page.getStyles(config.styles).then(function () {
+                        return page.getTemplate(config.template).then(function (html) {
+                            return page.fetchData(config.data, {cache: true}).then(function (data) {
                                 html = html || '';
                                 if (data) {
                                     html = Handlebars.compile(html)(data);
@@ -20326,27 +20569,6 @@ RouteManager.prototype = /** @lends RouteManager */{
             return pageMap.promise;
         } else {
             return this._pageMaps[pageKey].promise;
-        }
-    },
-
-    /**
-     * Calls a method on a page instance (if hasnt been requested).
-     * If method has been requested, it gives the cached version of its return value.
-     * @param {string} pageKey - the page identifier
-     * @param {string} method - The method on the page instance to call
-     * @param {...*} [params] - The method will be passed parameters from this point onward
-     * @returns {*} Returns whatever the method returns
-     */
-    triggerPageMethod: function (pageKey, method) {
-        var page = this._pageMaps[pageKey].page,
-            args = Array.prototype.slice.call(arguments, 2),
-            map = this._pageMethodMap[method];
-
-        if (map) {
-            return map[method];
-        } else {
-            map = this._pageMethodMap[method] = page[method].apply(page, args);
-            return map;
         }
     },
 
@@ -20441,7 +20663,7 @@ RouteManager.prototype = /** @lends RouteManager */{
             moduleMap.module = module;
             return module.getStyles(config.styles).then(function () {
                 return module.getTemplate(config.template).then(function (html) {
-                    return module.getData(config.data).then(function (data) {
+                    return module.fetchData(config.data, {cache: true}).then(function (data) {
                         // use page data as fallback
                         data = _.extend({}, pageMap.data, data);
                         html = html ? Handlebars.compile(html)(data): '';
@@ -20475,7 +20697,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                 map.promise = this.loadModuleScript(config.script).then(function (module) {
                     return module.getStyles(config.styles).then(function () {
                         return module.getTemplate(config.template).then(function (html) {
-                            return module.getData(config.data).then(function (data) {
+                            return module.fetchData(config.data, {cache: true}).then(function (data) {
                                 html = html ? Handlebars.compile(html)(data || {}): '';
                                 // inject modules into page DOM
                                 var div = document.createElement('div');
@@ -20561,4 +20783,4 @@ RouteManager.prototype = /** @lends RouteManager */{
 module.exports = function (options) {
     return new RouteManager(options);
 };
-},{"./page":57,"event-handler":11,"handlebars":31,"handlebars-helper-slugify":12,"module.js":44,"path":4,"promise":45,"resource-manager-js":55,"underscore":56}]},{},[58]);
+},{"./page":58,"event-handler":11,"handlebars":31,"handlebars-helper-slugify":12,"module.js":45,"path":4,"promise":46,"resource-manager-js":56,"underscore":57}]},{},[59]);
