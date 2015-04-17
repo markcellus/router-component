@@ -22,6 +22,7 @@ describe('Route Manager', function () {
         mockPage.show.returns(Promise.resolve());
         mockPage.getStyles.returns(Promise.resolve());
         mockPage.getData.returns(Promise.resolve());
+        mockPage.fetchData.returns(Promise.resolve());
         // setup module and set defaults
         mockModule = sinon.createStubInstance(Module);
         mockModule.getTemplate.returns(Promise.resolve());
@@ -790,88 +791,4 @@ describe('Route Manager', function () {
             });
         });
     });
-
-    it('should only request a page\'s getData() url once if used on multiple pages', function () {
-        var pageUrl = 'my/page/url';
-        var secondPageUrl = 'second/page/url';
-        var routesConfig = {pages: {}, modules: {}};
-        var pageScriptUrl = 'path/to/page/script';
-        var dataUrl = 'my/path/to/data/one';
-        routesConfig.pages[pageUrl] = {
-            script: pageScriptUrl,
-            data: dataUrl
-        };
-        routesConfig.pages[secondPageUrl] = {
-            script: pageScriptUrl,
-            data: dataUrl
-        };
-        var pageHtml = '<div></div>';
-        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-        var pagesContainer = document.createElement('div');
-        var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
-        requireStub.withArgs(pageScriptUrl).returns(mockPage);
-        RouteManager.start();
-        return RouteManager.triggerRoute(pageUrl).then(function () {
-            return RouteManager.triggerRoute(secondPageUrl).then(function () {
-                assert.equal(mockPage.getData.callCount, 1,  'getData() call was only triggered once');
-                RouteManager.stop();
-            });
-        });
-    });
-
-    it('should only request a page\'s getTemplate() url once if used on multiple pages', function () {
-        var pageUrl = 'my/page/url';
-        var secondPageUrl = 'second/page/url';
-        var routesConfig = {pages: {}, modules: {}};
-        var pageScriptUrl = 'path/to/page/script';
-        var dataUrl = 'my/path/to/data/one';
-        routesConfig.pages[pageUrl] = {
-            script: pageScriptUrl,
-            data: dataUrl
-        };
-        routesConfig.pages[secondPageUrl] = {
-            script: pageScriptUrl,
-            data: dataUrl
-        };
-        var pageHtml = '<div></div>';
-        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-        var pagesContainer = document.createElement('div');
-        var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
-        requireStub.withArgs(pageScriptUrl).returns(mockPage);
-        RouteManager.start();
-        return RouteManager.triggerRoute(pageUrl).then(function () {
-            return RouteManager.triggerRoute(secondPageUrl).then(function () {
-                assert.equal(mockPage.getTemplate.callCount, 1,  'getTemplate() call was only triggered once');
-                RouteManager.stop();
-            });
-        });
-    });
-
-    it('should only request a page\'s getStyles() url once if used on multiple pages', function () {
-        var pageUrl = 'my/page/url';
-        var secondPageUrl = 'second/page/url';
-        var routesConfig = {pages: {}, modules: {}};
-        var stylesUrl = 'my/styles.css';
-        routesConfig.pages[pageUrl] = {
-            styles: [stylesUrl]
-        };
-        routesConfig.pages[secondPageUrl] = {
-            styles: [stylesUrl]
-        };
-        var pagesContainer = document.createElement('div');
-        var RouteManager = require('route-manager')({
-            config: routesConfig,
-            pagesContainerEl: pagesContainer
-        });
-        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
-        RouteManager.start();
-        return RouteManager.triggerRoute(pageUrl).then(function () {
-            return RouteManager.triggerRoute(secondPageUrl).then(function () {
-                assert.equal(mockPage.getStyles.callCount, 1,  'getStyles() call was only triggered once');
-                RouteManager.stop();
-                loadPageScriptStub.restore();
-            });
-        });
-    });
-
 });
