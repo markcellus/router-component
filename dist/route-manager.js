@@ -1,5 +1,5 @@
 /** 
-* route-manager - v1.0.1.
+* route-manager - v1.1.0.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -1181,6 +1181,7 @@ module.exports = Element;
 
 var utils = require('./utils');
 var Element = require('./element');
+var Promise = require('promise');
 
 /**
  * A class from which all image elements are based.
@@ -1194,37 +1195,41 @@ var ImageElement = function (el) {
 ImageElement.prototype = utils.extend({}, Element.prototype, {
     /**
      * Loads the image asset from a provided source url.
-     * @param {string} srcAttr - The attribute on the element which has the image source url or any url
-     * @param {Function} [callback] - The callback fired when the image has loaded
+     * @param {string} src - The attribute on the element which has the image source url or any url
      */
-    load: function (srcAttr, callback) {
-        var el = this.el,
-            src = el.getAttribute(srcAttr) || srcAttr;
+    load: function (src) {
+
+        src = this.el.getAttribute(src) || src;
 
         if (!src) {
-            console.warn('ElementKit error: ImageElement has no "' + srcAttr + '" attribute to load');
+            console.warn('ElementKit error: undefined was passed to load() call');
+            return Promise.resolve();
         }
 
         if (src.indexOf(',') !== -1) {
             // image is a srcset!
             src = this._getImageSourceSetPath(src);
         }
-        this._loadImage(src, callback);
-        return this;
+        return this._loadImage(src);
     },
 
     /**
      * Loads an image in a virtual DOM which will be cached in the browser and shown.
      * @param {string} src - The image source url
-     * @param {Function} callback - Function that is called when image has loaded
      * @private
+     * @returns {Promise}
      */
-    _loadImage: function (src, callback) {
+    _loadImage: function (src) {
         var img = this.el;
-        img.onload = function () {
-            callback ? callback(img) : null;
-        };
-        img.src = src;
+        return new Promise(function (resolve, reject) {
+            img.onload = function () {
+                resolve(img);
+            };
+            img.onerror = function () {
+                reject(new Error('ImageElement error: image path "' + src + '" returned an error'));
+            };
+            img.src = src;
+        });
     },
 
     /**
@@ -1286,7 +1291,7 @@ ImageElement.prototype = utils.extend({}, Element.prototype, {
 });
 
 module.exports = ImageElement;
-},{"./element":8,"./utils":10}],10:[function(require,module,exports){
+},{"./element":8,"./utils":10,"promise":45}],10:[function(require,module,exports){
 module.exports = {
     /**
      * Creates an HTML Element from an html string.
@@ -20053,6 +20058,7 @@ RouteManager.prototype = /** @lends RouteManager */{
 
         this._pageMaps = {};
         this._globalModuleMaps = {};
+        this._pageMethodMap = {};
         this.history = [];
 
         // setup helpers
@@ -20097,6 +20103,8 @@ RouteManager.prototype = /** @lends RouteManager */{
         this._pageMaps = {};
         this._config.pages = {};
         this._config.modules = {};
+        this._globalModuleMaps = {};
+        this._pageMethodMap = {};
     },
 
     /**
@@ -20104,7 +20112,6 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     stop: function () {
         this.reset();
-        this._globalModuleMaps = {};
         window.removeEventListener('popstate', this._getOnPopStateListener());
         EventHandler.destroyTarget(this);
     },
@@ -20294,9 +20301,9 @@ RouteManager.prototype = /** @lends RouteManager */{
             pageMap.promise = this.loadGlobalModules().then(function () {
                 return this.loadPageScript(config.script).then(function (page) {
                     pageMap.page = page;
-                    return page.getStyles(config.styles).then(function () {
-                        return page.getTemplate(config.template).then(function (html) {
-                            return page.getData(config.data).then(function (data) {
+                    return this.triggerPageMethod(pageKey, 'getStyles', config.styles).then(function () {
+                        return this.triggerPageMethod(pageKey, 'getTemplate', config.template).then(function (html) {
+                            return this.triggerPageMethod(pageKey, 'getData', config.data).then(function (data) {
                                 html = html || '';
                                 if (data) {
                                     html = Handlebars.compile(html)(data);
@@ -20322,6 +20329,26 @@ RouteManager.prototype = /** @lends RouteManager */{
         }
     },
 
+    /**
+     * Calls a method on a page instance (if hasnt been requested).
+     * If method has been requested, it gives the cached version of its return value.
+     * @param {string} pageKey - the page identifier
+     * @param {string} method - The method on the page instance to call
+     * @param {...*} [params] - The method will be passed parameters from this point onward
+     * @returns {*} Returns whatever the method returns
+     */
+    triggerPageMethod: function (pageKey, method) {
+        var page = this._pageMaps[pageKey].page,
+            args = Array.prototype.slice.call(arguments, 2),
+            map = this._pageMethodMap[method];
+
+        if (map) {
+            return map[method];
+        } else {
+            map = this._pageMethodMap[method] = page[method].apply(page, args);
+            return map;
+        }
+    },
 
     /**
      * Hides the previous page if a new one is requested.
