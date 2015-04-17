@@ -444,7 +444,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                 map.promise = this.loadModuleScript(config.script).then(function (module) {
                     return module.getStyles(config.styles).then(function () {
                         return module.getTemplate(config.template).then(function (html) {
-                            return module.getData(config.data).then(function (data) {
+                            return module.fetchData(config.data, {cache: true}).then(function (data) {
                                 html = html ? Handlebars.compile(html)(data || {}): '';
                                 // inject modules into page DOM
                                 var div = document.createElement('div');
