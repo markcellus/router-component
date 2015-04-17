@@ -1,5 +1,5 @@
 /** 
-* route-manager - v1.1.2.
+* route-manager - v1.1.3.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20568,7 +20568,12 @@ RouteManager.prototype = /** @lends RouteManager */{
             }.bind(this));
             return pageMap.promise;
         } else {
-            return this._pageMaps[pageKey].promise;
+            return this._pageMaps[pageKey].promise.then(function (page) {
+                _.each(this._pageMaps[pageKey].modules, function (moduleMap) {
+                    moduleMap.module.show();
+                });
+                return page;
+            }.bind(this));
         }
     },
 
@@ -20583,8 +20588,13 @@ RouteManager.prototype = /** @lends RouteManager */{
         // hide previous page if exists
         if (previousPath && this._pageMaps[previousPath] && this._pageMaps[previousPath].promise) {
             return this._pageMaps[previousPath].promise.then(function (page) {
-                page.hide();
-            });
+                page.hide().then(function () {
+                    // call hide on all of pages modules
+                    _.each(this._pageMaps[previousPath].modules, function (moduleMap) {
+                        moduleMap.module.hide();
+                    }.bind(this));
+                }.bind(this));
+            }.bind(this));
         } else {
             return Promise.resolve();
         }
@@ -20639,7 +20649,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                     frag.appendChild(moduleMap.el);
                 }
             });
-            if (pageMap.page.el) {
+            if (pageMap.page.el && pageMap.page.el.children[0]) {
                 pageMap.page.el.children[0].appendChild(frag);
             }
         });
@@ -20674,7 +20684,9 @@ RouteManager.prototype = /** @lends RouteManager */{
                         moduleMap.el = div.children[0];
                         moduleMap.html = html;
                         return module.load({el: moduleMap.el, data: data}).then(function () {
-                            return moduleMap;
+                            return module.show().then(function () {
+                                return moduleMap;
+                            });
                         });
                     }.bind(this));
                 }.bind(this));
