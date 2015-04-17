@@ -315,7 +315,12 @@ RouteManager.prototype = /** @lends RouteManager */{
             }.bind(this));
             return pageMap.promise;
         } else {
-            return this._pageMaps[pageKey].promise;
+            return this._pageMaps[pageKey].promise.then(function () {
+                // call show on modules
+                _.each(this._pageMaps[pageKey].modules, function (moduleMap) {
+                    moduleMap.module.show();
+                });
+            }.bind(this));
         }
     },
 
@@ -326,12 +331,19 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     _handlePreviousPage: function () {
         var prevHistory = this.history[this.history.length - 2] || {},
-            previousPath = this._getRouteMapKeyByPath(prevHistory.path);
+            previousPath = this._getRouteMapKeyByPath(prevHistory.path),
+            moduleShowPromises = [];
         // hide previous page if exists
         if (previousPath && this._pageMaps[previousPath] && this._pageMaps[previousPath].promise) {
             return this._pageMaps[previousPath].promise.then(function (page) {
-                page.hide();
-            });
+                page.hide().then(function () {
+                    // call hide on all of pages modules
+                    _.each(this._pageMaps[previousPath].modules, function (moduleMap) {
+                        moduleShowPromises.push(moduleMap.module.hide());
+                    }.bind(this));
+                    return Promise.all(moduleShowPromises);
+                }.bind(this));
+            }.bind(this));
         } else {
             return Promise.resolve();
         }
@@ -421,7 +433,9 @@ RouteManager.prototype = /** @lends RouteManager */{
                         moduleMap.el = div.children[0];
                         moduleMap.html = html;
                         return module.load({el: moduleMap.el, data: data}).then(function () {
-                            return moduleMap;
+                            return module.show().then(function () {
+                                return moduleMap;
+                            });
                         });
                     }.bind(this));
                 }.bind(this));

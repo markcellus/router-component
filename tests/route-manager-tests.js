@@ -19,6 +19,7 @@ describe('Route Manager', function () {
         mockPage = sinon.createStubInstance(Page);
         mockPage.getTemplate.returns(Promise.resolve());
         mockPage.load.returns(Promise.resolve());
+        mockPage.hide.returns(Promise.resolve());
         mockPage.show.returns(Promise.resolve());
         mockPage.getStyles.returns(Promise.resolve());
         mockPage.fetchData.returns(Promise.resolve());
@@ -27,6 +28,7 @@ describe('Route Manager', function () {
         mockModule.getTemplate.returns(Promise.resolve());
         mockModule.load.returns(Promise.resolve());
         mockModule.show.returns(Promise.resolve());
+        mockModule.hide.returns(Promise.resolve());
         mockModule.getStyles.returns(Promise.resolve());
         mockModule.fetchData.returns(Promise.resolve());
 
@@ -787,6 +789,97 @@ describe('Route Manager', function () {
         return RouteManager.triggerRoute(pageUrl).then(function () {
             return RouteManager.triggerRoute(secondPageUrl).then(function () {
                 assert.equal(mockModule.appendEl.callCount, 1,  'module\'s appendEl() call was only triggered once');
+                RouteManager.stop();
+            });
+        });
+    });
+
+    it('all modules associated with a page should show() when requesting a url to a page that has the modules designated', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var firstModuleName = 'myFIRSTCustomModule';
+        var firstModuleScriptUrl = 'path/to/first/script';
+        var secondModuleName = 'myCustomModule2';
+        var secondModuleScriptUrl = 'second/path/to/second/script';
+        routesConfig.modules[firstModuleName] = {
+            script: firstModuleScriptUrl
+        };
+        routesConfig.modules[secondModuleName] = {
+            script: secondModuleScriptUrl
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        routesConfig.pages[pageUrl] = {
+            modules: [
+                secondModuleName,
+                firstModuleName
+            ],
+            script: pageScriptUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var RouteManager = require('route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        var firstMockModule = new Module();
+        var firstModuleShowSpy = sinon.spy(firstMockModule, 'show');
+        var secondMockModule = new Module();
+        var secondModuleShowSpy = sinon.spy(secondMockModule, 'show');
+        requireStub.withArgs(firstModuleScriptUrl).returns(firstMockModule);
+        requireStub.withArgs(secondModuleScriptUrl).returns(secondMockModule);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            assert.equal(firstModuleShowSpy.callCount, 1, 'first modules show() method was called');
+            assert.equal(secondModuleShowSpy.callCount, 1, 'second modules show() method was called');
+            RouteManager.stop();
+        });
+    });
+
+    it('all modules associated with a page should hide() when navigation away from it', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var firstModuleName = 'myFIRSTCustomModule';
+        var firstModuleScriptUrl = 'path/to/first/script';
+        var secondModuleName = 'myCustomModule2';
+        var secondModuleScriptUrl = 'second/path/to/second/script';
+        routesConfig.modules[firstModuleName] = {
+            script: firstModuleScriptUrl
+        };
+        routesConfig.modules[secondModuleName] = {
+            script: secondModuleScriptUrl
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        routesConfig.pages[pageUrl] = {
+            modules: [
+                secondModuleName,
+                firstModuleName
+            ],
+            script: pageScriptUrl
+        };
+        var secondPageUrl = 'path/to/second/page';
+        routesConfig.pages[secondPageUrl] = {
+            script: pageScriptUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var RouteManager = require('route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        var firstMockModule = new Module();
+        var firstModuleHideStub = sinon.stub(firstMockModule, 'hide').returns(Promise.resolve());
+        var secondMockModule = new Module();
+        var secondModuleHideStub = sinon.stub(secondMockModule, 'hide').returns(Promise.resolve());
+        requireStub.withArgs(firstModuleScriptUrl).returns(firstMockModule);
+        requireStub.withArgs(secondModuleScriptUrl).returns(secondMockModule);
+        // hijack url history registrar for internal test implementation
+        RouteManager.registerUrlHistory = function (path) {
+            //ensure history reflects first path state
+            RouteManager.history.push({path: path});
+        };
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            return RouteManager.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(firstModuleHideStub.callCount, 1, 'first modules hide() method was called');
+                assert.equal(secondModuleHideStub.callCount, 1, 'second modules hide() method was called');
                 RouteManager.stop();
             });
         });
