@@ -50,6 +50,7 @@ RouteManager.prototype = /** @lends RouteManager */{
 
         this._pageMaps = {};
         this._globalModuleMaps = {};
+        this._pageMethodMap = {};
         this.history = [];
 
         // setup helpers
@@ -94,6 +95,8 @@ RouteManager.prototype = /** @lends RouteManager */{
         this._pageMaps = {};
         this._config.pages = {};
         this._config.modules = {};
+        this._globalModuleMaps = {};
+        this._pageMethodMap = {};
     },
 
     /**
@@ -101,7 +104,6 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     stop: function () {
         this.reset();
-        this._globalModuleMaps = {};
         window.removeEventListener('popstate', this._getOnPopStateListener());
         EventHandler.destroyTarget(this);
     },
@@ -291,9 +293,9 @@ RouteManager.prototype = /** @lends RouteManager */{
             pageMap.promise = this.loadGlobalModules().then(function () {
                 return this.loadPageScript(config.script).then(function (page) {
                     pageMap.page = page;
-                    return page.getStyles(config.styles).then(function () {
-                        return page.getTemplate(config.template).then(function (html) {
-                            return page.getData(config.data).then(function (data) {
+                    return this.triggerPageMethod(pageKey, 'getStyles', config.styles).then(function () {
+                        return this.triggerPageMethod(pageKey, 'getTemplate', config.template).then(function (html) {
+                            return this.triggerPageMethod(pageKey, 'getData', config.data).then(function (data) {
                                 html = html || '';
                                 if (data) {
                                     html = Handlebars.compile(html)(data);
@@ -319,6 +321,26 @@ RouteManager.prototype = /** @lends RouteManager */{
         }
     },
 
+    /**
+     * Calls a method on a page instance (if hasnt been requested).
+     * If method has been requested, it gives the cached version of its return value.
+     * @param {string} pageKey - the page identifier
+     * @param {string} method - The method on the page instance to call
+     * @param {...*} [params] - The method will be passed parameters from this point onward
+     * @returns {*} Returns whatever the method returns
+     */
+    triggerPageMethod: function (pageKey, method) {
+        var page = this._pageMaps[pageKey].page,
+            args = Array.prototype.slice.call(arguments, 2),
+            map = this._pageMethodMap[method];
+
+        if (map) {
+            return map[method];
+        } else {
+            map = this._pageMethodMap[method] = page[method].apply(page, args);
+            return map;
+        }
+    },
 
     /**
      * Hides the previous page if a new one is requested.

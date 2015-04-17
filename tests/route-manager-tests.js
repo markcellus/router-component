@@ -672,92 +672,206 @@ describe('Route Manager', function () {
         });
     });
 
-    //it('should only load modules that are global once, even when module is assigned to multiple pages in routes config', function () {
-    //    // setup
-    //    var pageUrl = 'my/page/url';
-    //    var secondPageUrl = 'second/page/url';
-    //    var routesConfig = {pages: {}, modules: {}};
-    //    var moduleName = 'customModule';
-    //    var moduleScriptUrl = 'path/to/module/script';
-    //    var moduleHtml = "<div>my module content</div>";
-    //    var moduleTemplateUrl = 'url/to/my/template';
-    //    routesConfig.modules[moduleName] = {
-    //        template: moduleTemplateUrl,
-    //        script: moduleScriptUrl,
-    //        global: true
-    //    };
-    //    var pageScriptUrl = 'path/to/page/script';
-    //    var pageTemplateUrl = 'url/to/my/template';
-    //    routesConfig.pages[pageUrl] = {
-    //        template: pageTemplateUrl,
-    //        modules: [moduleName],
-    //        script: pageScriptUrl
-    //    };
-    //    routesConfig.pages[secondPageUrl] = {
-    //        template: pageTemplateUrl,
-    //        modules: [moduleName],
-    //        script: pageScriptUrl
-    //    };
-    //    var pageHtml = '<div></div>';
-    //    mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-    //    var pagesContainer = document.createElement('div');
-    //    var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
-    //    requireStub.withArgs(pageScriptUrl).returns(mockPage);
-    //    mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
-    //    requireStub.returns(mockModule);
-    //    RouteManager.start();
-    //    return RouteManager.triggerRoute(pageUrl).then(function () {
-    //        return RouteManager.triggerRoute(secondPageUrl).then(function () {
-    //            assert.equal(mockPage.load.callCount, 1,  'load call was only triggered once even though module appears on both pages');
-    //            RouteManager.stop();
-    //        });
-    //    });
-    //});
+    it('should only load modules that are global once, even when module is assigned to multiple pages in routes config', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var secondPageUrl = 'second/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleHtml = "<div>my module content</div>";
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        routesConfig.pages[secondPageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var pagesContainer = document.createElement('div');
+        var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            return RouteManager.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(mockModule.load.callCount, 1,  'load call was only triggered once even though module appears on multiple pages');
+                RouteManager.stop();
+            });
+        });
+    });
 
-    //it('should load a modules template on multiple pages, even if module is a singleton', function () {
-    //    // setup
-    //    var pageUrl = 'my/page/url';
-    //    var secondPageUrl = 'second/page/url';
-    //    var routesConfig = {pages: {}, modules: {}};
-    //    var moduleName = 'customModule';
-    //    var moduleScriptUrl = 'path/to/module/script';
-    //    var moduleHtml = "<div>my module content</div>";
-    //    var moduleTemplateUrl = 'url/to/my/template';
-    //    routesConfig.modules[moduleName] = {
-    //        template: moduleTemplateUrl,
-    //        script: moduleScriptUrl
-    //    };
-    //    var pageScriptUrl = 'path/to/page/script';
-    //    var pageTemplateUrl = 'url/to/my/template';
-    //    routesConfig.pages[pageUrl] = {
-    //        template: pageTemplateUrl,
-    //        modules: [moduleName],
-    //        script: pageScriptUrl
-    //    };
-    //    routesConfig.pages[secondPageUrl] = {
-    //        template: pageTemplateUrl,
-    //        modules: [moduleName],
-    //        script: pageScriptUrl
-    //    };
-    //    var pageHtml = '<div></div>';
-    //    mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-    //    var pagesContainer = document.createElement('div');
-    //    var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
-    //    requireStub.withArgs(pageScriptUrl).returns(mockPage);
-    //    mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
-    //    requireStub.returns(mockModule);
-    //    RouteManager.start();
-    //    // assume pages el is already created on instantiation
-    //    mockPage.el = document.createElement('div');
-    //    return RouteManager.triggerRoute(pageUrl).then(function () {
-    //        return RouteManager.triggerRoute(secondPageUrl).then(function () {
-    //            var firstPageEl = pagesContainer.children[0];
-    //            var secondPageEl = pagesContainer.children[1];
-    //            assert.equal(firstPageEl.innerHTML, moduleHtml,  'first module html was appended first because it was specified first in routes config');
-    //            assert.equal(secondPageEl.innerHTML, moduleHtml,  'second module html was appended first because it was specified first in routes config');
-    //            RouteManager.stop();
-    //        });
-    //    });
-    //});
+    it('should call global module\'s appendEl() method with correct parameters once', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleHtml = "<div>my module content</div>";
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var pagesContainer = document.createElement('div');
+        var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
+        mockModule.appendEl = sinon.spy();
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.appendEl.args[0][0].outerHTML, moduleHtml,  'module\'s appendEl() call was triggered with el containing correct html content');
+            RouteManager.stop();
+        });
+    });
+
+    it('should call global module\'s appendEl() method with correct parameters once, even when specified for multiple pages', function () {
+        var pageUrl = 'my/page/url';
+        var secondPageUrl = 'second/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleHtml = "<div>my module content</div>";
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        routesConfig.pages[secondPageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var pagesContainer = document.createElement('div');
+        var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
+        mockModule.appendEl = sinon.spy();
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            return RouteManager.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(mockModule.appendEl.callCount, 1,  'module\'s appendEl() call was only triggered once');
+                RouteManager.stop();
+            });
+        });
+    });
+
+    it('should only request a page\'s getData() url once if used on multiple pages', function () {
+        var pageUrl = 'my/page/url';
+        var secondPageUrl = 'second/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var pageScriptUrl = 'path/to/page/script';
+        var dataUrl = 'my/path/to/data/one';
+        routesConfig.pages[pageUrl] = {
+            script: pageScriptUrl,
+            data: dataUrl
+        };
+        routesConfig.pages[secondPageUrl] = {
+            script: pageScriptUrl,
+            data: dataUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var pagesContainer = document.createElement('div');
+        var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            return RouteManager.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(mockPage.getData.callCount, 1,  'getData() call was only triggered once');
+                RouteManager.stop();
+            });
+        });
+    });
+
+    it('should only request a page\'s getTemplate() url once if used on multiple pages', function () {
+        var pageUrl = 'my/page/url';
+        var secondPageUrl = 'second/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var pageScriptUrl = 'path/to/page/script';
+        var dataUrl = 'my/path/to/data/one';
+        routesConfig.pages[pageUrl] = {
+            script: pageScriptUrl,
+            data: dataUrl
+        };
+        routesConfig.pages[secondPageUrl] = {
+            script: pageScriptUrl,
+            data: dataUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var pagesContainer = document.createElement('div');
+        var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            return RouteManager.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(mockPage.getTemplate.callCount, 1,  'getTemplate() call was only triggered once');
+                RouteManager.stop();
+            });
+        });
+    });
+
+    it('should only request a page\'s getStyles() url once if used on multiple pages', function () {
+        var pageUrl = 'my/page/url';
+        var secondPageUrl = 'second/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var stylesUrl = 'my/styles.css';
+        routesConfig.pages[pageUrl] = {
+            styles: [stylesUrl]
+        };
+        routesConfig.pages[secondPageUrl] = {
+            styles: [stylesUrl]
+        };
+        var pagesContainer = document.createElement('div');
+        var RouteManager = require('route-manager')({
+            config: routesConfig,
+            pagesContainerEl: pagesContainer
+        });
+        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            return RouteManager.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(mockPage.getStyles.callCount, 1,  'getStyles() call was only triggered once');
+                RouteManager.stop();
+                loadPageScriptStub.restore();
+            });
+        });
+    });
 
 });
