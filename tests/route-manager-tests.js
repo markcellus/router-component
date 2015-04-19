@@ -13,7 +13,10 @@ describe('Route Manager', function () {
     beforeEach(function () {
         // don't change url of test page!
         origPushState = window.history.pushState;
-        window.history.pushState = sinon.stub();
+        // make any push to history reflect that history
+        window.history.pushState = function (state) {
+            window.history.state = state;
+        };
 
         // set up mock page and set defaults
         mockPage = sinon.createStubInstance(Page);
@@ -76,12 +79,15 @@ describe('Route Manager', function () {
         var url = 'my/testable/url';
         var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
         RouteManager.start();
+        var origPushState = window.history.pushState;
+        window.history.pushState = sinon.stub();
         return RouteManager.triggerRoute(url)
             .then(function () {
                 assert.equal(window.history.pushState.args[0][0].path, url, 'history.pushState() was called with correct data history');
                 assert.equal(window.history.pushState.args[0][2], url, 'history.pushState() was called with correct url parameter');
-                loadPageStub.restore();
                 RouteManager.stop();
+                window.history.pushState = origPushState;
+                loadPageStub.restore();
             });
     });
 
@@ -437,26 +443,57 @@ describe('Route Manager', function () {
         });
     });
 
+    it('registerUrl() method should call window.history.pushState() with correct parameters', function () {
+        var pageUrl = 'my/real/url';
+        var RouteManager = require('route-manager')({config: {}});
+        RouteManager.start();
+        var origPushState = window.history.pushState;
+        window.history.pushState = sinon.stub();
+        RouteManager.registerUrl(pageUrl);
+        assert.equal(window.history.pushState.args[0][2], pageUrl, 'pushState was called with new url');
+        window.history.pushState = origPushState;
+        RouteManager.stop();
+    });
+
+    it('registerUrl() method should push current window state to RouteManager\'s history', function () {
+        var pageUrl = 'my/real/url';
+        var RouteManager = require('route-manager')({config: {}});
+        RouteManager.start();
+        var testHistoryState = {my: 'new window state'};
+        var origPushState = window.history.pushState;
+        window.history.pushState = sinon.stub();
+        window.history.state = testHistoryState;
+        RouteManager.registerUrl(pageUrl);
+        assert.deepEqual(RouteManager.history[0], testHistoryState);
+        window.history.pushState = origPushState;
+        RouteManager.stop();
+    });
+
+    it('registerUrl() method should return the registered url as the current path', function () {
+        var pageUrl = 'my/real/url';
+        var RouteManager = require('route-manager')({config: {}});
+        RouteManager.start();
+        RouteManager.registerUrl(pageUrl);
+        assert.equal(RouteManager.getRelativeUrl(), pageUrl);
+        RouteManager.stop();
+    });
+
     it('should load an intercepted url path via onRouteRequest callback instead of the original requested url', function () {
         var secondTestUrl = 'my/second/url';
-        var firstPageUrl = '^my/real/url';
-        var secondPageUrl = '^' + secondTestUrl;
+        var firstPageUrl = 'my/real/url';
+        var secondPageRouteRegex = '^' + secondTestUrl;
+        var firstPageRouteRegex = '^' + firstPageUrl;
         var firstPageScriptUrl = 'path/to/my/script.js';
         var secondPageScriptUrl = 'path/to/my/script2.js';
         var routesConfig = {pages: {}};
-        routesConfig.pages[firstPageUrl] = {script: firstPageScriptUrl};
-        routesConfig.pages[secondPageUrl] = {script: secondPageScriptUrl};
+        routesConfig.pages[firstPageRouteRegex] = {script: firstPageScriptUrl};
+        routesConfig.pages[secondPageRouteRegex] = {script: secondPageScriptUrl};
         var onRouteRequestStub = sinon.stub();
         var RouteManager = require('route-manager')({
             config: routesConfig,
             onRouteRequest: onRouteRequestStub
         });
         var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
-        // hijack url history registrar for internal test implementation
-        RouteManager.registerUrlHistory = function (path) {
-            //ensure history reflects first path state
-            RouteManager.history.push({path: path});
-        };
         RouteManager.start();
         // redirect to new route
         onRouteRequestStub.returns(Promise.resolve(secondTestUrl));
@@ -468,38 +505,62 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should call hide() on an overriding page when the original url that was called is triggered after it', function () {
-        var secondTestUrl = 'my/second/url';
-        var firstPageUrl = '^my/real/url';
-        var secondPageUrl = '^' + secondTestUrl;
+    it('should register the new url returned by onRouteRequest callback into history', function () {
+        var secondPageUrl = 'my/second/url';
+        var firstPageUrl = 'my/real/url';
+        var firstPageRouteRegex = '^' + firstPageUrl;
+        var secondPageRouteRegex = '^' + secondPageUrl;
         var firstPageScriptUrl = 'path/to/my/script.js';
         var secondPageScriptUrl = 'path/to/my/script2.js';
         var routesConfig = {pages: {}};
-        routesConfig.pages[firstPageUrl] = {script: firstPageScriptUrl};
-        routesConfig.pages[secondPageUrl] = {script: secondPageScriptUrl};
-        var firstMockPage = new Page();
-        var secondMockPage = new Page();
+        routesConfig.pages[firstPageRouteRegex] = {script: firstPageScriptUrl};
+        routesConfig.pages[secondPageRouteRegex] = {script: secondPageScriptUrl};
         var onRouteRequestStub = sinon.stub();
         var RouteManager = require('route-manager')({
             config: routesConfig,
             onRouteRequest: onRouteRequestStub
         });
-        resourceManagerLoadTemplateStub.returns(Promise.resolve());
-        requireStub.withArgs(firstPageScriptUrl).returns(firstMockPage);
-        requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
+        var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
+        var registerUrlStub = sinon.stub(RouteManager, 'registerUrl');
         RouteManager.start();
-        var pushStateCallCount = 0;
+        // redirect to new route
+        onRouteRequestStub.returns(Promise.resolve(secondPageUrl));
+        return RouteManager.triggerRoute(firstPageUrl).then(function () {
+            assert.equal(registerUrlStub.args[1][0], secondPageUrl, 'new url was passed to second registerUrl() call');
+            RouteManager.stop();
+            registerUrlStub.restore();
+            loadPageStub.restore();
+        });
+    });
+
+    it('should register the original url into history even if onRouteRequest callback returns a new url', function () {
+        var secondTestUrl = 'my/second/url';
+        var firstPageUrl = 'my/real/url';
+        var firstPageRouteRegex = '^' + firstPageUrl;
+        var secondPageRouteRegex = '^' + secondTestUrl;
+        var firstPageScriptUrl = 'path/to/my/script.js';
+        var secondPageScriptUrl = 'path/to/my/script2.js';
+        var routesConfig = {pages: {}};
+        routesConfig.pages[firstPageRouteRegex] = {script: firstPageScriptUrl};
+        routesConfig.pages[secondPageRouteRegex] = {script: secondPageScriptUrl};
+        var onRouteRequestStub = sinon.stub();
+        var RouteManager = require('route-manager')({
+            config: routesConfig,
+            onRouteRequest: onRouteRequestStub
+        });
+        var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
+        var registerUrlStub = sinon.stub(RouteManager, 'registerUrl');
+        RouteManager.start();
         // redirect to new route
         onRouteRequestStub.returns(Promise.resolve(secondTestUrl));
         return RouteManager.triggerRoute(firstPageUrl).then(function () {
-            pushStateCallCount++; // account for first url
-            pushStateCallCount++; // account for second url
-            assert.equal(window.history.pushState.args[pushStateCallCount - 1][2], secondTestUrl, 'pushState was called with new url');
-            firstMockPage.destroy();
-            secondMockPage.destroy();
+            assert.equal(registerUrlStub.args[0][0], firstPageUrl, 'original url was added to history');
             RouteManager.stop();
+            loadPageStub.restore();
+            registerUrlStub.restore();
         });
     });
+
 
     //it('should call previous pages hide method immediately when a new page is requested', function () {
     //    var firstPageUrl = 'my/page/url';
@@ -675,7 +736,7 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should only load modules that are global once, even when module is assigned to multiple pages in routes config', function () {
+    it('should only load global modules one, even when module is assigned to multiple pages in routes config', function () {
         // setup
         var pageUrl = 'my/page/url';
         var secondPageUrl = 'second/page/url';
@@ -708,6 +769,7 @@ describe('Route Manager', function () {
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
         requireStub.returns(mockModule);
+        mockModule.appendEl = sinon.spy();
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl).then(function () {
             return RouteManager.triggerRoute(secondPageUrl).then(function () {
@@ -870,11 +932,6 @@ describe('Route Manager', function () {
         var secondModuleHideStub = sinon.stub(secondMockModule, 'hide').returns(Promise.resolve());
         requireStub.withArgs(firstModuleScriptUrl).returns(firstMockModule);
         requireStub.withArgs(secondModuleScriptUrl).returns(secondMockModule);
-        // hijack url history registrar for internal test implementation
-        RouteManager.registerUrlHistory = function (path) {
-            //ensure history reflects first path state
-            RouteManager.history.push({path: path});
-        };
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl).then(function () {
             return RouteManager.triggerRoute(secondPageUrl).then(function () {
@@ -901,11 +958,6 @@ describe('Route Manager', function () {
         var secondPageInstance = new Page();
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         requireStub.withArgs(secondPageScript).returns(secondPageInstance);
-        // hijack url history registrar for internal test implementation
-        RouteManager.registerUrlHistory = function (path) {
-            //ensure history reflects first path state
-            RouteManager.history.push({path: path});
-        };
         RouteManager.start();
         var firstPageShowCount = 0;
         return RouteManager.triggerRoute(pageUrl).then(function () {

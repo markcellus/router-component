@@ -175,10 +175,7 @@ RouteManager.prototype = /** @lends RouteManager */{
         if (path !== this._currentPath) {
             // hide body class, while we work
             document.body.classList.remove('page-active');
-            this._currentPath = path;
-            this.registerUrlHistory(path);
-            this.dispatchEvent('url:change', {url: path});
-            return this.handleRouteRequest(path).then(function (path) {
+            return this._handleRequestedUrl(path).then(function (path) {
                 return this._handlePreviousPage().then(function () {
                     return this.loadPage(path)
                         .then(function (page) {
@@ -199,37 +196,43 @@ RouteManager.prototype = /** @lends RouteManager */{
     },
 
     /**
-     * Registers a new url into history.
-     * @param {string} path - The new url to register
+     * Sets a url has active and adds it to the history.
+     * @param {string} path - The url to set
      */
-    registerUrlHistory: function (path) {
+    registerUrl: function (path) {
         // register new url in history
         window.history.pushState({path: path}, document.title, path);
         // push to internal history for tracking
         this.history.push(window.history.state);
+
+        this._currentPath = path;
+
+        this.dispatchEvent('url:change', {url: path});
     },
-    
+
     /**
      * A function that allows custom redirects of routes if necessary.
      * This method is called every time a route request is made.
      * @param {string} path - The url path that was requested
      * @returns {Promise} Returns a promise that resolves with a path to go to when done
+     * @private
      */
-    handleRouteRequest: function (path) {
-        return new Promise(function (resolve, reject) {
-            if (!this.options.onRouteRequest) {
-                resolve(path);
-            } else {
-                this.options.onRouteRequest(path).then(function (p) {
-                    // if path has changed resolve previous one, and route to new one
-                    if (p !== path) {
-                        this.registerUrlHistory(p);
-                        resolve(p);
-                    } else {
-                        resolve(path);
-                    }
-                }.bind(this), reject);
+    _handleRequestedUrl: function (path) {
+        var getRedirectedUrl = this.options.onRouteRequest ? this.options.onRouteRequest(path) : Promise.resolve(path);
+
+        // register attempted url
+        this.registerUrl(path);
+
+        //convert to promise if not already
+        if (!getRedirectedUrl.then) {
+            getRedirectedUrl = Promise.resolve(getRedirectedUrl);
+        }
+        return getRedirectedUrl.then(function (newPath) {
+            // if path has changed, register old one into history
+            if (newPath !== path) {
+                this.registerUrl(newPath);
             }
+            return newPath;
         }.bind(this));
     },
 
