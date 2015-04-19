@@ -736,7 +736,7 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should only load modules that are global once, even when module is assigned to multiple pages in routes config', function () {
+    it('should only load global modules one, even when module is assigned to multiple pages in routes config', function () {
         // setup
         var pageUrl = 'my/page/url';
         var secondPageUrl = 'second/page/url';
@@ -769,6 +769,7 @@ describe('Route Manager', function () {
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
         requireStub.returns(mockModule);
+        mockModule.appendEl = sinon.spy();
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl).then(function () {
             return RouteManager.triggerRoute(secondPageUrl).then(function () {
