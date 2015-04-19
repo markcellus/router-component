@@ -5,27 +5,34 @@ var Promise = require('promise');
 var Page = require('../src/page');
 var Module = require('module.js');
 var _ = require('underscore');
+var RouteManager = require('route-manager');
 
 describe('Route Manager', function () {
     'use strict';
-    var mockPage, mockModule, resourceManagerLoadTemplateStub, windowAddEventListenerStub, origPushState, requireStub, origRegisterUrlHistory;
+    var mockPage, mockModule,
+        resourceManagerLoadTemplateStub,
+        origPushState,
+        requireStub;
+
+
+    var createPageStub = function (cls) {
+        var page = sinon.createStubInstance(cls);
+        page.getTemplate.returns(Promise.resolve());
+        page.load.returns(Promise.resolve());
+        page.hide.returns(Promise.resolve());
+        page.show.returns(Promise.resolve());
+        page.getStyles.returns(Promise.resolve());
+        page.fetchData.returns(Promise.resolve());
+        return page;
+    };
 
     beforeEach(function () {
         // don't change url of test page!
         origPushState = window.history.pushState;
-        // make any push to history reflect that history
-        window.history.pushState = function (state) {
-            window.history.state = state;
-        };
+        window.history.pushState = function () {};
 
         // set up mock page and set defaults
-        mockPage = sinon.createStubInstance(Page);
-        mockPage.getTemplate.returns(Promise.resolve());
-        mockPage.load.returns(Promise.resolve());
-        mockPage.hide.returns(Promise.resolve());
-        mockPage.show.returns(Promise.resolve());
-        mockPage.getStyles.returns(Promise.resolve());
-        mockPage.fetchData.returns(Promise.resolve());
+        mockPage = createPageStub(Page);
         // setup module and set defaults
         mockModule = sinon.createStubInstance(Module);
         mockModule.getTemplate.returns(Promise.resolve());
@@ -40,14 +47,14 @@ describe('Route Manager', function () {
         resourceManagerLoadTemplateStub = sinon.stub(ResourceManager, 'loadTemplate');
         resourceManagerLoadTemplateStub.returns(Promise.resolve());
         // dont trigger any popstate events!
-        windowAddEventListenerStub = sinon.stub(window, 'addEventListener');
+        sinon.stub(window, 'addEventListener');
 
     });
 
     afterEach(function () {
         window.history.pushState = origPushState;
         resourceManagerLoadTemplateStub.restore();
-        windowAddEventListenerStub.restore();
+        window.addEventListener.restore();
         requireStub.restore();
     });
 
@@ -351,53 +358,47 @@ describe('Route Manager', function () {
     it('getting current url params when NO route has been triggered', function () {
         var routesConfig = {pages: {}};
         var RouteManager = require('route-manager')({config: routesConfig});
-        var origHash = window.location.hash;
-        window.location.hash = '#test';
+        var path = 'test';
+        sinon.stub(RouteManager, 'getWindow').returns({location: {hash: '#' + path}});
         RouteManager.start();
-        assert.deepEqual(RouteManager.getRelativeUrlParams(), ['test'], 'calling getRelativeUrlParams() before triggering a route returns correct url');
-        window.location.hash = origHash;
+        assert.deepEqual(RouteManager.getRelativeUrlParams(), [path], 'calling getRelativeUrlParams() before triggering a route returns correct url');
         RouteManager.stop();
+        RouteManager.getWindow.restore();
     });
 
     it('getting current url params when a route has been triggered', function () {
         var routesConfig = {pages: {}};
         var RouteManager = require('route-manager')({config: routesConfig});
-        var origHash = window.location.hash;
         RouteManager.start();
         var url = 'my/url';
         RouteManager.triggerRoute(url);
         assert.deepEqual(RouteManager.getRelativeUrlParams(), ['my', 'url'], 'getRelativeUrlParams() returns correct url params of the url that was triggered');
-        window.location.hash = origHash;
         RouteManager.stop();
     });
 
     it('getting current url when a route has been triggered', function () {
         var routesConfig = {pages: {}};
         var RouteManager = require('route-manager')({config: routesConfig});
-        var origHash = window.location.hash;
         RouteManager.start();
         var url = 'my/url';
         RouteManager.triggerRoute(url);
         assert.deepEqual(RouteManager.getRelativeUrl(), url, 'getRelativeUrl() returns correct url that was triggered');
-        window.location.hash = origHash;
         RouteManager.stop();
     });
 
     it('getting the current url that contains a leading slash', function () {
         var routesConfig = {pages: {}};
         var RouteManager = require('route-manager')({config: routesConfig});
-        var origHash = window.location.hash;
         RouteManager.start();
         var url = '/leading/slash/url';
         RouteManager.triggerRoute(url);
         assert.deepEqual(RouteManager.getRelativeUrl(), 'leading/slash/url', 'getRelativeUrl() returns the url without the slash');
-        window.location.hash = origHash;
         RouteManager.stop();
     });
 
     it('should call loadPage() with new url when pop state changes', function (done) {
         var routesConfig = {pages: {}};
-        var popStateListener = windowAddEventListenerStub.withArgs('popstate');
+        var popStateListener = window.addEventListener.withArgs('popstate');
         var RouteManager = require('route-manager')({config: routesConfig});
         var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
         RouteManager.start();
@@ -458,15 +459,18 @@ describe('Route Manager', function () {
     it('registerUrl() method should push current window state to RouteManager\'s history', function () {
         var pageUrl = 'my/real/url';
         var RouteManager = require('route-manager')({config: {}});
-        RouteManager.start();
         var testHistoryState = {my: 'new window state'};
-        var origPushState = window.history.pushState;
-        window.history.pushState = sinon.stub();
-        window.history.state = testHistoryState;
+        sinon.stub(RouteManager, 'getWindow').returns({
+            history: {
+                pushState: sinon.stub(),
+                state: testHistoryState
+            }
+        });
+        RouteManager.start();
         RouteManager.registerUrl(pageUrl);
         assert.deepEqual(RouteManager.history[0], testHistoryState);
-        window.history.pushState = origPushState;
         RouteManager.stop();
+        RouteManager.getWindow.restore();
     });
 
     it('registerUrl() method should return the registered url as the current path', function () {
@@ -562,39 +566,35 @@ describe('Route Manager', function () {
     });
 
 
-    //it('should call previous pages hide method immediately when a new page is requested', function () {
-    //    var firstPageUrl = 'my/page/url';
-    //    var secondPageUrl = 'two/second/page';
-    //    var routesConfig = {pages: {}};
-    //    var firstPageScriptUrl = 'path/to/page/script';
-    //    var secondPageScriptUrl = 'second/path/to/page/script';
-    //    var pageTemplateUrl = 'url/to/my/template';
-    //    routesConfig.pages[firstPageUrl] = {
-    //        template: pageTemplateUrl,
-    //        script: firstPageScriptUrl
-    //    };
-    //    routesConfig.pages[secondPageUrl] = {
-    //        template: pageTemplateUrl,
-    //        script: secondPageScriptUrl
-    //    };
-    //    var RouteManager = require('route-manager')({config: routesConfig});
-    //    var secondMockPage = new Page();
-    //    requireStub.withArgs(firstPageScriptUrl).returns(mockPage);
-    //    requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
-    //    // hijack url history registrar for internal test implementation
-    //    RouteManager.registerUrlHistory = function (path) {
-    //        //ensure history reflects first path state
-    //        RouteManager.history.push({path: path});
-    //    };
-    //    RouteManager.start();
-    //    var firstRequestPromise = RouteManager.triggerRoute(firstPageUrl);
-    //    // request second url immediately
-    //    RouteManager.triggerRoute(secondPageUrl);
-    //    return firstRequestPromise.then(function () {
-    //        assert.equal(mockPage.hide.callCount, 1, 'when first page finishes loading, its hide method was called because another page has already been requested');
-    //        RouteManager.stop();
-    //    });
-    //});
+    it('should call hide method on a previous page when a new page is requested', function () {
+        var firstPageUrl = 'my/page/url';
+        var secondPageUrl = 'two/second/page';
+        var routesConfig = {pages: {}};
+        var firstPageScriptUrl = 'path/to/page/script';
+        var secondPageScriptUrl = 'second/path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[firstPageUrl] = {
+            template: pageTemplateUrl,
+            script: firstPageScriptUrl
+        };
+        routesConfig.pages[secondPageUrl] = {
+            template: pageTemplateUrl,
+            script: secondPageScriptUrl
+        };
+        var RouteManager = require('route-manager')({config: routesConfig});
+        var secondMockPage = createPageStub(Page);
+        requireStub.withArgs(firstPageScriptUrl).returns(mockPage);
+        requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
+        RouteManager.start();
+        return RouteManager.triggerRoute(firstPageUrl).then(function () {
+            // register first url into window state
+            RouteManager.history = [{path: firstPageUrl}];
+            return RouteManager.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(mockPage.hide.callCount, 1);
+                RouteManager.stop();
+            });
+        });
+    });
 
     it('should attach page HTML to page\'s el', function () {
         // setup
@@ -934,6 +934,8 @@ describe('Route Manager', function () {
         requireStub.withArgs(secondModuleScriptUrl).returns(secondMockModule);
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl).then(function () {
+            // register first url into window state
+            RouteManager.history = [{path: pageUrl}];
             return RouteManager.triggerRoute(secondPageUrl).then(function () {
                 assert.equal(firstModuleHideStub.callCount, 1, 'first modules hide() method was called');
                 assert.equal(secondModuleHideStub.callCount, 1, 'second modules hide() method was called');
