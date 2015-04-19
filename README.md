@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/mkay581/route-manager.svg?branch=master)](https://travis-ci.org/mkay581/route-manager)
+
 # Route Manager
 
 A simple routing framework that allows you to load, show, and hide "pages" dynamically when urls within your 
