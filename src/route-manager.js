@@ -128,11 +128,43 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {Promise} Returns a Promise when the page of the route has loaded
      */
     triggerRoute: function (url, options) {
+        url = this.getPathName(url);
         if (url !== this._currentPath) {
             return this._onRouteRequest(url);
         } else {
             return Promise.resolve();
         }
+    },
+
+    /**
+     * Gets path name from URL.
+     * @param {string} url - The full url to navigate to.
+     * @returns {String}
+     */
+    getPathName: function (url) {
+        var url = url || window.location.href;
+        if (url.substring(0, 4) != 'http') {
+            return url;
+        } else {
+            var fakeEl = document.createElement('a');
+            fakeEl.href = url;
+            return fakeEl.pathname;
+        }
+    },
+
+    /**
+     * Gets query string params.
+     * @param {string} url - The full url to navigate to.
+     * @returns {Object} Returns an object containing query params.
+     */
+    getQueryParams: function (url) {
+        var url = url || window.location.href;
+        var params = {};
+        url.split('?')[1].split('&').forEach(function(queryParam) {
+            var splitParam = queryParam.split('=');
+            params[splitParam[0]] = splitParam[1];
+        });
+        return params;
     },
 
     /**
