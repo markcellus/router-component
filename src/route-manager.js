@@ -70,8 +70,21 @@ RouteManager.prototype = /** @lends RouteManager */{
         this._config.pages = this._config.pages || {};
         this._config.modules = this._config.modules || {};
 
-        // setup pop state events for future urls
+        this.bindPopstateEvent();
+    },
+
+    /**
+     * Sets up pop state events for future urls.
+     */
+    bindPopstateEvent: function () {
         window.addEventListener('popstate', this._getOnPopStateListener());
+    },
+
+    /**
+     * Removes pop state event listener.
+     */
+    unbindPopstateEvent: function () {
+        window.removeEventListener('popstate', this._getOnPopStateListener());
     },
 
     /**
@@ -102,7 +115,7 @@ RouteManager.prototype = /** @lends RouteManager */{
     stop: function () {
         this.reset();
         this._globalModuleMaps = {};
-        window.removeEventListener('popstate', this._getOnPopStateListener());
+        this.unbindPopstateEvent();
         EventHandler.destroyTarget(this);
     },
 
@@ -120,6 +133,21 @@ RouteManager.prototype = /** @lends RouteManager */{
         } else {
             return Promise.resolve();
         }
+    },
+
+    /**
+     * Gets query string params.
+     * @param {string} url - The full url to navigate to.
+     * @returns {Object} Returns an object containing query params.
+     */
+    getQueryParams: function (url) {
+        var url = url || this.getWindow().location.href;
+        var params = {};
+        url.split('?')[1].split('&').forEach(function(queryParam) {
+            var splitParam = queryParam.split('=');
+            params[splitParam[0]] = splitParam[1];
+        });
+        return params;
     },
 
     /**
@@ -159,7 +187,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {string} Returns a url string
      */
     getRelativeUrl: function () {
-        var url = this._currentPath || window.location.hash.replace('#', '');
+        var url = this._currentPath || this.getWindow().location.hash.replace('#', '');
         // remove leading slash if there is one
         url = url.replace(/^\//g, '');
         return url;
@@ -200,14 +228,23 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @param {string} path - The url to set
      */
     registerUrl: function (path) {
+        var windowHistory = this.getWindow().history;
         // register new url in history
-        window.history.pushState({path: path}, document.title, path);
+        windowHistory.pushState({path: path}, document.title, path);
         // push to internal history for tracking
-        this.history.push(window.history.state);
+        this.history.push(windowHistory.state);
 
         this._currentPath = path;
 
         this.dispatchEvent('url:change', {url: path});
+    },
+
+    /**
+     * Returns windows object.
+     * @returns {History}
+     */
+    getWindow: function () {
+        return window;
     },
 
     /**
