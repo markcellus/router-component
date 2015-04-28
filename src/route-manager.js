@@ -136,6 +136,21 @@ RouteManager.prototype = /** @lends RouteManager */{
     },
 
     /**
+     * Gets query string params.
+     * @param {string} url - The full url to navigate to.
+     * @returns {Object} Returns an object containing query params.
+     */
+    getQueryParams: function (url) {
+        var url = url || this.getWindow().location.href;
+        var params = {};
+        url.split('?')[1].split('&').forEach(function(queryParam) {
+            var splitParam = queryParam.split('=');
+            params[splitParam[0]] = splitParam[1];
+        });
+        return params;
+    },
+
+    /**
      * Navigates to previous url in session history.
      * @param {Number} index - an index with a position relative to the current page (the current page being, of course, index 0)
      */

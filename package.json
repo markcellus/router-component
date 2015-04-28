@@ -29,6 +29,7 @@
     "route-manager": "./src/route-manager.js"
   },
   "devDependencies": {
+    "grunt": "~0.4.5",
     "build-tools": "^1.2.7",
     "sinon": "^1.14.1"
   },

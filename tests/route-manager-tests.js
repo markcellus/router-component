@@ -58,6 +58,24 @@ describe('Route Manager', function () {
         requireStub.restore();
     });
 
+    it('should return query params from provided url', function () {
+        var RouteManager = require('route-manager')({config: {}});
+        var url = 'http://my-testable-url.com/my/testable/path/?my=little&tea=pot';
+        RouteManager.start();
+        var queryParams = RouteManager.getQueryParams(url);
+        assert.deepEqual({'my': 'little', 'tea': 'pot'}, queryParams, 'query params parsed from url: ' + JSON.stringify(queryParams));
+        RouteManager.stop();
+    });
+
+    it('should return query params from current window url', function () {
+        var RouteManager = require('route-manager')({config: {}});
+        RouteManager.start();
+        sinon.stub(RouteManager, 'getWindow').returns({location: {href: 'http://my-testable-url.com/my/testable/path/?my=little&tea=pot'}});
+        var queryParams = RouteManager.getQueryParams();
+        assert.deepEqual({'my': 'little', 'tea': 'pot'}, queryParams, 'query params parsed from url: ' + JSON.stringify(queryParams));
+        RouteManager.stop();
+    });
+
     it('should fire a url change event when a url is triggered', function () {
         var RouteManager = require('route-manager')({config: {}});
         var url = 'my/testable/url';
