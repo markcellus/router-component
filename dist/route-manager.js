@@ -1,5 +1,5 @@
 /** 
-* route-manager - v1.3.0.
+* route-manager - v1.3.1.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20348,7 +20348,10 @@ RouteManager.prototype = /** @lends RouteManager */{
     _getOnPopStateListener: function () {
         var self = this;
         return function (event) {
-            self._onRouteRequest.call(self, event.state.path);
+            // sometimes ios browser doesnt have a event state object on initial load *shrug*
+            if (event.state) {
+                self._onRouteRequest.call(self, event.state.path);
+            }
         }
     },
 
