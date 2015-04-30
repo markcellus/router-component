@@ -1,5 +1,5 @@
 /** 
-* route-manager - v1.3.1.
+* route-manager - v1.3.2.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20237,8 +20237,8 @@ var Page = Module.extend({
      * @return {Promise}
      */
     hide: function () {
+        this.el.classList.remove('page-active');
         return Module.prototype.hide.call(this).then(function () {
-            this.el.classList.remove('page-active');
             return new Promise(function (resolve) {
                 this.el.kit.waitForTransition(function () {
                     resolve();

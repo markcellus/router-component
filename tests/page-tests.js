@@ -14,6 +14,15 @@ describe('Page', function () {
         });
     });
 
+    it('after showing, active class should be removed immediately when hide() is called', function () {
+        var pageInstance = new Page();
+        return pageInstance.show().then(function () {
+            pageInstance.hide();
+            assert.ok(!pageInstance.el.classList.contains('page-active'), 'active class has been removed');
+            pageInstance.destroy();
+        });
+    });
+
     it('should be assigned an el that has a "page" class on instantiation', function () {
         var pageContainerEl = document.createElement('div');
         var pageInstance = new Page({el: pageContainerEl});
