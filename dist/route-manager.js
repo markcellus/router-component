@@ -1,5 +1,5 @@
 /** 
-* route-manager - v1.3.2.
+* route-manager - v1.4.0.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20462,10 +20462,12 @@ RouteManager.prototype = /** @lends RouteManager */{
             return this._handleRequestedUrl(path).then(function (path) {
                 return this._handlePreviousPage().then(function () {
                     return this.loadPage(path)
-                        .then(function (page) {
+                        .then(function (pageMap) {
                             this.dispatchEvent('page:load');
-                            return page.show().then(function () {
-                                document.body.classList.add('page-active');
+                            return this._handleGlobalModules(pageMap.config).then(function () {
+                                return pageMap.page.show().then(function () {
+                                    document.body.classList.add('page-active');
+                                }.bind(this));
                             }.bind(this));
                         }.bind(this))
                         .catch(function (e) {
@@ -20584,6 +20586,7 @@ RouteManager.prototype = /** @lends RouteManager */{
 
         if (!this._pageMaps[pageKey]) {
             this._pageMaps[pageKey] = pageMap;
+            pageMap.config = config;
             pageMap.promise = this.loadGlobalModules().then(function () {
                 return this.loadPageScript(config.script).then(function (page) {
                     pageMap.page = page;
@@ -20601,7 +20604,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                                 }
                                 return this._loadPageModules(config.modules, pageMap).then(function () {
                                     return page.load({data: data, el: pageMap.page.el}).then(function () {
-                                        return page;
+                                        return pageMap;
                                     });
                                 }.bind(this));
                             }.bind(this));
@@ -20611,11 +20614,11 @@ RouteManager.prototype = /** @lends RouteManager */{
             }.bind(this));
             return pageMap.promise;
         } else {
-            return this._pageMaps[pageKey].promise.then(function (page) {
+            return this._pageMaps[pageKey].promise.then(function (pageMap) {
                 _.each(this._pageMaps[pageKey].modules, function (moduleMap) {
                     moduleMap.module.show();
                 });
-                return page;
+                return pageMap;
             }.bind(this));
         }
     },
@@ -20630,8 +20633,8 @@ RouteManager.prototype = /** @lends RouteManager */{
             previousPath = this._getRouteMapKeyByPath(prevHistory.path);
         // hide previous page if exists
         if (previousPath && this._pageMaps[previousPath] && this._pageMaps[previousPath].promise) {
-            return this._pageMaps[previousPath].promise.then(function (page) {
-                page.hide().then(function () {
+            return this._pageMaps[previousPath].promise.then(function (pageMap) {
+                pageMap.page.hide().then(function () {
                     // call hide on all of pages modules
                     _.each(this._pageMaps[previousPath].modules, function (moduleMap) {
                         moduleMap.module.hide();
@@ -20653,20 +20656,15 @@ RouteManager.prototype = /** @lends RouteManager */{
         var promises = [],
             loadPromise,
             pageModuleKeys = [],
-            moduleMap;
+            moduleMap,
+            globalModuleKeys = [];
 
         moduleKeys = moduleKeys || [];
         pageMap.modules = pageMap.modules || {};
 
         moduleKeys.forEach(function (moduleKey) {
             if (this._globalModuleMaps[moduleKey]) {
-                var globalModuleMap = this._globalModuleMaps[moduleKey];
-                // use custom appending method if module specifies it
-                // and has not been appended to DOM already
-                if (globalModuleMap.module && !globalModuleMap.appended) {
-                    globalModuleMap.module.appendEl(globalModuleMap.el);
-                    this._globalModuleMaps[moduleKey].appended = true;
-                }
+                globalModuleKeys.push(moduleKey);
             } else {
                 pageModuleKeys.push(moduleKey); //we must keep track of the order of the modules
                 loadPromise = this._loadPageModule(moduleKey, pageMap).then(function (moduleMap) {
@@ -20692,10 +20690,36 @@ RouteManager.prototype = /** @lends RouteManager */{
                     frag.appendChild(moduleMap.el);
                 }
             });
+
+
             if (pageMap.page.el && pageMap.page.el.children[0]) {
                 pageMap.page.el.children[0].appendChild(frag);
             }
         });
+    },
+
+    /**
+     * Handles either showing or hiding global modules based on a page.
+     * @param {string} pageConfig - The page's config
+     * @returns {Promise} Returns a promise that resolves when global modules are shown and hidden
+     * @private
+     */
+    _handleGlobalModules: function (pageConfig) {
+        var showHidePromises = [];
+
+        pageConfig.modules = pageConfig.modules || [];
+
+        _.each(this._globalModuleMaps, function (map, moduleKey) {
+            if (pageConfig.modules.indexOf(moduleKey) !== -1) {
+                // page has this global module, so lets show it
+                showHidePromises.push(map.module.show());
+            } else {
+                // page does not have global module so lets hide it
+                showHidePromises.push(map.module.hide());
+            }
+        }.bind(this));
+        return Promise.all(showHidePromises);
+
     },
 
     /**
