@@ -25,7 +25,7 @@ describe('Page', function () {
 
     it('should be assigned an el that has a "page" class on instantiation', function () {
         var pageContainerEl = document.createElement('div');
-        var pageInstance = new Page({el: pageContainerEl});
+        var pageInstance = new Page({pagesContainer: pageContainerEl});
         var generatedPageEl = pageContainerEl.getElementsByClassName('page')[0];
         return pageInstance.show().then(function () {
             assert.ok(pageInstance.el.classList.contains('page'), 'el was assigned that has a class name of "page"');
@@ -36,7 +36,7 @@ describe('Page', function () {
     it('should call Module prototype\'s show() when show() is called', function () {
         var moduleShowStub = sinon.stub(Module.prototype, 'show').returns(Promise.resolve());
         var moduleLoadStub = sinon.stub(Module.prototype, 'load').returns(Promise.resolve());
-        var pageInstance = new Page({el: document.createDocumentFragment()});
+        var pageInstance = new Page({pagesContainer: document.createDocumentFragment()});
         return pageInstance.show().then(function () {
             assert.equal(moduleShowStub.callCount, 1, 'modules prototype show method was called');
             pageInstance.destroy();
@@ -48,7 +48,7 @@ describe('Page', function () {
     it('should call Module prototype\'s hide() when hide() is called', function () {
         var moduleHideStub = sinon.stub(Module.prototype, 'hide').returns(Promise.resolve());
         var moduleLoadStub = sinon.stub(Module.prototype, 'load').returns(Promise.resolve());
-        var pageInstance = new Page({el: document.createDocumentFragment()});
+        var pageInstance = new Page({pagesContainer: document.createDocumentFragment()});
         return pageInstance.hide().then(function () {
             assert.equal(moduleHideStub.callCount, 1, 'modules prototype hide method was called');
             pageInstance.destroy();

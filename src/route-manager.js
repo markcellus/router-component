@@ -35,14 +35,14 @@ RouteManager.prototype = /** @lends RouteManager */{
     /**
      * Initialize options
      * @param {Object} [options]
-     * @param {HTMLElement} [options.pagesContainerEl] - The element to use for the page container (defaults to document.body)
+     * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
      */
     initialize: function (options) {
 
         this.options = _.extend({
             onRouteRequest: null,
-            pagesContainerEl: document.body
+            pagesContainer: document.body
         }, options);
 
         // allow event listeners
@@ -303,7 +303,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {*}
      */
     loadPageScript: function (scriptUrl) {
-        var options = {el: this.options.pagesContainerEl};
+        var options = {pagesContainer: this.options.pagesContainer};
         if (!scriptUrl) {
             return Promise.resolve(new Page(options));
         }
@@ -347,7 +347,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                                 pageMap.data = data;
                                 if (pageMap.page.el) {
                                     pageMap.page.el.innerHTML = html;
-                                    this.options.pagesContainerEl.appendChild(pageMap.page.el);
+                                    this.options.pagesContainer.appendChild(pageMap.page.el);
                                 }
                                 return this._loadPageModules(config.modules, pageMap).then(function () {
                                     return page.load({data: data, el: pageMap.page.el}).then(function () {
@@ -447,7 +447,7 @@ RouteManager.prototype = /** @lends RouteManager */{
 
     /**
      * Handles either showing or hiding global modules based on a page.
-     * @param {string} pageConfig - The page's config
+     * @param {Object} pageConfig - The page's config
      * @returns {Promise} Returns a promise that resolves when global modules are shown and hidden
      * @private
      */

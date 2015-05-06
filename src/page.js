@@ -1,6 +1,7 @@
 'use strict';
 var Module = require('module.js');
 var Promise = require('promise');
+var _ = require('underscore');
 
 // start element kit
 require('element-kit');
@@ -15,12 +16,24 @@ var Page = Module.extend({
     /**
      * When page is instantiated.
      * @param {Object} options - The initialize options
-     * @param {HTMLElement} options.el - The container of all currentPages
+     * @param {HTMLElement} options.pagesContainer - The container of all currentPages
+     * @param {HTMLElement} options.el - The page element
      */
     initialize: function (options) {
-        Module.prototype.initialize.call(this, options);
-        this.el = document.createElement('div');
+
+        this.options = _.extend({}, {
+            pagesContainer: null,
+            el: document.createElement('div'),
+            activeClass: 'page-active',
+            loadedClass: 'page-loaded',
+            disabledClass: 'page-disabled',
+            errorClass: 'page-error'
+        }, options);
+
+        this.el = this.options.el;
         this.el.classList.add('page');
+
+        Module.prototype.initialize.call(this, this.options);
     },
 
     /**
@@ -47,7 +60,6 @@ var Page = Module.extend({
     show: function () {
         return Module.prototype.show.call(this).then(function () {
             return new Promise(function (resolve) {
-                this.el.classList.add('page-active');
                 this.el.kit.waitForTransition(function () {
                     resolve();
                 });
@@ -60,7 +72,6 @@ var Page = Module.extend({
      * @return {Promise}
      */
     hide: function () {
-        this.el.classList.remove('page-active');
         return Module.prototype.hide.call(this).then(function () {
             return new Promise(function (resolve) {
                 this.el.kit.waitForTransition(function () {
