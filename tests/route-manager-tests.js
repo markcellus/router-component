@@ -695,7 +695,7 @@ describe('Route Manager', function () {
         var pageHtml = '<div>mypagehtml</div>';
         mockPage.getTemplate.returns(Promise.resolve(pageHtml));
         var pagesContainer = document.createElement('div');
-        var RouteManager = require('route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
+        var RouteManager = require('route-manager')({config: routesConfig, pagesContainer: pagesContainer});
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         mockModule.getTemplate.returns(Promise.resolve(moduleHtml));
         requireStub.withArgs(moduleScriptUrl).returns(mockModule);
