@@ -1,5 +1,5 @@
 /** 
-* route-manager - v1.4.0.
+* route-manager - v2.0.0.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -17446,90 +17446,181 @@ Module.prototype = {
 
     /**
      * Initialization.
+     * @param {Object} [options] - An object of options
+     * @param {HTMLElement} [options.el] - The module element
+     * @param {string} [options.loadedClass] - The class that will be applied to the module element when it is loaded
+     * @param {string} [options.activeClass] - The class that will be applied to the module element when it is shown
+     * @param {string} [options.disabledClass] - The class that will be applied to the module element when disabled
+     * @param {string} [options.errorClass] - The class that will be applied to the module element when it has a load error
      */
     initialize: function (options) {
-        this.options = options;
-        this.options = _.extend({}, options);
+
+        this.options = _.extend({}, {
+            el: null,
+            loadedClass: 'module-loaded',
+            activeClass: 'module-active',
+            disabledClass: 'module-disabled',
+            errorClass: 'module-error'
+        }, options);
+
+        this._handleElementInitialState();
+
         this.subModules = {};
     },
 
     /**
-     * A load function that should be overridden by subclass for custom implementations.
+     * A function that fires when the module's load() method is called
+     * which can be overridden by subclass custom implementations.
      * @abstract
-     * @return {*} May returns a promise when done
+     * @return {*} May return a promise when done
      * @param options
      */
     onLoad: function (options) {
-        // support legacy _handleLoad method
-        if (this._handleLoad) {
-            return this._handleLoad(options);
-        } else {
-            return Promise.resolve();
-        }
+        return Promise.resolve();
     },
 
     /**
-     * A show function that should be overridden by subclass for custom implementations.
+     * A function that fires when the module's show() method is called
+     * which can be overridden by subclass custom implementations.
      * @abstract
-     * @return {*} May returns a promise when done
+     * @return {*} May return a promise when done
      */
     onShow: function () {
         return Promise.resolve();
     },
 
     /**
-     * A hide function that should be overridden by subclass for custom implementations.
+     * A function that fires when the module's hide() method is called
+     * which can be overridden by subclass custom implementations.
      * @abstract
-     * @return {*} May returns a promise when done
+     * @return {*} May return a promise when done
      */
     onHide: function () {
         return Promise.resolve();
     },
 
     /**
+     * A function that fires when the module's enable() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @returns {*|Promise} Optionally return a promise when done
+     */
+    onEnable: function () {
+        return Promise.resolve();
+    },
+
+    /**
+     * A function that fires when the module's disable() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @returns {*|Promise} Optionally return a promise when done
+     */
+    onDisable: function () {
+        return Promise.resolve();
+    },
+
+    /**
+     * A function that fires when the error() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @returns {*|Promise} Optionally return a promise when done
+     */
+    onError: function () {
+        return Promise.resolve();
+    },
+
+    /**
      * Loads.
-     * @param {Object} options - Options
+     * @param {Object} [options] - Options
+     * @param {HTMLElement} [options.el] - The modules element (used only if module element wasnt passed in initialize)
      * @return {Promise}
      */
     load: function (options) {
         var views = _.values(this.subModules);
+
+        // add element to options
+        if (options) {
+            this.options.el = this.options.el || options.el;
+        }
+
         // load all subModules
         if (!this.loaded) {
             return Promise.all(_.invoke(views, 'load')).then(function () {
-                return this._ensurePromise(this.onLoad(options)).then(function () {
-                    this.loaded = true;
-                }.bind(this));
+                return this._ensurePromise(this.onLoad(options))
+                    .then(function () {
+                        this.loaded = true;
+                        if (this.options.el) {
+                            this.options.el.classList.add(this.options.loadedClass);
+                        }
+                    }.bind(this))
+                    .catch(function (e) {
+                        this.error(e);
+                    }.bind(this));
             }.bind(this));
         } else {
             return Promise.resolve();
         }
     },
-    // TODO: merge the following function with one above
 
-    //load: function () {
-    //    var el = this.options.el;
-    //    return BaseModule.prototype.load.apply(this, arguments)
-    //        .then(function () {
-    //            if (el) {
-    //                el.classList.add('module-loaded');
-    //            }
-    //        }.bind(this))
-    //        .catch(function (e) {
-    //            if (el) {
-    //                el.classList.add('module-error');
-    //            }
-    //            console.log('MODULE ERROR!');
-    //            console.log(e.stack);
-    //        }.bind(this));
-    //},
+    /**
+     * Triggers a load error on the module.
+     * @param {Error} [e] - The error to trigger
+     * @return {Promise} Returns a promise when erroring operation is complete
+     */
+    error: function (e) {
+        var el = this.options.el;
+
+        e = e || new Error();
+
+        if (el) {
+            el.classList.add(this.options.errorClass);
+        }
+        this.error = true;
+        console.log('MODULE ERROR!');
+        if (e.stack) {
+            console.log(e.stack);
+        }
+        this.loaded = false;
+        return this._ensurePromise(this.onError(e));
+    },
+
+    /**
+     * Enables the module.
+     * @return {Promise}
+     */
+    enable: function () {
+        var el = this.options.el;
+        if (el) {
+            el.classList.remove(this.options.disabledClass);
+        }
+        this.disabled = false;
+        return this._ensurePromise(this.onEnable());
+    },
+
+    /**
+     * Disables the module.
+     * @return {Promise}
+     */
+    disable: function () {
+        var el = this.options.el;
+        if (el) {
+            el.classList.add(this.options.disabledClass);
+        }
+        this.disabled = true;
+        return this._ensurePromise(this.onDisable());
+    },
 
     /**
      * Shows the page.
      * @return {Promise}
      */
     show: function () {
+        var el = this.options.el;
         if (!this.loaded) {
-            console.warn('Page show() method was called before its load() method.');
+            console.warn('Module show() method was called before its load() method.');
+        }
+        if (el) {
+            el.classList.add(this.options.activeClass);
         }
         return this._ensurePromise(this.onShow());
     },
@@ -17539,10 +17630,60 @@ Module.prototype = {
      * @return {Promise}
      */
     hide: function () {
+        var el = this.options.el;
         if (!this.loaded) {
-            console.warn('Page hide() method was called before its load() method.');
+            console.warn('Module hide() method was called before its load() method.');
+        }
+        if (el) {
+            el.classList.remove(this.options.activeClass);
         }
         return this._ensurePromise(this.onHide());
+    },
+
+    /**
+     * Sets up element internally by evaluating its initial state.
+     * @private
+     */
+    _handleElementInitialState: function () {
+        var el = this.options.el;
+        if (!el) {
+            return;
+        }
+        if (el.classList.contains(this.options.disabledClass)) {
+            this._origDisabled = true;
+            this.disable();
+        }
+
+        if (el.classList.contains(this.options.errorClass)) {
+            this._origError = true;
+            this.error(new Error());
+        }
+    },
+
+    /**
+     * Restores the elements classes back to the way they were before instantiation.
+     * @private
+     */
+    _resetElementInitialState: function () {
+        var options = this.options,
+            el = options.el,
+            disabledClass = options.disabledClass,
+            errorClass = options.errorClass;
+
+        if (!el) {
+            return;
+        }
+        if (this._origDisabled) {
+            el.classList.add(disabledClass);
+        } else {
+            el.classList.remove(disabledClass);
+        }
+
+        if (!this._origError) {
+            el.classList.remove(errorClass);
+        } else {
+            el.classList.add(errorClass);
+        }
     },
 
     /**
@@ -17555,15 +17696,6 @@ Module.prototype = {
             func = Promise.resolve();
         }
         return func;
-    },
-
-    /**
-     * Makes a request to get the data for the module.
-     * @returns {Promise}
-     * @deprecated since 1.0.5
-     */
-    getData: function () {
-        return this.fetchData.apply(this, arguments);
     },
 
     /**
@@ -17608,12 +17740,15 @@ Module.prototype = {
      */
     destroy: function () {
         var subModules = this.subModules;
+
         for (var key in subModules) {
             if (subModules.hasOwnProperty(key) && subModules[key]) {
                 subModules[key].destroy();
             }
         }
         this.subModules = {};
+
+        this._resetElementInitialState();
     }
 
 };
@@ -20178,6 +20313,7 @@ module.exports = new ResourceManager();
 'use strict';
 var Module = require('module.js');
 var Promise = require('promise');
+var _ = require('underscore');
 
 // start element kit
 require('element-kit');
@@ -20192,12 +20328,24 @@ var Page = Module.extend({
     /**
      * When page is instantiated.
      * @param {Object} options - The initialize options
-     * @param {HTMLElement} options.el - The container of all currentPages
+     * @param {HTMLElement} options.pagesContainer - The container of all currentPages
+     * @param {HTMLElement} options.el - The page element
      */
     initialize: function (options) {
-        Module.prototype.initialize.call(this, options);
-        this.el = document.createElement('div');
+
+        this.options = _.extend({}, {
+            pagesContainer: null,
+            el: document.createElement('div'),
+            activeClass: 'page-active',
+            loadedClass: 'page-loaded',
+            disabledClass: 'page-disabled',
+            errorClass: 'page-error'
+        }, options);
+
+        this.el = this.options.el;
         this.el.classList.add('page');
+
+        Module.prototype.initialize.call(this, this.options);
     },
 
     /**
@@ -20224,7 +20372,6 @@ var Page = Module.extend({
     show: function () {
         return Module.prototype.show.call(this).then(function () {
             return new Promise(function (resolve) {
-                this.el.classList.add('page-active');
                 this.el.kit.waitForTransition(function () {
                     resolve();
                 });
@@ -20237,7 +20384,6 @@ var Page = Module.extend({
      * @return {Promise}
      */
     hide: function () {
-        this.el.classList.remove('page-active');
         return Module.prototype.hide.call(this).then(function () {
             return new Promise(function (resolve) {
                 this.el.kit.waitForTransition(function () {
@@ -20250,7 +20396,7 @@ var Page = Module.extend({
 });
 
 module.exports = Page;
-},{"element-kit":6,"module.js":45,"promise":46}],59:[function(require,module,exports){
+},{"element-kit":6,"module.js":45,"promise":46,"underscore":57}],59:[function(require,module,exports){
 'use strict';
 var ResourceManager = require('resource-manager-js');
 var Promise = require('promise');
@@ -20288,14 +20434,14 @@ RouteManager.prototype = /** @lends RouteManager */{
     /**
      * Initialize options
      * @param {Object} [options]
-     * @param {HTMLElement} [options.pagesContainerEl] - The element to use for the page container (defaults to document.body)
+     * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
      */
     initialize: function (options) {
 
         this.options = _.extend({
             onRouteRequest: null,
-            pagesContainerEl: document.body
+            pagesContainer: document.body
         }, options);
 
         // allow event listeners
@@ -20556,7 +20702,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {*}
      */
     loadPageScript: function (scriptUrl) {
-        var options = {el: this.options.pagesContainerEl};
+        var options = {pagesContainer: this.options.pagesContainer};
         if (!scriptUrl) {
             return Promise.resolve(new Page(options));
         }
@@ -20600,7 +20746,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                                 pageMap.data = data;
                                 if (pageMap.page.el) {
                                     pageMap.page.el.innerHTML = html;
-                                    this.options.pagesContainerEl.appendChild(pageMap.page.el);
+                                    this.options.pagesContainer.appendChild(pageMap.page.el);
                                 }
                                 return this._loadPageModules(config.modules, pageMap).then(function () {
                                     return page.load({data: data, el: pageMap.page.el}).then(function () {
@@ -20700,7 +20846,7 @@ RouteManager.prototype = /** @lends RouteManager */{
 
     /**
      * Handles either showing or hiding global modules based on a page.
-     * @param {string} pageConfig - The page's config
+     * @param {Object} pageConfig - The page's config
      * @returns {Promise} Returns a promise that resolves when global modules are shown and hidden
      * @private
      */
