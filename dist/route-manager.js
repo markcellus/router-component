@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.0.0.
+* route-manager - v2.0.1.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -1291,7 +1291,7 @@ ImageElement.prototype = utils.extend({}, Element.prototype, {
 });
 
 module.exports = ImageElement;
-},{"./element":8,"./utils":10,"promise":46}],10:[function(require,module,exports){
+},{"./element":8,"./utils":10,"promise":45}],10:[function(require,module,exports){
 module.exports = {
     /**
      * Creates an HTML Element from an html string.
@@ -17136,6 +17136,1169 @@ return jQuery;
 }));
 
 },{}],44:[function(require,module,exports){
+'use strict';
+
+var Promise = require('promise');
+var _ = require('underscore');
+var $ = require('jquery');
+var ResourceManager = require('resource-manager-js');
+
+/**
+ * @class Module
+ * @description Base class that represents all modules of an App.
+ */
+var Module = function (options) {
+    this.initialize(options);
+};
+
+/**
+ * Extends a class and allows creation of subclasses.
+ * @param protoProps
+ * @param staticProps
+ * @returns {*}
+ */
+var extend = function(protoProps, staticProps) {
+    var parent = this;
+    var child;
+
+    // The constructor function for the new subclass is either defined by you
+    // (the "constructor" property in your `extend` definition), or defaulted
+    // by us to simply call the parent's constructor.
+    if (protoProps && _.has(protoProps, 'constructor')) {
+        child = protoProps.constructor;
+    } else {
+        child = function(){ return parent.apply(this, arguments); };
+    }
+
+    // Add static properties to the constructor function, if supplied.
+    _.extend(child, parent, staticProps);
+
+    // Set the prototype chain to inherit from `parent`, without calling
+    // `parent`'s constructor function.
+    var Surrogate = function(){ this.constructor = child; };
+    Surrogate.prototype = parent.prototype;
+    child.prototype = new Surrogate();
+
+    // Add prototype properties (instance properties) to the subclass,
+    // if supplied.
+    if (protoProps) {
+        _.extend(child.prototype, protoProps);
+    }
+
+    // Set a convenience property in case the parent's prototype is needed
+    // later.
+    child.__super__ = parent.prototype;
+
+    return child;
+};
+
+Module.extend = extend;
+
+Module.prototype = {
+
+    /**
+     * Initialization.
+     * @param {Object} [options] - An object of options
+     * @param {HTMLElement} [options.el] - The module element
+     * @param {string} [options.loadedClass] - The class that will be applied to the module element when it is loaded
+     * @param {string} [options.activeClass] - The class that will be applied to the module element when it is shown
+     * @param {string} [options.disabledClass] - The class that will be applied to the module element when disabled
+     * @param {string} [options.errorClass] - The class that will be applied to the module element when it has a load error
+     */
+    initialize: function (options) {
+
+        this.options = _.extend({}, {
+            el: null,
+            loadedClass: 'module-loaded',
+            activeClass: 'module-active',
+            disabledClass: 'module-disabled',
+            errorClass: 'module-error'
+        }, options);
+
+        this._handleElementInitialState();
+
+        this.subModules = {};
+    },
+
+    /**
+     * A function that fires when the module's load() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @return {*} May return a promise when done
+     * @param options
+     */
+    onLoad: function (options) {
+        return Promise.resolve();
+    },
+
+    /**
+     * A function that fires when the module's show() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @return {*} May return a promise when done
+     */
+    onShow: function () {
+        return Promise.resolve();
+    },
+
+    /**
+     * A function that fires when the module's hide() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @return {*} May return a promise when done
+     */
+    onHide: function () {
+        return Promise.resolve();
+    },
+
+    /**
+     * A function that fires when the module's enable() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @returns {*|Promise} Optionally return a promise when done
+     */
+    onEnable: function () {
+        return Promise.resolve();
+    },
+
+    /**
+     * A function that fires when the module's disable() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @returns {*|Promise} Optionally return a promise when done
+     */
+    onDisable: function () {
+        return Promise.resolve();
+    },
+
+    /**
+     * A function that fires when the error() method is called
+     * which can be overridden by subclass custom implementations.
+     * @abstract
+     * @returns {*|Promise} Optionally return a promise when done
+     */
+    onError: function () {
+        return Promise.resolve();
+    },
+
+    /**
+     * Loads.
+     * @param {Object} [options] - Options
+     * @param {HTMLElement} [options.el] - The modules element (used only if module element wasnt passed in initialize)
+     * @return {Promise}
+     */
+    load: function (options) {
+        var views = _.values(this.subModules);
+
+        // add element to options
+        if (options) {
+            this.options.el = this.options.el || options.el;
+        }
+
+        // load all subModules
+        if (!this.loaded) {
+            return Promise.all(_.invoke(views, 'load')).then(function () {
+                return this._ensurePromise(this.onLoad(options))
+                    .then(function () {
+                        this.loaded = true;
+                        if (this.options.el) {
+                            this.options.el.classList.add(this.options.loadedClass);
+                        }
+                    }.bind(this))
+                    .catch(function (e) {
+                        this.error(e);
+                    }.bind(this));
+            }.bind(this));
+        } else {
+            return Promise.resolve();
+        }
+    },
+
+    /**
+     * Triggers a load error on the module.
+     * @param {Error} [e] - The error to trigger
+     * @return {Promise} Returns a promise when erroring operation is complete
+     */
+    error: function (e) {
+        var el = this.options.el;
+
+        e = e || new Error();
+
+        if (el) {
+            el.classList.add(this.options.errorClass);
+        }
+        this.error = true;
+        console.log('MODULE ERROR!');
+        if (e.stack) {
+            console.log(e.stack);
+        }
+        this.loaded = false;
+        return this._ensurePromise(this.onError(e));
+    },
+
+    /**
+     * Enables the module.
+     * @return {Promise}
+     */
+    enable: function () {
+        var el = this.options.el;
+        if (el) {
+            el.classList.remove(this.options.disabledClass);
+        }
+        this.disabled = false;
+        return this._ensurePromise(this.onEnable());
+    },
+
+    /**
+     * Disables the module.
+     * @return {Promise}
+     */
+    disable: function () {
+        var el = this.options.el;
+        if (el) {
+            el.classList.add(this.options.disabledClass);
+        }
+        this.disabled = true;
+        return this._ensurePromise(this.onDisable());
+    },
+
+    /**
+     * Shows the page.
+     * @return {Promise}
+     */
+    show: function () {
+        var el = this.options.el;
+        if (!this.loaded) {
+            console.warn('Module show() method was called before its load() method.');
+        }
+        if (el) {
+            el.classList.add(this.options.activeClass);
+        }
+        this.active = true;
+        return this._ensurePromise(this.onShow());
+    },
+
+    /**
+     * Hides the page.
+     * @return {Promise}
+     */
+    hide: function () {
+        var el = this.options.el;
+        if (!this.loaded) {
+            console.warn('Module hide() method was called before its load() method.');
+        }
+        if (el) {
+            el.classList.remove(this.options.activeClass);
+        }
+        this.active = false;
+        return this._ensurePromise(this.onHide());
+    },
+
+    /**
+     * Sets up element internally by evaluating its initial state.
+     * @private
+     */
+    _handleElementInitialState: function () {
+        var el = this.options.el;
+        if (!el) {
+            return;
+        }
+        if (el.classList.contains(this.options.disabledClass)) {
+            this._origDisabled = true;
+            this.disable();
+        }
+
+        if (el.classList.contains(this.options.errorClass)) {
+            this._origError = true;
+            this.error(new Error());
+        }
+    },
+
+    /**
+     * Restores the elements classes back to the way they were before instantiation.
+     * @private
+     */
+    _resetElementInitialState: function () {
+        var options = this.options,
+            el = options.el,
+            disabledClass = options.disabledClass,
+            errorClass = options.errorClass;
+
+        if (!el) {
+            return;
+        }
+        if (this._origDisabled) {
+            el.classList.add(disabledClass);
+        } else {
+            el.classList.remove(disabledClass);
+        }
+
+        if (!this._origError) {
+            el.classList.remove(errorClass);
+        } else {
+            el.classList.add(errorClass);
+        }
+    },
+
+    /**
+     * Wraps a promise around a function if doesnt already have one.
+     * @param func
+     * @private
+     */
+    _ensurePromise: function (func) {
+        if (!func || !func.then) {
+            func = Promise.resolve();
+        }
+        return func;
+    },
+
+    /**
+     * Makes a request to get the data for the module.
+     * @param {string} url - The url to fetch data from
+     * @param [options] - ajax options
+     * @returns {*}
+     */
+    fetchData: function (url, options) {
+        return ResourceManager.fetchData(url, options);
+    },
+
+    /**
+     * Gets the css files for the module.
+     * @param cssUrl
+     * @return {Promise}
+     */
+    getStyles: function (cssUrl) {
+        return ResourceManager.loadCss(cssUrl);
+    },
+
+    /**
+     * Gets the html template for the module.
+     * @param templateUrl
+     * @returns {Promise|*}
+     */
+    getTemplate: function (templateUrl) {
+        return ResourceManager.loadTemplate(templateUrl);
+    },
+
+    /**
+     * A function that should overridden that serializes the data for a template.
+     * @param data
+     * @returns {*}
+     */
+    serializeData: function (data) {
+        return data;
+    },
+
+    /**
+     * Destroys all nested views and cleans up.
+     */
+    destroy: function () {
+        var subModules = this.subModules;
+
+        for (var key in subModules) {
+            if (subModules.hasOwnProperty(key) && subModules[key]) {
+                subModules[key].destroy();
+            }
+        }
+        this.subModules = {};
+        this.active = false;
+
+        this._resetElementInitialState();
+    }
+
+};
+
+
+module.exports = Module;
+},{"jquery":43,"promise":45,"resource-manager-js":55,"underscore":56}],45:[function(require,module,exports){
+'use strict';
+
+module.exports = require('./lib')
+
+},{"./lib":50}],46:[function(require,module,exports){
+'use strict';
+
+var asap = require('asap/raw')
+
+function noop() {};
+
+// States:
+//
+// 0 - pending
+// 1 - fulfilled with _value
+// 2 - rejected with _value
+// 3 - adopted the state of another promise, _value
+//
+// once the state is no longer pending (0) it is immutable
+
+// All `_` prefixed properties will be reduced to `_{random number}`
+// at build time to obfuscate them and discourage their use.
+// We don't use symbols or Object.defineProperty to fully hide them
+// because the performance isn't good enough.
+
+
+// to avoid using try/catch inside critical functions, we
+// extract them to here.
+var LAST_ERROR = null;
+var IS_ERROR = {};
+function getThen(obj) {
+  try {
+    return obj.then;
+  } catch (ex) {
+    LAST_ERROR = ex;
+    return IS_ERROR;
+  }
+}
+
+function tryCallOne(fn, a) {
+  try {
+    return fn(a);
+  } catch (ex) {
+    LAST_ERROR = ex;
+    return IS_ERROR;
+  }
+}
+function tryCallTwo(fn, a, b) {
+  try {
+    fn(a, b);
+  } catch (ex) {
+    LAST_ERROR = ex;
+    return IS_ERROR;
+  }
+}
+
+module.exports = Promise;
+function Promise(fn) {
+  if (typeof this !== 'object') throw new TypeError('Promises must be constructed via new')
+  if (typeof fn !== 'function') throw new TypeError('not a function')
+  this._71 = 0;
+  this._18 = null;
+  this._61 = [];
+  if (fn === noop) return;
+  doResolve(fn, this);
+}
+Promise.prototype._10 = function (onFulfilled, onRejected) {
+  var self = this;
+  return new this.constructor(function (resolve, reject) {
+    var res = new Promise(noop);
+    res.then(resolve, reject);
+    self._24(new Handler(onFulfilled, onRejected, res));
+  });
+};
+Promise.prototype.then = function(onFulfilled, onRejected) {
+  if (this.constructor !== Promise) return this._10(onFulfilled, onRejected);
+  var res = new Promise(noop);
+  this._24(new Handler(onFulfilled, onRejected, res));
+  return res;
+};
+Promise.prototype._24 = function(deferred) {
+  if (this._71 === 3) {
+    this._18._24(deferred);
+    return;
+  }
+  if (this._71 === 0) {
+    this._61.push(deferred);
+    return;
+  }
+  var state = this._71;
+  var value = this._18;
+  asap(function() {
+    var cb = state === 1 ? deferred.onFulfilled : deferred.onRejected
+    if (cb === null) {
+      (state === 1 ? deferred.promise._82(value) : deferred.promise._67(value))
+      return
+    }
+    var ret = tryCallOne(cb, value);
+    if (ret === IS_ERROR) {
+      deferred.promise._67(LAST_ERROR)
+    } else {
+      deferred.promise._82(ret)
+    }
+  });
+};
+Promise.prototype._82 = function(newValue) {
+  //Promise Resolution Procedure: https://github.com/promises-aplus/promises-spec#the-promise-resolution-procedure
+  if (newValue === this) {
+    return this._67(new TypeError('A promise cannot be resolved with itself.'))
+  }
+  if (newValue && (typeof newValue === 'object' || typeof newValue === 'function')) {
+    var then = getThen(newValue);
+    if (then === IS_ERROR) {
+      return this._67(LAST_ERROR);
+    }
+    if (
+      then === this.then &&
+      newValue instanceof Promise &&
+      newValue._24 === this._24
+    ) {
+      this._71 = 3;
+      this._18 = newValue;
+      for (var i = 0; i < this._61.length; i++) {
+        newValue._24(this._61[i]);
+      }
+      return;
+    } else if (typeof then === 'function') {
+      doResolve(then.bind(newValue), this)
+      return
+    }
+  }
+  this._71 = 1
+  this._18 = newValue
+  this._94()
+}
+
+Promise.prototype._67 = function (newValue) {
+  this._71 = 2
+  this._18 = newValue
+  this._94()
+}
+Promise.prototype._94 = function () {
+  for (var i = 0; i < this._61.length; i++)
+    this._24(this._61[i])
+  this._61 = null
+}
+
+
+function Handler(onFulfilled, onRejected, promise){
+  this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null
+  this.onRejected = typeof onRejected === 'function' ? onRejected : null
+  this.promise = promise;
+}
+
+/**
+ * Take a potentially misbehaving resolver function and make sure
+ * onFulfilled and onRejected are only called once.
+ *
+ * Makes no guarantees about asynchrony.
+ */
+function doResolve(fn, promise) {
+  var done = false;
+  var res = tryCallTwo(fn, function (value) {
+    if (done) return
+    done = true
+    promise._82(value)
+  }, function (reason) {
+    if (done) return
+    done = true
+    promise._67(reason)
+  })
+  if (!done && res === IS_ERROR) {
+    done = true
+    promise._67(LAST_ERROR)
+  }
+}
+},{"asap/raw":54}],47:[function(require,module,exports){
+'use strict';
+
+var Promise = require('./core.js')
+
+module.exports = Promise
+Promise.prototype.done = function (onFulfilled, onRejected) {
+  var self = arguments.length ? this.then.apply(this, arguments) : this
+  self.then(null, function (err) {
+    setTimeout(function () {
+      throw err
+    }, 0)
+  })
+}
+},{"./core.js":46}],48:[function(require,module,exports){
+'use strict';
+
+//This file contains the ES6 extensions to the core Promises/A+ API
+
+var Promise = require('./core.js')
+var asap = require('asap/raw')
+
+module.exports = Promise
+
+/* Static Functions */
+
+function ValuePromise(value) {
+  this.then = function (onFulfilled) {
+    if (typeof onFulfilled !== 'function') return this
+    return new Promise(function (resolve, reject) {
+      asap(function () {
+        try {
+          resolve(onFulfilled(value))
+        } catch (ex) {
+          reject(ex);
+        }
+      })
+    })
+  }
+}
+ValuePromise.prototype = Promise.prototype
+
+var TRUE = new ValuePromise(true)
+var FALSE = new ValuePromise(false)
+var NULL = new ValuePromise(null)
+var UNDEFINED = new ValuePromise(undefined)
+var ZERO = new ValuePromise(0)
+var EMPTYSTRING = new ValuePromise('')
+
+Promise.resolve = function (value) {
+  if (value instanceof Promise) return value
+
+  if (value === null) return NULL
+  if (value === undefined) return UNDEFINED
+  if (value === true) return TRUE
+  if (value === false) return FALSE
+  if (value === 0) return ZERO
+  if (value === '') return EMPTYSTRING
+
+  if (typeof value === 'object' || typeof value === 'function') {
+    try {
+      var then = value.then
+      if (typeof then === 'function') {
+        return new Promise(then.bind(value))
+      }
+    } catch (ex) {
+      return new Promise(function (resolve, reject) {
+        reject(ex)
+      })
+    }
+  }
+
+  return new ValuePromise(value)
+}
+
+Promise.all = function (arr) {
+  var args = Array.prototype.slice.call(arr)
+
+  return new Promise(function (resolve, reject) {
+    if (args.length === 0) return resolve([])
+    var remaining = args.length
+    function res(i, val) {
+      if (val && (typeof val === 'object' || typeof val === 'function')) {
+        var then = val.then
+        if (typeof then === 'function') {
+          then.call(val, function (val) { res(i, val) }, reject)
+          return
+        }
+      }
+      args[i] = val
+      if (--remaining === 0) {
+        resolve(args);
+      }
+    }
+    for (var i = 0; i < args.length; i++) {
+      res(i, args[i])
+    }
+  })
+}
+
+Promise.reject = function (value) {
+  return new Promise(function (resolve, reject) { 
+    reject(value);
+  });
+}
+
+Promise.race = function (values) {
+  return new Promise(function (resolve, reject) { 
+    values.forEach(function(value){
+      Promise.resolve(value).then(resolve, reject);
+    })
+  });
+}
+
+/* Prototype Methods */
+
+Promise.prototype['catch'] = function (onRejected) {
+  return this.then(null, onRejected);
+}
+
+},{"./core.js":46,"asap/raw":54}],49:[function(require,module,exports){
+'use strict';
+
+var Promise = require('./core.js')
+
+module.exports = Promise
+Promise.prototype['finally'] = function (f) {
+  return this.then(function (value) {
+    return Promise.resolve(f()).then(function () {
+      return value
+    })
+  }, function (err) {
+    return Promise.resolve(f()).then(function () {
+      throw err
+    })
+  })
+}
+
+},{"./core.js":46}],50:[function(require,module,exports){
+'use strict';
+
+module.exports = require('./core.js')
+require('./done.js')
+require('./finally.js')
+require('./es6-extensions.js')
+require('./node-extensions.js')
+
+},{"./core.js":46,"./done.js":47,"./es6-extensions.js":48,"./finally.js":49,"./node-extensions.js":51}],51:[function(require,module,exports){
+'use strict';
+
+//This file contains then/promise specific extensions that are only useful for node.js interop
+
+var Promise = require('./core.js')
+var asap = require('asap')
+
+module.exports = Promise
+
+/* Static Functions */
+
+Promise.denodeify = function (fn, argumentCount) {
+  argumentCount = argumentCount || Infinity
+  return function () {
+    var self = this
+    var args = Array.prototype.slice.call(arguments)
+    return new Promise(function (resolve, reject) {
+      while (args.length && args.length > argumentCount) {
+        args.pop()
+      }
+      args.push(function (err, res) {
+        if (err) reject(err)
+        else resolve(res)
+      })
+      var res = fn.apply(self, args)
+      if (res && (typeof res === 'object' || typeof res === 'function') && typeof res.then === 'function') {
+        resolve(res)
+      }
+    })
+  }
+}
+Promise.nodeify = function (fn) {
+  return function () {
+    var args = Array.prototype.slice.call(arguments)
+    var callback = typeof args[args.length - 1] === 'function' ? args.pop() : null
+    var ctx = this
+    try {
+      return fn.apply(this, arguments).nodeify(callback, ctx)
+    } catch (ex) {
+      if (callback === null || typeof callback == 'undefined') {
+        return new Promise(function (resolve, reject) { reject(ex) })
+      } else {
+        asap(function () {
+          callback.call(ctx, ex)
+        })
+      }
+    }
+  }
+}
+
+Promise.prototype.nodeify = function (callback, ctx) {
+  if (typeof callback != 'function') return this
+
+  this.then(function (value) {
+    asap(function () {
+      callback.call(ctx, null, value)
+    })
+  }, function (err) {
+    asap(function () {
+      callback.call(ctx, err)
+    })
+  })
+}
+
+},{"./core.js":46,"asap":52}],52:[function(require,module,exports){
+"use strict";
+
+// rawAsap provides everything we need except exception management.
+var rawAsap = require("./raw");
+// RawTasks are recycled to reduce GC churn.
+var freeTasks = [];
+// We queue errors to ensure they are thrown in right order (FIFO).
+// Array-as-queue is good enough here, since we are just dealing with exceptions.
+var pendingErrors = [];
+var requestErrorThrow = rawAsap.makeRequestCallFromTimer(throwFirstError);
+
+function throwFirstError() {
+    if (pendingErrors.length) {
+        throw pendingErrors.shift();
+    }
+}
+
+/**
+ * Calls a task as soon as possible after returning, in its own event, with priority
+ * over other events like animation, reflow, and repaint. An error thrown from an
+ * event will not interrupt, nor even substantially slow down the processing of
+ * other events, but will be rather postponed to a lower priority event.
+ * @param {{call}} task A callable object, typically a function that takes no
+ * arguments.
+ */
+module.exports = asap;
+function asap(task) {
+    var rawTask;
+    if (freeTasks.length) {
+        rawTask = freeTasks.pop();
+    } else {
+        rawTask = new RawTask();
+    }
+    rawTask.task = task;
+    rawAsap(rawTask);
+}
+
+// We wrap tasks with recyclable task objects.  A task object implements
+// `call`, just like a function.
+function RawTask() {
+    this.task = null;
+}
+
+// The sole purpose of wrapping the task is to catch the exception and recycle
+// the task object after its single use.
+RawTask.prototype.call = function () {
+    try {
+        this.task.call();
+    } catch (error) {
+        if (asap.onerror) {
+            // This hook exists purely for testing purposes.
+            // Its name will be periodically randomized to break any code that
+            // depends on its existence.
+            asap.onerror(error);
+        } else {
+            // In a web browser, exceptions are not fatal. However, to avoid
+            // slowing down the queue of pending tasks, we rethrow the error in a
+            // lower priority turn.
+            pendingErrors.push(error);
+            requestErrorThrow();
+        }
+    } finally {
+        this.task = null;
+        freeTasks[freeTasks.length] = this;
+    }
+};
+
+},{"./raw":53}],53:[function(require,module,exports){
+(function (global){
+"use strict";
+
+// Use the fastest means possible to execute a task in its own turn, with
+// priority over other events including IO, animation, reflow, and redraw
+// events in browsers.
+//
+// An exception thrown by a task will permanently interrupt the processing of
+// subsequent tasks. The higher level `asap` function ensures that if an
+// exception is thrown by a task, that the task queue will continue flushing as
+// soon as possible, but if you use `rawAsap` directly, you are responsible to
+// either ensure that no exceptions are thrown from your task, or to manually
+// call `rawAsap.requestFlush` if an exception is thrown.
+module.exports = rawAsap;
+function rawAsap(task) {
+    if (!queue.length) {
+        requestFlush();
+        flushing = true;
+    }
+    // Equivalent to push, but avoids a function call.
+    queue[queue.length] = task;
+}
+
+var queue = [];
+// Once a flush has been requested, no further calls to `requestFlush` are
+// necessary until the next `flush` completes.
+var flushing = false;
+// `requestFlush` is an implementation-specific method that attempts to kick
+// off a `flush` event as quickly as possible. `flush` will attempt to exhaust
+// the event queue before yielding to the browser's own event loop.
+var requestFlush;
+// The position of the next task to execute in the task queue. This is
+// preserved between calls to `flush` so that it can be resumed if
+// a task throws an exception.
+var index = 0;
+// If a task schedules additional tasks recursively, the task queue can grow
+// unbounded. To prevent memory exhaustion, the task queue will periodically
+// truncate already-completed tasks.
+var capacity = 1024;
+
+// The flush function processes all tasks that have been scheduled with
+// `rawAsap` unless and until one of those tasks throws an exception.
+// If a task throws an exception, `flush` ensures that its state will remain
+// consistent and will resume where it left off when called again.
+// However, `flush` does not make any arrangements to be called again if an
+// exception is thrown.
+function flush() {
+    while (index < queue.length) {
+        var currentIndex = index;
+        // Advance the index before calling the task. This ensures that we will
+        // begin flushing on the next task the task throws an error.
+        index = index + 1;
+        queue[currentIndex].call();
+        // Prevent leaking memory for long chains of recursive calls to `asap`.
+        // If we call `asap` within tasks scheduled by `asap`, the queue will
+        // grow, but to avoid an O(n) walk for every task we execute, we don't
+        // shift tasks off the queue after they have been executed.
+        // Instead, we periodically shift 1024 tasks off the queue.
+        if (index > capacity) {
+            // Manually shift all values starting at the index back to the
+            // beginning of the queue.
+            for (var scan = 0; scan < index; scan++) {
+                queue[scan] = queue[scan + index];
+            }
+            queue.length -= index;
+            index = 0;
+        }
+    }
+    queue.length = 0;
+    index = 0;
+    flushing = false;
+}
+
+// `requestFlush` is implemented using a strategy based on data collected from
+// every available SauceLabs Selenium web driver worker at time of writing.
+// https://docs.google.com/spreadsheets/d/1mG-5UYGup5qxGdEMWkhP6BWCz053NUb2E1QoUTU16uA/edit#gid=783724593
+
+// Safari 6 and 6.1 for desktop, iPad, and iPhone are the only browsers that
+// have WebKitMutationObserver but not un-prefixed MutationObserver.
+// Must use `global` instead of `window` to work in both frames and web
+// workers. `global` is a provision of Browserify, Mr, Mrs, or Mop.
+var BrowserMutationObserver = global.MutationObserver || global.WebKitMutationObserver;
+
+// MutationObservers are desirable because they have high priority and work
+// reliably everywhere they are implemented.
+// They are implemented in all modern browsers.
+//
+// - Android 4-4.3
+// - Chrome 26-34
+// - Firefox 14-29
+// - Internet Explorer 11
+// - iPad Safari 6-7.1
+// - iPhone Safari 7-7.1
+// - Safari 6-7
+if (typeof BrowserMutationObserver === "function") {
+    requestFlush = makeRequestCallFromMutationObserver(flush);
+
+// MessageChannels are desirable because they give direct access to the HTML
+// task queue, are implemented in Internet Explorer 10, Safari 5.0-1, and Opera
+// 11-12, and in web workers in many engines.
+// Although message channels yield to any queued rendering and IO tasks, they
+// would be better than imposing the 4ms delay of timers.
+// However, they do not work reliably in Internet Explorer or Safari.
+
+// Internet Explorer 10 is the only browser that has setImmediate but does
+// not have MutationObservers.
+// Although setImmediate yields to the browser's renderer, it would be
+// preferrable to falling back to setTimeout since it does not have
+// the minimum 4ms penalty.
+// Unfortunately there appears to be a bug in Internet Explorer 10 Mobile (and
+// Desktop to a lesser extent) that renders both setImmediate and
+// MessageChannel useless for the purposes of ASAP.
+// https://github.com/kriskowal/q/issues/396
+
+// Timers are implemented universally.
+// We fall back to timers in workers in most engines, and in foreground
+// contexts in the following browsers.
+// However, note that even this simple case requires nuances to operate in a
+// broad spectrum of browsers.
+//
+// - Firefox 3-13
+// - Internet Explorer 6-9
+// - iPad Safari 4.3
+// - Lynx 2.8.7
+} else {
+    requestFlush = makeRequestCallFromTimer(flush);
+}
+
+// `requestFlush` requests that the high priority event queue be flushed as
+// soon as possible.
+// This is useful to prevent an error thrown in a task from stalling the event
+// queue if the exception handled by Node.js’s
+// `process.on("uncaughtException")` or by a domain.
+rawAsap.requestFlush = requestFlush;
+
+// To request a high priority event, we induce a mutation observer by toggling
+// the text of a text node between "1" and "-1".
+function makeRequestCallFromMutationObserver(callback) {
+    var toggle = 1;
+    var observer = new BrowserMutationObserver(callback);
+    var node = document.createTextNode("");
+    observer.observe(node, {characterData: true});
+    return function requestCall() {
+        toggle = -toggle;
+        node.data = toggle;
+    };
+}
+
+// The message channel technique was discovered by Malte Ubl and was the
+// original foundation for this library.
+// http://www.nonblocking.io/2011/06/windownexttick.html
+
+// Safari 6.0.5 (at least) intermittently fails to create message ports on a
+// page's first load. Thankfully, this version of Safari supports
+// MutationObservers, so we don't need to fall back in that case.
+
+// function makeRequestCallFromMessageChannel(callback) {
+//     var channel = new MessageChannel();
+//     channel.port1.onmessage = callback;
+//     return function requestCall() {
+//         channel.port2.postMessage(0);
+//     };
+// }
+
+// For reasons explained above, we are also unable to use `setImmediate`
+// under any circumstances.
+// Even if we were, there is another bug in Internet Explorer 10.
+// It is not sufficient to assign `setImmediate` to `requestFlush` because
+// `setImmediate` must be called *by name* and therefore must be wrapped in a
+// closure.
+// Never forget.
+
+// function makeRequestCallFromSetImmediate(callback) {
+//     return function requestCall() {
+//         setImmediate(callback);
+//     };
+// }
+
+// Safari 6.0 has a problem where timers will get lost while the user is
+// scrolling. This problem does not impact ASAP because Safari 6.0 supports
+// mutation observers, so that implementation is used instead.
+// However, if we ever elect to use timers in Safari, the prevalent work-around
+// is to add a scroll event listener that calls for a flush.
+
+// `setTimeout` does not call the passed callback if the delay is less than
+// approximately 7 in web workers in Firefox 8 through 18, and sometimes not
+// even then.
+
+function makeRequestCallFromTimer(callback) {
+    return function requestCall() {
+        // We dispatch a timeout with a specified delay of 0 for engines that
+        // can reliably accommodate that request. This will usually be snapped
+        // to a 4 milisecond delay, but once we're flushing, there's no delay
+        // between events.
+        var timeoutHandle = setTimeout(handleTimer, 0);
+        // However, since this timer gets frequently dropped in Firefox
+        // workers, we enlist an interval handle that will try to fire
+        // an event 20 times per second until it succeeds.
+        var intervalHandle = setInterval(handleTimer, 50);
+
+        function handleTimer() {
+            // Whichever timer succeeds will cancel both timers and
+            // execute the callback.
+            clearTimeout(timeoutHandle);
+            clearInterval(intervalHandle);
+            callback();
+        }
+    };
+}
+
+// This is for `asap.js` only.
+// Its name will be periodically randomized to break any code that depends on
+// its existence.
+rawAsap.makeRequestCallFromTimer = makeRequestCallFromTimer;
+
+// ASAP was originally a nextTick shim included in Q. This was factored out
+// into this ASAP package. It was later adapted to RSVP which made further
+// amendments. These decisions, particularly to marginalize MessageChannel and
+// to capture the MutationObserver implementation in a closure, were integrated
+// back into ASAP proper.
+// https://github.com/tildeio/rsvp.js/blob/cddf7232546a9cf858524b75cde6f9edf72620a7/lib/rsvp/asap.js
+
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],54:[function(require,module,exports){
+(function (process){
+"use strict";
+
+var domain; // The domain module is executed on demand
+var hasSetImmediate = typeof setImmediate === "function";
+
+// Use the fastest means possible to execute a task in its own turn, with
+// priority over other events including network IO events in Node.js.
+//
+// An exception thrown by a task will permanently interrupt the processing of
+// subsequent tasks. The higher level `asap` function ensures that if an
+// exception is thrown by a task, that the task queue will continue flushing as
+// soon as possible, but if you use `rawAsap` directly, you are responsible to
+// either ensure that no exceptions are thrown from your task, or to manually
+// call `rawAsap.requestFlush` if an exception is thrown.
+module.exports = rawAsap;
+function rawAsap(task) {
+    if (!queue.length) {
+        requestFlush();
+        flushing = true;
+    }
+    // Avoids a function call
+    queue[queue.length] = task;
+}
+
+var queue = [];
+// Once a flush has been requested, no further calls to `requestFlush` are
+// necessary until the next `flush` completes.
+var flushing = false;
+// The position of the next task to execute in the task queue. This is
+// preserved between calls to `flush` so that it can be resumed if
+// a task throws an exception.
+var index = 0;
+// If a task schedules additional tasks recursively, the task queue can grown
+// unbounded. To prevent memory excaustion, the task queue will periodically
+// truncate already-completed tasks.
+var capacity = 1024;
+
+// The flush function processes all tasks that have been scheduled with
+// `rawAsap` unless and until one of those tasks throws an exception.
+// If a task throws an exception, `flush` ensures that its state will remain
+// consistent and will resume where it left off when called again.
+// However, `flush` does not make any arrangements to be called again if an
+// exception is thrown.
+function flush() {
+    while (index < queue.length) {
+        var currentIndex = index;
+        // Advance the index before calling the task. This ensures that we will
+        // begin flushing on the next task the task throws an error.
+        index = index + 1;
+        queue[currentIndex].call();
+        // Prevent leaking memory for long chains of recursive calls to `asap`.
+        // If we call `asap` within tasks scheduled by `asap`, the queue will
+        // grow, but to avoid an O(n) walk for every task we execute, we don't
+        // shift tasks off the queue after they have been executed.
+        // Instead, we periodically shift 1024 tasks off the queue.
+        if (index > capacity) {
+            // Manually shift all values starting at the index back to the
+            // beginning of the queue.
+            for (var scan = 0; scan < index; scan++) {
+                queue[scan] = queue[scan + index];
+            }
+            queue.length -= index;
+            index = 0;
+        }
+    }
+    queue.length = 0;
+    index = 0;
+    flushing = false;
+}
+
+rawAsap.requestFlush = requestFlush;
+function requestFlush() {
+    // Ensure flushing is not bound to any domain.
+    // It is not sufficient to exit the domain, because domains exist on a stack.
+    // To execute code outside of any domain, the following dance is necessary.
+    var parentDomain = process.domain;
+    if (parentDomain) {
+        if (!domain) {
+            // Lazy execute the domain module.
+            // Only employed if the user elects to use domains.
+            domain = require("domain");
+        }
+        domain.active = process.domain = null;
+    }
+
+    // `setImmediate` is slower that `process.nextTick`, but `process.nextTick`
+    // cannot handle recursion.
+    // `requestFlush` will only be called recursively from `asap.js`, to resume
+    // flushing after an error is thrown into a domain.
+    // Conveniently, `setImmediate` was introduced in the same version
+    // `process.nextTick` started throwing recursion errors.
+    if (flushing && hasSetImmediate) {
+        setImmediate(flush);
+    } else {
+        process.nextTick(flush);
+    }
+
+    if (parentDomain) {
+        domain.active = process.domain = parentDomain;
+    }
+}
+
+
+}).call(this,require('_process'))
+},{"_process":5,"domain":2}],55:[function(require,module,exports){
 var Promise = require('promise');
 var $ = require('jquery');
 
@@ -17383,1383 +18546,7 @@ ResourceManager.prototype = {
 };
 
 module.exports = new ResourceManager();
-},{"jquery":43,"promise":46}],45:[function(require,module,exports){
-'use strict';
-
-var Promise = require('promise');
-var _ = require('underscore');
-var $ = require('jquery');
-var ResourceManager = require('resource-manager-js');
-
-/**
- * @class Module
- * @description Base class that represents all modules of an App.
- */
-var Module = function (options) {
-    this.initialize(options);
-};
-
-/**
- * Extends a class and allows creation of subclasses.
- * @param protoProps
- * @param staticProps
- * @returns {*}
- */
-var extend = function(protoProps, staticProps) {
-    var parent = this;
-    var child;
-
-    // The constructor function for the new subclass is either defined by you
-    // (the "constructor" property in your `extend` definition), or defaulted
-    // by us to simply call the parent's constructor.
-    if (protoProps && _.has(protoProps, 'constructor')) {
-        child = protoProps.constructor;
-    } else {
-        child = function(){ return parent.apply(this, arguments); };
-    }
-
-    // Add static properties to the constructor function, if supplied.
-    _.extend(child, parent, staticProps);
-
-    // Set the prototype chain to inherit from `parent`, without calling
-    // `parent`'s constructor function.
-    var Surrogate = function(){ this.constructor = child; };
-    Surrogate.prototype = parent.prototype;
-    child.prototype = new Surrogate();
-
-    // Add prototype properties (instance properties) to the subclass,
-    // if supplied.
-    if (protoProps) {
-        _.extend(child.prototype, protoProps);
-    }
-
-    // Set a convenience property in case the parent's prototype is needed
-    // later.
-    child.__super__ = parent.prototype;
-
-    return child;
-};
-
-Module.extend = extend;
-
-Module.prototype = {
-
-    /**
-     * Initialization.
-     * @param {Object} [options] - An object of options
-     * @param {HTMLElement} [options.el] - The module element
-     * @param {string} [options.loadedClass] - The class that will be applied to the module element when it is loaded
-     * @param {string} [options.activeClass] - The class that will be applied to the module element when it is shown
-     * @param {string} [options.disabledClass] - The class that will be applied to the module element when disabled
-     * @param {string} [options.errorClass] - The class that will be applied to the module element when it has a load error
-     */
-    initialize: function (options) {
-
-        this.options = _.extend({}, {
-            el: null,
-            loadedClass: 'module-loaded',
-            activeClass: 'module-active',
-            disabledClass: 'module-disabled',
-            errorClass: 'module-error'
-        }, options);
-
-        this._handleElementInitialState();
-
-        this.subModules = {};
-    },
-
-    /**
-     * A function that fires when the module's load() method is called
-     * which can be overridden by subclass custom implementations.
-     * @abstract
-     * @return {*} May return a promise when done
-     * @param options
-     */
-    onLoad: function (options) {
-        return Promise.resolve();
-    },
-
-    /**
-     * A function that fires when the module's show() method is called
-     * which can be overridden by subclass custom implementations.
-     * @abstract
-     * @return {*} May return a promise when done
-     */
-    onShow: function () {
-        return Promise.resolve();
-    },
-
-    /**
-     * A function that fires when the module's hide() method is called
-     * which can be overridden by subclass custom implementations.
-     * @abstract
-     * @return {*} May return a promise when done
-     */
-    onHide: function () {
-        return Promise.resolve();
-    },
-
-    /**
-     * A function that fires when the module's enable() method is called
-     * which can be overridden by subclass custom implementations.
-     * @abstract
-     * @returns {*|Promise} Optionally return a promise when done
-     */
-    onEnable: function () {
-        return Promise.resolve();
-    },
-
-    /**
-     * A function that fires when the module's disable() method is called
-     * which can be overridden by subclass custom implementations.
-     * @abstract
-     * @returns {*|Promise} Optionally return a promise when done
-     */
-    onDisable: function () {
-        return Promise.resolve();
-    },
-
-    /**
-     * A function that fires when the error() method is called
-     * which can be overridden by subclass custom implementations.
-     * @abstract
-     * @returns {*|Promise} Optionally return a promise when done
-     */
-    onError: function () {
-        return Promise.resolve();
-    },
-
-    /**
-     * Loads.
-     * @param {Object} [options] - Options
-     * @param {HTMLElement} [options.el] - The modules element (used only if module element wasnt passed in initialize)
-     * @return {Promise}
-     */
-    load: function (options) {
-        var views = _.values(this.subModules);
-
-        // add element to options
-        if (options) {
-            this.options.el = this.options.el || options.el;
-        }
-
-        // load all subModules
-        if (!this.loaded) {
-            return Promise.all(_.invoke(views, 'load')).then(function () {
-                return this._ensurePromise(this.onLoad(options))
-                    .then(function () {
-                        this.loaded = true;
-                        if (this.options.el) {
-                            this.options.el.classList.add(this.options.loadedClass);
-                        }
-                    }.bind(this))
-                    .catch(function (e) {
-                        this.error(e);
-                    }.bind(this));
-            }.bind(this));
-        } else {
-            return Promise.resolve();
-        }
-    },
-
-    /**
-     * Triggers a load error on the module.
-     * @param {Error} [e] - The error to trigger
-     * @return {Promise} Returns a promise when erroring operation is complete
-     */
-    error: function (e) {
-        var el = this.options.el;
-
-        e = e || new Error();
-
-        if (el) {
-            el.classList.add(this.options.errorClass);
-        }
-        this.error = true;
-        console.log('MODULE ERROR!');
-        if (e.stack) {
-            console.log(e.stack);
-        }
-        this.loaded = false;
-        return this._ensurePromise(this.onError(e));
-    },
-
-    /**
-     * Enables the module.
-     * @return {Promise}
-     */
-    enable: function () {
-        var el = this.options.el;
-        if (el) {
-            el.classList.remove(this.options.disabledClass);
-        }
-        this.disabled = false;
-        return this._ensurePromise(this.onEnable());
-    },
-
-    /**
-     * Disables the module.
-     * @return {Promise}
-     */
-    disable: function () {
-        var el = this.options.el;
-        if (el) {
-            el.classList.add(this.options.disabledClass);
-        }
-        this.disabled = true;
-        return this._ensurePromise(this.onDisable());
-    },
-
-    /**
-     * Shows the page.
-     * @return {Promise}
-     */
-    show: function () {
-        var el = this.options.el;
-        if (!this.loaded) {
-            console.warn('Module show() method was called before its load() method.');
-        }
-        if (el) {
-            el.classList.add(this.options.activeClass);
-        }
-        return this._ensurePromise(this.onShow());
-    },
-
-    /**
-     * Hides the page.
-     * @return {Promise}
-     */
-    hide: function () {
-        var el = this.options.el;
-        if (!this.loaded) {
-            console.warn('Module hide() method was called before its load() method.');
-        }
-        if (el) {
-            el.classList.remove(this.options.activeClass);
-        }
-        return this._ensurePromise(this.onHide());
-    },
-
-    /**
-     * Sets up element internally by evaluating its initial state.
-     * @private
-     */
-    _handleElementInitialState: function () {
-        var el = this.options.el;
-        if (!el) {
-            return;
-        }
-        if (el.classList.contains(this.options.disabledClass)) {
-            this._origDisabled = true;
-            this.disable();
-        }
-
-        if (el.classList.contains(this.options.errorClass)) {
-            this._origError = true;
-            this.error(new Error());
-        }
-    },
-
-    /**
-     * Restores the elements classes back to the way they were before instantiation.
-     * @private
-     */
-    _resetElementInitialState: function () {
-        var options = this.options,
-            el = options.el,
-            disabledClass = options.disabledClass,
-            errorClass = options.errorClass;
-
-        if (!el) {
-            return;
-        }
-        if (this._origDisabled) {
-            el.classList.add(disabledClass);
-        } else {
-            el.classList.remove(disabledClass);
-        }
-
-        if (!this._origError) {
-            el.classList.remove(errorClass);
-        } else {
-            el.classList.add(errorClass);
-        }
-    },
-
-    /**
-     * Wraps a promise around a function if doesnt already have one.
-     * @param func
-     * @private
-     */
-    _ensurePromise: function (func) {
-        if (!func || !func.then) {
-            func = Promise.resolve();
-        }
-        return func;
-    },
-
-    /**
-     * Makes a request to get the data for the module.
-     * @param {string} url - The url to fetch data from
-     * @param [options] - ajax options
-     * @returns {*}
-     */
-    fetchData: function (url, options) {
-        return ResourceManager.fetchData(url, options);
-    },
-
-    /**
-     * Gets the css files for the module.
-     * @param cssUrl
-     * @return {Promise}
-     */
-    getStyles: function (cssUrl) {
-        return ResourceManager.loadCss(cssUrl);
-    },
-
-    /**
-     * Gets the html template for the module.
-     * @param templateUrl
-     * @returns {Promise|*}
-     */
-    getTemplate: function (templateUrl) {
-        return ResourceManager.loadTemplate(templateUrl);
-    },
-
-    /**
-     * A function that should overridden that serializes the data for a template.
-     * @param data
-     * @returns {*}
-     */
-    serializeData: function (data) {
-        return data;
-    },
-
-    /**
-     * Destroys all nested views and cleans up.
-     */
-    destroy: function () {
-        var subModules = this.subModules;
-
-        for (var key in subModules) {
-            if (subModules.hasOwnProperty(key) && subModules[key]) {
-                subModules[key].destroy();
-            }
-        }
-        this.subModules = {};
-
-        this._resetElementInitialState();
-    }
-
-};
-
-
-module.exports = Module;
-},{"jquery":43,"promise":46,"resource-manager-js":44,"underscore":57}],46:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./lib')
-
-},{"./lib":51}],47:[function(require,module,exports){
-'use strict';
-
-var asap = require('asap/raw')
-
-function noop() {};
-
-// States:
-//
-// 0 - pending
-// 1 - fulfilled with _value
-// 2 - rejected with _value
-// 3 - adopted the state of another promise, _value
-//
-// once the state is no longer pending (0) it is immutable
-
-// All `_` prefixed properties will be reduced to `_{random number}`
-// at build time to obfuscate them and discourage their use.
-// We don't use symbols or Object.defineProperty to fully hide them
-// because the performance isn't good enough.
-
-
-// to avoid using try/catch inside critical functions, we
-// extract them to here.
-var LAST_ERROR = null;
-var IS_ERROR = {};
-function getThen(obj) {
-  try {
-    return obj.then;
-  } catch (ex) {
-    LAST_ERROR = ex;
-    return IS_ERROR;
-  }
-}
-
-function tryCallOne(fn, a) {
-  try {
-    return fn(a);
-  } catch (ex) {
-    LAST_ERROR = ex;
-    return IS_ERROR;
-  }
-}
-function tryCallTwo(fn, a, b) {
-  try {
-    fn(a, b);
-  } catch (ex) {
-    LAST_ERROR = ex;
-    return IS_ERROR;
-  }
-}
-
-module.exports = Promise;
-function Promise(fn) {
-  if (typeof this !== 'object') throw new TypeError('Promises must be constructed via new')
-  if (typeof fn !== 'function') throw new TypeError('not a function')
-  this._71 = 0;
-  this._18 = null;
-  this._61 = [];
-  if (fn === noop) return;
-  doResolve(fn, this);
-}
-Promise.prototype._10 = function (onFulfilled, onRejected) {
-  var self = this;
-  return new this.constructor(function (resolve, reject) {
-    var res = new Promise(noop);
-    res.then(resolve, reject);
-    self._24(new Handler(onFulfilled, onRejected, res));
-  });
-};
-Promise.prototype.then = function(onFulfilled, onRejected) {
-  if (this.constructor !== Promise) return this._10(onFulfilled, onRejected);
-  var res = new Promise(noop);
-  this._24(new Handler(onFulfilled, onRejected, res));
-  return res;
-};
-Promise.prototype._24 = function(deferred) {
-  if (this._71 === 3) {
-    this._18._24(deferred);
-    return;
-  }
-  if (this._71 === 0) {
-    this._61.push(deferred);
-    return;
-  }
-  var state = this._71;
-  var value = this._18;
-  asap(function() {
-    var cb = state === 1 ? deferred.onFulfilled : deferred.onRejected
-    if (cb === null) {
-      (state === 1 ? deferred.promise._82(value) : deferred.promise._67(value))
-      return
-    }
-    var ret = tryCallOne(cb, value);
-    if (ret === IS_ERROR) {
-      deferred.promise._67(LAST_ERROR)
-    } else {
-      deferred.promise._82(ret)
-    }
-  });
-};
-Promise.prototype._82 = function(newValue) {
-  //Promise Resolution Procedure: https://github.com/promises-aplus/promises-spec#the-promise-resolution-procedure
-  if (newValue === this) {
-    return this._67(new TypeError('A promise cannot be resolved with itself.'))
-  }
-  if (newValue && (typeof newValue === 'object' || typeof newValue === 'function')) {
-    var then = getThen(newValue);
-    if (then === IS_ERROR) {
-      return this._67(LAST_ERROR);
-    }
-    if (
-      then === this.then &&
-      newValue instanceof Promise &&
-      newValue._24 === this._24
-    ) {
-      this._71 = 3;
-      this._18 = newValue;
-      for (var i = 0; i < this._61.length; i++) {
-        newValue._24(this._61[i]);
-      }
-      return;
-    } else if (typeof then === 'function') {
-      doResolve(then.bind(newValue), this)
-      return
-    }
-  }
-  this._71 = 1
-  this._18 = newValue
-  this._94()
-}
-
-Promise.prototype._67 = function (newValue) {
-  this._71 = 2
-  this._18 = newValue
-  this._94()
-}
-Promise.prototype._94 = function () {
-  for (var i = 0; i < this._61.length; i++)
-    this._24(this._61[i])
-  this._61 = null
-}
-
-
-function Handler(onFulfilled, onRejected, promise){
-  this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null
-  this.onRejected = typeof onRejected === 'function' ? onRejected : null
-  this.promise = promise;
-}
-
-/**
- * Take a potentially misbehaving resolver function and make sure
- * onFulfilled and onRejected are only called once.
- *
- * Makes no guarantees about asynchrony.
- */
-function doResolve(fn, promise) {
-  var done = false;
-  var res = tryCallTwo(fn, function (value) {
-    if (done) return
-    done = true
-    promise._82(value)
-  }, function (reason) {
-    if (done) return
-    done = true
-    promise._67(reason)
-  })
-  if (!done && res === IS_ERROR) {
-    done = true
-    promise._67(LAST_ERROR)
-  }
-}
-},{"asap/raw":55}],48:[function(require,module,exports){
-'use strict';
-
-var Promise = require('./core.js')
-
-module.exports = Promise
-Promise.prototype.done = function (onFulfilled, onRejected) {
-  var self = arguments.length ? this.then.apply(this, arguments) : this
-  self.then(null, function (err) {
-    setTimeout(function () {
-      throw err
-    }, 0)
-  })
-}
-},{"./core.js":47}],49:[function(require,module,exports){
-'use strict';
-
-//This file contains the ES6 extensions to the core Promises/A+ API
-
-var Promise = require('./core.js')
-var asap = require('asap/raw')
-
-module.exports = Promise
-
-/* Static Functions */
-
-function ValuePromise(value) {
-  this.then = function (onFulfilled) {
-    if (typeof onFulfilled !== 'function') return this
-    return new Promise(function (resolve, reject) {
-      asap(function () {
-        try {
-          resolve(onFulfilled(value))
-        } catch (ex) {
-          reject(ex);
-        }
-      })
-    })
-  }
-}
-ValuePromise.prototype = Promise.prototype
-
-var TRUE = new ValuePromise(true)
-var FALSE = new ValuePromise(false)
-var NULL = new ValuePromise(null)
-var UNDEFINED = new ValuePromise(undefined)
-var ZERO = new ValuePromise(0)
-var EMPTYSTRING = new ValuePromise('')
-
-Promise.resolve = function (value) {
-  if (value instanceof Promise) return value
-
-  if (value === null) return NULL
-  if (value === undefined) return UNDEFINED
-  if (value === true) return TRUE
-  if (value === false) return FALSE
-  if (value === 0) return ZERO
-  if (value === '') return EMPTYSTRING
-
-  if (typeof value === 'object' || typeof value === 'function') {
-    try {
-      var then = value.then
-      if (typeof then === 'function') {
-        return new Promise(then.bind(value))
-      }
-    } catch (ex) {
-      return new Promise(function (resolve, reject) {
-        reject(ex)
-      })
-    }
-  }
-
-  return new ValuePromise(value)
-}
-
-Promise.all = function (arr) {
-  var args = Array.prototype.slice.call(arr)
-
-  return new Promise(function (resolve, reject) {
-    if (args.length === 0) return resolve([])
-    var remaining = args.length
-    function res(i, val) {
-      if (val && (typeof val === 'object' || typeof val === 'function')) {
-        var then = val.then
-        if (typeof then === 'function') {
-          then.call(val, function (val) { res(i, val) }, reject)
-          return
-        }
-      }
-      args[i] = val
-      if (--remaining === 0) {
-        resolve(args);
-      }
-    }
-    for (var i = 0; i < args.length; i++) {
-      res(i, args[i])
-    }
-  })
-}
-
-Promise.reject = function (value) {
-  return new Promise(function (resolve, reject) { 
-    reject(value);
-  });
-}
-
-Promise.race = function (values) {
-  return new Promise(function (resolve, reject) { 
-    values.forEach(function(value){
-      Promise.resolve(value).then(resolve, reject);
-    })
-  });
-}
-
-/* Prototype Methods */
-
-Promise.prototype['catch'] = function (onRejected) {
-  return this.then(null, onRejected);
-}
-
-},{"./core.js":47,"asap/raw":55}],50:[function(require,module,exports){
-'use strict';
-
-var Promise = require('./core.js')
-
-module.exports = Promise
-Promise.prototype['finally'] = function (f) {
-  return this.then(function (value) {
-    return Promise.resolve(f()).then(function () {
-      return value
-    })
-  }, function (err) {
-    return Promise.resolve(f()).then(function () {
-      throw err
-    })
-  })
-}
-
-},{"./core.js":47}],51:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./core.js')
-require('./done.js')
-require('./finally.js')
-require('./es6-extensions.js')
-require('./node-extensions.js')
-
-},{"./core.js":47,"./done.js":48,"./es6-extensions.js":49,"./finally.js":50,"./node-extensions.js":52}],52:[function(require,module,exports){
-'use strict';
-
-//This file contains then/promise specific extensions that are only useful for node.js interop
-
-var Promise = require('./core.js')
-var asap = require('asap')
-
-module.exports = Promise
-
-/* Static Functions */
-
-Promise.denodeify = function (fn, argumentCount) {
-  argumentCount = argumentCount || Infinity
-  return function () {
-    var self = this
-    var args = Array.prototype.slice.call(arguments)
-    return new Promise(function (resolve, reject) {
-      while (args.length && args.length > argumentCount) {
-        args.pop()
-      }
-      args.push(function (err, res) {
-        if (err) reject(err)
-        else resolve(res)
-      })
-      var res = fn.apply(self, args)
-      if (res && (typeof res === 'object' || typeof res === 'function') && typeof res.then === 'function') {
-        resolve(res)
-      }
-    })
-  }
-}
-Promise.nodeify = function (fn) {
-  return function () {
-    var args = Array.prototype.slice.call(arguments)
-    var callback = typeof args[args.length - 1] === 'function' ? args.pop() : null
-    var ctx = this
-    try {
-      return fn.apply(this, arguments).nodeify(callback, ctx)
-    } catch (ex) {
-      if (callback === null || typeof callback == 'undefined') {
-        return new Promise(function (resolve, reject) { reject(ex) })
-      } else {
-        asap(function () {
-          callback.call(ctx, ex)
-        })
-      }
-    }
-  }
-}
-
-Promise.prototype.nodeify = function (callback, ctx) {
-  if (typeof callback != 'function') return this
-
-  this.then(function (value) {
-    asap(function () {
-      callback.call(ctx, null, value)
-    })
-  }, function (err) {
-    asap(function () {
-      callback.call(ctx, err)
-    })
-  })
-}
-
-},{"./core.js":47,"asap":53}],53:[function(require,module,exports){
-"use strict";
-
-// rawAsap provides everything we need except exception management.
-var rawAsap = require("./raw");
-// RawTasks are recycled to reduce GC churn.
-var freeTasks = [];
-// We queue errors to ensure they are thrown in right order (FIFO).
-// Array-as-queue is good enough here, since we are just dealing with exceptions.
-var pendingErrors = [];
-var requestErrorThrow = rawAsap.makeRequestCallFromTimer(throwFirstError);
-
-function throwFirstError() {
-    if (pendingErrors.length) {
-        throw pendingErrors.shift();
-    }
-}
-
-/**
- * Calls a task as soon as possible after returning, in its own event, with priority
- * over other events like animation, reflow, and repaint. An error thrown from an
- * event will not interrupt, nor even substantially slow down the processing of
- * other events, but will be rather postponed to a lower priority event.
- * @param {{call}} task A callable object, typically a function that takes no
- * arguments.
- */
-module.exports = asap;
-function asap(task) {
-    var rawTask;
-    if (freeTasks.length) {
-        rawTask = freeTasks.pop();
-    } else {
-        rawTask = new RawTask();
-    }
-    rawTask.task = task;
-    rawAsap(rawTask);
-}
-
-// We wrap tasks with recyclable task objects.  A task object implements
-// `call`, just like a function.
-function RawTask() {
-    this.task = null;
-}
-
-// The sole purpose of wrapping the task is to catch the exception and recycle
-// the task object after its single use.
-RawTask.prototype.call = function () {
-    try {
-        this.task.call();
-    } catch (error) {
-        if (asap.onerror) {
-            // This hook exists purely for testing purposes.
-            // Its name will be periodically randomized to break any code that
-            // depends on its existence.
-            asap.onerror(error);
-        } else {
-            // In a web browser, exceptions are not fatal. However, to avoid
-            // slowing down the queue of pending tasks, we rethrow the error in a
-            // lower priority turn.
-            pendingErrors.push(error);
-            requestErrorThrow();
-        }
-    } finally {
-        this.task = null;
-        freeTasks[freeTasks.length] = this;
-    }
-};
-
-},{"./raw":54}],54:[function(require,module,exports){
-(function (global){
-"use strict";
-
-// Use the fastest means possible to execute a task in its own turn, with
-// priority over other events including IO, animation, reflow, and redraw
-// events in browsers.
-//
-// An exception thrown by a task will permanently interrupt the processing of
-// subsequent tasks. The higher level `asap` function ensures that if an
-// exception is thrown by a task, that the task queue will continue flushing as
-// soon as possible, but if you use `rawAsap` directly, you are responsible to
-// either ensure that no exceptions are thrown from your task, or to manually
-// call `rawAsap.requestFlush` if an exception is thrown.
-module.exports = rawAsap;
-function rawAsap(task) {
-    if (!queue.length) {
-        requestFlush();
-        flushing = true;
-    }
-    // Equivalent to push, but avoids a function call.
-    queue[queue.length] = task;
-}
-
-var queue = [];
-// Once a flush has been requested, no further calls to `requestFlush` are
-// necessary until the next `flush` completes.
-var flushing = false;
-// `requestFlush` is an implementation-specific method that attempts to kick
-// off a `flush` event as quickly as possible. `flush` will attempt to exhaust
-// the event queue before yielding to the browser's own event loop.
-var requestFlush;
-// The position of the next task to execute in the task queue. This is
-// preserved between calls to `flush` so that it can be resumed if
-// a task throws an exception.
-var index = 0;
-// If a task schedules additional tasks recursively, the task queue can grow
-// unbounded. To prevent memory exhaustion, the task queue will periodically
-// truncate already-completed tasks.
-var capacity = 1024;
-
-// The flush function processes all tasks that have been scheduled with
-// `rawAsap` unless and until one of those tasks throws an exception.
-// If a task throws an exception, `flush` ensures that its state will remain
-// consistent and will resume where it left off when called again.
-// However, `flush` does not make any arrangements to be called again if an
-// exception is thrown.
-function flush() {
-    while (index < queue.length) {
-        var currentIndex = index;
-        // Advance the index before calling the task. This ensures that we will
-        // begin flushing on the next task the task throws an error.
-        index = index + 1;
-        queue[currentIndex].call();
-        // Prevent leaking memory for long chains of recursive calls to `asap`.
-        // If we call `asap` within tasks scheduled by `asap`, the queue will
-        // grow, but to avoid an O(n) walk for every task we execute, we don't
-        // shift tasks off the queue after they have been executed.
-        // Instead, we periodically shift 1024 tasks off the queue.
-        if (index > capacity) {
-            // Manually shift all values starting at the index back to the
-            // beginning of the queue.
-            for (var scan = 0; scan < index; scan++) {
-                queue[scan] = queue[scan + index];
-            }
-            queue.length -= index;
-            index = 0;
-        }
-    }
-    queue.length = 0;
-    index = 0;
-    flushing = false;
-}
-
-// `requestFlush` is implemented using a strategy based on data collected from
-// every available SauceLabs Selenium web driver worker at time of writing.
-// https://docs.google.com/spreadsheets/d/1mG-5UYGup5qxGdEMWkhP6BWCz053NUb2E1QoUTU16uA/edit#gid=783724593
-
-// Safari 6 and 6.1 for desktop, iPad, and iPhone are the only browsers that
-// have WebKitMutationObserver but not un-prefixed MutationObserver.
-// Must use `global` instead of `window` to work in both frames and web
-// workers. `global` is a provision of Browserify, Mr, Mrs, or Mop.
-var BrowserMutationObserver = global.MutationObserver || global.WebKitMutationObserver;
-
-// MutationObservers are desirable because they have high priority and work
-// reliably everywhere they are implemented.
-// They are implemented in all modern browsers.
-//
-// - Android 4-4.3
-// - Chrome 26-34
-// - Firefox 14-29
-// - Internet Explorer 11
-// - iPad Safari 6-7.1
-// - iPhone Safari 7-7.1
-// - Safari 6-7
-if (typeof BrowserMutationObserver === "function") {
-    requestFlush = makeRequestCallFromMutationObserver(flush);
-
-// MessageChannels are desirable because they give direct access to the HTML
-// task queue, are implemented in Internet Explorer 10, Safari 5.0-1, and Opera
-// 11-12, and in web workers in many engines.
-// Although message channels yield to any queued rendering and IO tasks, they
-// would be better than imposing the 4ms delay of timers.
-// However, they do not work reliably in Internet Explorer or Safari.
-
-// Internet Explorer 10 is the only browser that has setImmediate but does
-// not have MutationObservers.
-// Although setImmediate yields to the browser's renderer, it would be
-// preferrable to falling back to setTimeout since it does not have
-// the minimum 4ms penalty.
-// Unfortunately there appears to be a bug in Internet Explorer 10 Mobile (and
-// Desktop to a lesser extent) that renders both setImmediate and
-// MessageChannel useless for the purposes of ASAP.
-// https://github.com/kriskowal/q/issues/396
-
-// Timers are implemented universally.
-// We fall back to timers in workers in most engines, and in foreground
-// contexts in the following browsers.
-// However, note that even this simple case requires nuances to operate in a
-// broad spectrum of browsers.
-//
-// - Firefox 3-13
-// - Internet Explorer 6-9
-// - iPad Safari 4.3
-// - Lynx 2.8.7
-} else {
-    requestFlush = makeRequestCallFromTimer(flush);
-}
-
-// `requestFlush` requests that the high priority event queue be flushed as
-// soon as possible.
-// This is useful to prevent an error thrown in a task from stalling the event
-// queue if the exception handled by Node.js’s
-// `process.on("uncaughtException")` or by a domain.
-rawAsap.requestFlush = requestFlush;
-
-// To request a high priority event, we induce a mutation observer by toggling
-// the text of a text node between "1" and "-1".
-function makeRequestCallFromMutationObserver(callback) {
-    var toggle = 1;
-    var observer = new BrowserMutationObserver(callback);
-    var node = document.createTextNode("");
-    observer.observe(node, {characterData: true});
-    return function requestCall() {
-        toggle = -toggle;
-        node.data = toggle;
-    };
-}
-
-// The message channel technique was discovered by Malte Ubl and was the
-// original foundation for this library.
-// http://www.nonblocking.io/2011/06/windownexttick.html
-
-// Safari 6.0.5 (at least) intermittently fails to create message ports on a
-// page's first load. Thankfully, this version of Safari supports
-// MutationObservers, so we don't need to fall back in that case.
-
-// function makeRequestCallFromMessageChannel(callback) {
-//     var channel = new MessageChannel();
-//     channel.port1.onmessage = callback;
-//     return function requestCall() {
-//         channel.port2.postMessage(0);
-//     };
-// }
-
-// For reasons explained above, we are also unable to use `setImmediate`
-// under any circumstances.
-// Even if we were, there is another bug in Internet Explorer 10.
-// It is not sufficient to assign `setImmediate` to `requestFlush` because
-// `setImmediate` must be called *by name* and therefore must be wrapped in a
-// closure.
-// Never forget.
-
-// function makeRequestCallFromSetImmediate(callback) {
-//     return function requestCall() {
-//         setImmediate(callback);
-//     };
-// }
-
-// Safari 6.0 has a problem where timers will get lost while the user is
-// scrolling. This problem does not impact ASAP because Safari 6.0 supports
-// mutation observers, so that implementation is used instead.
-// However, if we ever elect to use timers in Safari, the prevalent work-around
-// is to add a scroll event listener that calls for a flush.
-
-// `setTimeout` does not call the passed callback if the delay is less than
-// approximately 7 in web workers in Firefox 8 through 18, and sometimes not
-// even then.
-
-function makeRequestCallFromTimer(callback) {
-    return function requestCall() {
-        // We dispatch a timeout with a specified delay of 0 for engines that
-        // can reliably accommodate that request. This will usually be snapped
-        // to a 4 milisecond delay, but once we're flushing, there's no delay
-        // between events.
-        var timeoutHandle = setTimeout(handleTimer, 0);
-        // However, since this timer gets frequently dropped in Firefox
-        // workers, we enlist an interval handle that will try to fire
-        // an event 20 times per second until it succeeds.
-        var intervalHandle = setInterval(handleTimer, 50);
-
-        function handleTimer() {
-            // Whichever timer succeeds will cancel both timers and
-            // execute the callback.
-            clearTimeout(timeoutHandle);
-            clearInterval(intervalHandle);
-            callback();
-        }
-    };
-}
-
-// This is for `asap.js` only.
-// Its name will be periodically randomized to break any code that depends on
-// its existence.
-rawAsap.makeRequestCallFromTimer = makeRequestCallFromTimer;
-
-// ASAP was originally a nextTick shim included in Q. This was factored out
-// into this ASAP package. It was later adapted to RSVP which made further
-// amendments. These decisions, particularly to marginalize MessageChannel and
-// to capture the MutationObserver implementation in a closure, were integrated
-// back into ASAP proper.
-// https://github.com/tildeio/rsvp.js/blob/cddf7232546a9cf858524b75cde6f9edf72620a7/lib/rsvp/asap.js
-
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],55:[function(require,module,exports){
-(function (process){
-"use strict";
-
-var domain; // The domain module is executed on demand
-var hasSetImmediate = typeof setImmediate === "function";
-
-// Use the fastest means possible to execute a task in its own turn, with
-// priority over other events including network IO events in Node.js.
-//
-// An exception thrown by a task will permanently interrupt the processing of
-// subsequent tasks. The higher level `asap` function ensures that if an
-// exception is thrown by a task, that the task queue will continue flushing as
-// soon as possible, but if you use `rawAsap` directly, you are responsible to
-// either ensure that no exceptions are thrown from your task, or to manually
-// call `rawAsap.requestFlush` if an exception is thrown.
-module.exports = rawAsap;
-function rawAsap(task) {
-    if (!queue.length) {
-        requestFlush();
-        flushing = true;
-    }
-    // Avoids a function call
-    queue[queue.length] = task;
-}
-
-var queue = [];
-// Once a flush has been requested, no further calls to `requestFlush` are
-// necessary until the next `flush` completes.
-var flushing = false;
-// The position of the next task to execute in the task queue. This is
-// preserved between calls to `flush` so that it can be resumed if
-// a task throws an exception.
-var index = 0;
-// If a task schedules additional tasks recursively, the task queue can grown
-// unbounded. To prevent memory excaustion, the task queue will periodically
-// truncate already-completed tasks.
-var capacity = 1024;
-
-// The flush function processes all tasks that have been scheduled with
-// `rawAsap` unless and until one of those tasks throws an exception.
-// If a task throws an exception, `flush` ensures that its state will remain
-// consistent and will resume where it left off when called again.
-// However, `flush` does not make any arrangements to be called again if an
-// exception is thrown.
-function flush() {
-    while (index < queue.length) {
-        var currentIndex = index;
-        // Advance the index before calling the task. This ensures that we will
-        // begin flushing on the next task the task throws an error.
-        index = index + 1;
-        queue[currentIndex].call();
-        // Prevent leaking memory for long chains of recursive calls to `asap`.
-        // If we call `asap` within tasks scheduled by `asap`, the queue will
-        // grow, but to avoid an O(n) walk for every task we execute, we don't
-        // shift tasks off the queue after they have been executed.
-        // Instead, we periodically shift 1024 tasks off the queue.
-        if (index > capacity) {
-            // Manually shift all values starting at the index back to the
-            // beginning of the queue.
-            for (var scan = 0; scan < index; scan++) {
-                queue[scan] = queue[scan + index];
-            }
-            queue.length -= index;
-            index = 0;
-        }
-    }
-    queue.length = 0;
-    index = 0;
-    flushing = false;
-}
-
-rawAsap.requestFlush = requestFlush;
-function requestFlush() {
-    // Ensure flushing is not bound to any domain.
-    // It is not sufficient to exit the domain, because domains exist on a stack.
-    // To execute code outside of any domain, the following dance is necessary.
-    var parentDomain = process.domain;
-    if (parentDomain) {
-        if (!domain) {
-            // Lazy execute the domain module.
-            // Only employed if the user elects to use domains.
-            domain = require("domain");
-        }
-        domain.active = process.domain = null;
-    }
-
-    // `setImmediate` is slower that `process.nextTick`, but `process.nextTick`
-    // cannot handle recursion.
-    // `requestFlush` will only be called recursively from `asap.js`, to resume
-    // flushing after an error is thrown into a domain.
-    // Conveniently, `setImmediate` was introduced in the same version
-    // `process.nextTick` started throwing recursion errors.
-    if (flushing && hasSetImmediate) {
-        setImmediate(flush);
-    } else {
-        process.nextTick(flush);
-    }
-
-    if (parentDomain) {
-        domain.active = process.domain = parentDomain;
-    }
-}
-
-
-}).call(this,require('_process'))
-},{"_process":5,"domain":2}],56:[function(require,module,exports){
-var Promise = require('promise');
-
-/**
- * Custom request function (work in progress).
- * @returns {*}
- */
-var request = function (url, options) {
-    var client = new XMLHttpRequest();
-
-    options = options || {};
-    options.method = options.method || 'GET';
-    options.headers = options.headers || {};
-    options.async = typeof options.async === 'undefined' ? true : options.async;
-
-
-    return new Promise(
-        function (resolve, reject) {
-            // open connection
-            client.open(options.method, url);
-
-            // deal with headers
-            for (var i in options.headers) {
-                if (options.headers.hasOwnProperty(i)) {
-                    client.setRequestHeader(i, options.headers[i]);
-                }
-            }
-            // listener
-            client.onreadystatechange = function() {
-                if (this.readyState == 4 && this.status == 200) {
-                    resolve.call(this, this.responseText);
-                } else if (this.readyState == 4) {
-                    reject.call(this, this.status, this.statusText);
-                }
-            };
-            // send off
-            client.send(options.data);
-        });
-};
-
-'use strict';
-/**
- The Resource Manager.
- @class ResourceManager
- @description Represents a manager that loads any CSS and Javascript Resources on the fly.
- */
-var ResourceManager = function () {
-    this.initialize();
-};
-
-ResourceManager.prototype = {
-
-    /**
-     * Upon initialization.
-     * @memberOf ResourceManager
-     */
-    initialize: function () {
-        this._head = document.getElementsByTagName('head')[0];
-        this._cssPaths = {};
-        this._scriptPaths = {};
-    },
-
-    /**
-     * Loads a javascript file.
-     * @param {string|Array} paths - The path to the view's js file
-     * @memberOf ResourceManager
-     * @return {Promise}
-     */
-    loadScript: function (paths) {
-        var script;
-        if (!this._loadScriptPromise) {
-            this._loadScriptPromise = new Promise(function (resolve) {
-                paths = this._ensurePathArray(paths);
-                paths.forEach(function (path) {
-                    if (!this._scriptPaths[path]) {
-                        this._scriptPaths[path] = path;
-                        script = this.createScriptElement();
-                        script.setAttribute('type','text/javascript');
-                        script.src = path;
-                        script.addEventListener('load', resolve);
-                        this._head.appendChild(script);
-                    }
-                }.bind(this));
-            }.bind(this));
-        } else {
-            this._loadScriptPromise = Promise.resolve();
-        }
-        return this._loadScriptPromise;
-    },
-
-    /**
-     * Removes a script that has the specified path from the head of the document.
-     * @param {string|Array} paths - The paths of the scripts to unload
-     * @memberOf ResourceManager
-     */
-    unloadScript: function (paths) {
-        var file;
-        return new Promise(function (resolve) {
-            paths = this._ensurePathArray(paths);
-            paths.forEach(function (path) {
-                file = this._head.querySelectorAll('script[src="' + path + '"]')[0];
-                if (file) {
-                    this._head.removeChild(file);
-                    this._scriptPaths[path] = null;
-                }
-            }.bind(this));
-            resolve();
-        }.bind(this));
-    },
-
-    /**
-     * Creates a new script element.
-     * @returns {HTMLElement}
-     */
-    createScriptElement: function () {
-        return document.createElement('script');
-    },
-
-    /**
-     * Loads css files.
-     * @param {Array|String} paths - An array of css paths files to load
-     * @memberOf ResourceManager
-     * @return {Promise}
-     */
-    loadCss: function (paths) {
-        return new Promise(function (resolve) {
-            paths = this._ensurePathArray(paths);
-            paths.forEach(function (path) {
-                // TODO: figure out a way to find out when css is guaranteed to be loaded,
-                // and make this return a truely asynchronous promise
-                if (!this._cssPaths[path]) {
-                    var el = document.createElement('link');
-                    el.setAttribute('rel','stylesheet');
-                    el.setAttribute('href', path);
-                    this._head.appendChild(el);
-                    this._cssPaths[path] = el;
-                }
-            }.bind(this));
-            resolve();
-        }.bind(this));
-    },
-
-    /**
-     * Unloads css paths.
-     * @param {string|Array} paths - The css paths to unload
-     * @memberOf ResourceManager
-     * @return {Promise}
-     */
-    unloadCss: function (paths) {
-        var el;
-        return new Promise(function (resolve) {
-            paths = this._ensurePathArray(paths);
-            paths.forEach(function (path) {
-                el = this._cssPaths[path];
-                if (el) {
-                    this._head.removeChild(el);
-                    this._cssPaths[path] = null;
-                }
-            }.bind(this));
-            resolve();
-        }.bind(this));
-    },
-
-    /**
-     * Parses a template into a DOM element, then returns element back to you.
-     * @param {string} path - The path to the template
-     * @param {HTMLElement} [el] - The element to attach template to
-     * @returns {Promise} Returns a promise that resolves with contents of template file
-     */
-    loadTemplate: function (path, el) {
-        return new Promise(function (resolve) {
-            if (path) {
-                return request(path).then(function (contents) {
-                    if (el) {
-                        el.innerHTML = contents;
-                        contents = el;
-                    }
-                    resolve(contents);
-                });
-            } else {
-                // no path was supplied
-                resolve();
-            }
-        });
-    },
-
-    /**
-     * Makes sure that a path is converted to an array.
-     * @param paths
-     * @returns {*}
-     * @private
-     */
-    _ensurePathArray: function (paths) {
-        if (!paths) {
-            paths = [];
-        } else if (typeof paths === 'string') {
-            paths = [paths];
-        }
-        return paths;
-    },
-
-    /**
-     * Removes all cached resources.
-     * @memberOf ResourceManager
-     */
-    flush: function () {
-        this.unloadCss(Object.getOwnPropertyNames(this._cssPaths));
-        this._cssPaths = {};
-        this.unloadScript(Object.getOwnPropertyNames(this._scriptPaths));
-        this._scriptPaths = {};
-        this._loadScriptPromise = null;
-    }
-
-};
-
-module.exports = new ResourceManager();
-},{"promise":46}],57:[function(require,module,exports){
+},{"jquery":43,"promise":45}],56:[function(require,module,exports){
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -20309,7 +20096,7 @@ module.exports = new ResourceManager();
   }
 }.call(this));
 
-},{}],58:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 'use strict';
 var Module = require('module.js');
 var Promise = require('promise');
@@ -20396,7 +20183,7 @@ var Page = Module.extend({
 });
 
 module.exports = Page;
-},{"element-kit":6,"module.js":45,"promise":46,"underscore":57}],59:[function(require,module,exports){
+},{"element-kit":6,"module.js":44,"promise":45,"underscore":56}],58:[function(require,module,exports){
 'use strict';
 var ResourceManager = require('resource-manager-js');
 var Promise = require('promise');
@@ -20603,17 +20390,13 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     _onRouteRequest: function (path) {
         if (path !== this._currentPath) {
-            // hide body class, while we work
-            document.body.classList.remove('page-active');
             return this._handleRequestedUrl(path).then(function (path) {
                 return this._handlePreviousPage().then(function () {
                     return this.loadPage(path)
                         .then(function (pageMap) {
                             this.dispatchEvent('page:load');
                             return this._handleGlobalModules(pageMap.config).then(function () {
-                                return pageMap.page.show().then(function () {
-                                    document.body.classList.add('page-active');
-                                }.bind(this));
+                                return pageMap.page.show();
                             }.bind(this));
                         }.bind(this))
                         .catch(function (e) {
@@ -21008,4 +20791,4 @@ RouteManager.prototype = /** @lends RouteManager */{
 module.exports = function (options) {
     return new RouteManager(options);
 };
-},{"./page":58,"event-handler":11,"handlebars":31,"handlebars-helper-slugify":12,"module.js":45,"path":4,"promise":46,"resource-manager-js":56,"underscore":57}]},{},[59]);
+},{"./page":57,"event-handler":11,"handlebars":31,"handlebars-helper-slugify":12,"module.js":44,"path":4,"promise":45,"resource-manager-js":55,"underscore":56}]},{},[58]);

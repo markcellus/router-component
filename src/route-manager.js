@@ -204,17 +204,13 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     _onRouteRequest: function (path) {
         if (path !== this._currentPath) {
-            // hide body class, while we work
-            document.body.classList.remove('page-active');
             return this._handleRequestedUrl(path).then(function (path) {
                 return this._handlePreviousPage().then(function () {
                     return this.loadPage(path)
                         .then(function (pageMap) {
                             this.dispatchEvent('page:load');
                             return this._handleGlobalModules(pageMap.config).then(function () {
-                                return pageMap.page.show().then(function () {
-                                    document.body.classList.add('page-active');
-                                }.bind(this));
+                                return pageMap.page.show();
                             }.bind(this));
                         }.bind(this))
                         .catch(function (e) {
