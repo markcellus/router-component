@@ -127,12 +127,8 @@ describe('Route Manager', function () {
         resourceManagerLoadTemplateStub.returns(Promise.resolve());
         mockPage.getTemplate.returns();
         mockPage.fetchData.returns(Promise.resolve(mockData));
-        var pagesContainer = document.createElement('div');
-        pagesContainer.classList.add('page-container');
-        document.body.appendChild(pagesContainer);
         var RouteManager = require('./../src/route-manager')({
-            config: routesConfig,
-            pagesContainerEl: pagesContainer
+            config: routesConfig
         });
         var pageInitializeSpy = sinon.spy(Page.prototype, 'initialize');
         var pageGetDataStub = sinon.stub(Page.prototype, 'fetchData').returns(Promise.resolve({}));
@@ -141,7 +137,6 @@ describe('Route Manager', function () {
             .then(function () {
                 assert.equal(pageInitializeSpy.callCount, 1, 'fallback page instance was initialized');
                 assert.deepEqual(requireStub.callCount, 0, 'no script require() call was made');
-                document.body.removeChild(pagesContainer);
                 pageInitializeSpy.restore();
                 pageGetDataStub.restore();
                 RouteManager.stop();
@@ -753,7 +748,7 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should only load global modules one, even when module is assigned to multiple pages in routes config', function () {
+    it('should only load global modules once, even when module is assigned to multiple pages in routes config', function () {
         // setup
         var pageUrl = 'my/page/url';
         var secondPageUrl = 'second/page/url';
@@ -781,8 +776,7 @@ describe('Route Manager', function () {
         };
         var pageHtml = '<div></div>';
         mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-        var pagesContainer = document.createElement('div');
-        var RouteManager = require('./../src/route-manager')({config: routesConfig, pagesContainerEl: pagesContainer});
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
         requireStub.returns(mockModule);
@@ -793,6 +787,38 @@ describe('Route Manager', function () {
                 assert.equal(mockModule.load.callCount, 1,  'load call was only triggered once even though module appears on multiple pages');
                 RouteManager.stop();
             });
+        });
+    });
+
+    it('should NOT call global module hide() method when navigating to page that does not have it', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleHtml = "<div>my module content</div>";
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.hide.callCount, 0,  'hide() was not called on initial route because it has not yet been shown');
+            RouteManager.stop();
         });
     });
 
