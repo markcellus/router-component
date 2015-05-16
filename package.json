@@ -25,9 +25,6 @@
     "resource-manager-js": "^1.1.1",
     "underscore": "^1.8.3"
   },
-  "browser": {
-    "route-manager": "./src/route-manager.js"
-  },
   "devDependencies": {
     "grunt": "~0.4.5",
     "build-tools": "^1.2.7",
