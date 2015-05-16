@@ -1,6 +1,6 @@
 {
   "name": "route-manager",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A simple routing framework for web apps",
   "repository": {
     "type": "git",
@@ -24,9 +24,6 @@
     "promise": "^7.0.0",
     "resource-manager-js": "^1.1.1",
     "underscore": "^1.8.3"
-  },
-  "browser": {
-    "route-manager": "./src/route-manager.js"
   },
   "devDependencies": {
     "grunt": "~0.4.5",
