@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.0.1.
+* route-manager - v2.0.2.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20642,8 +20642,8 @@ RouteManager.prototype = /** @lends RouteManager */{
             if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                 // page has this global module, so lets show it
                 showHidePromises.push(map.module.show());
-            } else {
-                // page does not have global module so lets hide it
+            } else if (map.module.active) {
+                // page does not have global module so lets hide it only if it is showing
                 showHidePromises.push(map.module.hide());
             }
         }.bind(this));
