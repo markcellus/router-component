@@ -196,7 +196,7 @@ describe('Route Manager', function () {
             .catch(done);
     });
 
-    it('should console an error and reject promise if a module doesnt have a script file', function (done) {
+    it('should console an error and reject promise if a module doesnt have a script file', function () {
         // setup
         var pageUrl = 'my/real/url';
         var dataUrl = 'get/my/data';
@@ -216,15 +216,13 @@ describe('Route Manager', function () {
         resourceManagerLoadTemplateStub.returns(Promise.resolve());
         var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
         RouteManager.start();
-        RouteManager.triggerRoute(pageUrl)
-            .then(done)
+        return RouteManager.triggerRoute(pageUrl)
             .catch(function () {
                 assert.ok(error, 'promise was rejected');
                 assert.equal(consoleErrorStub.callCount, 1, 'console error was printed');
                 loadPageScriptStub.restore();
                 consoleErrorStub.restore();
                 RouteManager.stop();
-                done();
             });
     });
 

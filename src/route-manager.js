@@ -203,6 +203,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @return {Promise}
      */
     _onRouteRequest: function (path) {
+        var pageLoadPromises = [];
         if (path !== this._currentPath) {
             return this._handleRequestedUrl(path).then(function (path) {
                 return this._handlePreviousPage().then(function () {
@@ -210,7 +211,11 @@ RouteManager.prototype = /** @lends RouteManager */{
                         .then(function (pageMap) {
                             this.dispatchEvent('page:load');
                             return this._handleGlobalModules(pageMap.config).then(function () {
-                                return pageMap.page.show();
+                                _.each(pageMap.modules, function (moduleMap) {
+                                    pageLoadPromises.push(moduleMap.module.show());
+                                });
+                                pageLoadPromises.push(pageMap.page.show());
+                                return pageLoadPromises;
                             }.bind(this));
                         }.bind(this))
                         .catch(function (e) {
@@ -357,12 +362,7 @@ RouteManager.prototype = /** @lends RouteManager */{
             }.bind(this));
             return pageMap.promise;
         } else {
-            return this._pageMaps[pageKey].promise.then(function (pageMap) {
-                _.each(this._pageMaps[pageKey].modules, function (moduleMap) {
-                    moduleMap.module.show();
-                });
-                return pageMap;
-            }.bind(this));
+            return this._pageMaps[pageKey].promise;
         }
     },
 
@@ -434,9 +434,12 @@ RouteManager.prototype = /** @lends RouteManager */{
                 }
             });
 
-
-            if (pageMap.page.el && pageMap.page.el.children[0]) {
+            if (!pageMap.page.el) {
+                return false;
+            } else if (pageMap.page.el.children[0]) {
                 pageMap.page.el.children[0].appendChild(frag);
+            } else {
+                pageMap.page.el.appendChild(frag);
             }
         });
     },
@@ -494,9 +497,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                         moduleMap.el = div.children[0];
                         moduleMap.html = html;
                         return module.load({el: moduleMap.el, data: data}).then(function () {
-                            return module.show().then(function () {
-                                return moduleMap;
-                            });
+                            return moduleMap;
                         });
                     }.bind(this));
                 }.bind(this));
