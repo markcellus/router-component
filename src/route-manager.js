@@ -341,12 +341,12 @@ RouteManager.prototype = /** @lends RouteManager */{
                     return page.getStyles(config.styles).then(function () {
                         return page.getTemplate(config.template).then(function (html) {
                             return page.fetchData(config.data, {cache: true}).then(function (data) {
-                                html = html || '<div></div>';
+                                html = html || '';
                                 if (data) {
                                     html = Handlebars.compile(html)(data);
                                 }
                                 pageMap.data = data;
-                                pageMap.el = ElementKit.utils.createHtmlElement(html);
+                                pageMap.el = ElementKit.utils.createHtmlElement('<div>' + html + '</div>');
                                 this.options.pagesContainer.appendChild(pageMap.el);
                                 return this._loadPageModules(config.modules, pageMap).then(function () {
                                     return page.load({data: data, el: pageMap.el}).then(function () {
@@ -434,8 +434,6 @@ RouteManager.prototype = /** @lends RouteManager */{
 
             if (!pageMap.el) {
                 return false;
-            } else if (pageMap.el.children[0]) {
-                pageMap.el.children[0].appendChild(frag);
             } else {
                 pageMap.el.appendChild(frag);
             }
