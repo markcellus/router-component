@@ -1,5 +1,4 @@
 'use strict';
-var ResourceManager = require('resource-manager-js');
 var Promise = require('promise');
 var path = require('path');
 var EventHandler = require('event-handler');
@@ -8,6 +7,7 @@ var slugify = require('handlebars-helper-slugify');
 var _ = require('underscore');
 var Page = require('./page');
 var Module = require('module.js');
+var ElementKit = require('element-kit');
 
 /**
  * The function that is triggered the selected dropdown value changes
@@ -341,17 +341,15 @@ RouteManager.prototype = /** @lends RouteManager */{
                     return page.getStyles(config.styles).then(function () {
                         return page.getTemplate(config.template).then(function (html) {
                             return page.fetchData(config.data, {cache: true}).then(function (data) {
-                                html = html || '';
+                                html = html || '<div></div>';
                                 if (data) {
                                     html = Handlebars.compile(html)(data);
                                 }
                                 pageMap.data = data;
-                                if (pageMap.page.el) {
-                                    pageMap.page.el.innerHTML = html;
-                                    this.options.pagesContainer.appendChild(pageMap.page.el);
-                                }
+                                pageMap.el = ElementKit.utils.createHtmlElement(html);
+                                this.options.pagesContainer.appendChild(pageMap.el);
                                 return this._loadPageModules(config.modules, pageMap).then(function () {
-                                    return page.load({data: data, el: pageMap.page.el}).then(function () {
+                                    return page.load({data: data, el: pageMap.el}).then(function () {
                                         return pageMap;
                                     });
                                 }.bind(this));
@@ -434,12 +432,12 @@ RouteManager.prototype = /** @lends RouteManager */{
                 }
             });
 
-            if (!pageMap.page.el) {
+            if (!pageMap.el) {
                 return false;
-            } else if (pageMap.page.el.children[0]) {
-                pageMap.page.el.children[0].appendChild(frag);
+            } else if (pageMap.el.children[0]) {
+                pageMap.el.children[0].appendChild(frag);
             } else {
-                pageMap.page.el.appendChild(frag);
+                pageMap.el.appendChild(frag);
             }
         });
     },
