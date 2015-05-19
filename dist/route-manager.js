@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.1.0.
+* route-manager - v2.1.1.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20116,21 +20116,16 @@ var Page = Module.extend({
      * When page is instantiated.
      * @param {Object} options - The initialize options
      * @param {HTMLElement} options.pagesContainer - The container of all currentPages
-     * @param {HTMLElement} options.el - The page element
      */
     initialize: function (options) {
 
         this.options = _.extend({}, {
             pagesContainer: null,
-            el: document.createElement('div'),
             activeClass: 'page-active',
             loadedClass: 'page-loaded',
             disabledClass: 'page-disabled',
             errorClass: 'page-error'
         }, options);
-
-        this.el = this.options.el;
-        this.el.classList.add('page');
 
         Module.prototype.initialize.call(this, this.options);
     },
@@ -20142,15 +20137,17 @@ var Page = Module.extend({
      */
     load: function (options) {
         options = options || {};
-        // use a slight delay to let the browser repaint because of display: block; being added
-        // by browser before our new active class is added. If not, our view wont respect the transition duration
-        return new Promise(function (resolve) {
-            setTimeout(function () {
-                this.el.kit.waitForTransition(function () {
-                    Module.prototype.load.call(this, options).then(resolve);
-                }.bind(this));
-            }.bind(this), 50);
-        }.bind(this));
+
+        if (options.el) {
+            this.el = options.el;
+        } else {
+            // fallback to random div so that other methods that
+            // depend on it like show() and hide() wont cause a crash
+            this.el = document.createElement('div');
+        }
+        this.el.classList.add('page');
+
+        return Module.prototype.load.call(this, options);
     },
 
     /**
@@ -20185,7 +20182,6 @@ var Page = Module.extend({
 module.exports = Page;
 },{"element-kit":6,"module.js":44,"promise":45,"underscore":56}],58:[function(require,module,exports){
 'use strict';
-var ResourceManager = require('resource-manager-js');
 var Promise = require('promise');
 var path = require('path');
 var EventHandler = require('event-handler');
@@ -20194,6 +20190,7 @@ var slugify = require('handlebars-helper-slugify');
 var _ = require('underscore');
 var Page = require('./page');
 var Module = require('module.js');
+var ElementKit = require('element-kit');
 
 /**
  * The function that is triggered the selected dropdown value changes
@@ -20527,17 +20524,15 @@ RouteManager.prototype = /** @lends RouteManager */{
                     return page.getStyles(config.styles).then(function () {
                         return page.getTemplate(config.template).then(function (html) {
                             return page.fetchData(config.data, {cache: true}).then(function (data) {
-                                html = html || '';
+                                html = html || '<div></div>';
                                 if (data) {
                                     html = Handlebars.compile(html)(data);
                                 }
                                 pageMap.data = data;
-                                if (pageMap.page.el) {
-                                    pageMap.page.el.innerHTML = html;
-                                    this.options.pagesContainer.appendChild(pageMap.page.el);
-                                }
+                                pageMap.el = ElementKit.utils.createHtmlElement(html);
+                                this.options.pagesContainer.appendChild(pageMap.el);
                                 return this._loadPageModules(config.modules, pageMap).then(function () {
-                                    return page.load({data: data, el: pageMap.page.el}).then(function () {
+                                    return page.load({data: data, el: pageMap.el}).then(function () {
                                         return pageMap;
                                     });
                                 }.bind(this));
@@ -20620,12 +20615,12 @@ RouteManager.prototype = /** @lends RouteManager */{
                 }
             });
 
-            if (!pageMap.page.el) {
+            if (!pageMap.el) {
                 return false;
-            } else if (pageMap.page.el.children[0]) {
-                pageMap.page.el.children[0].appendChild(frag);
+            } else if (pageMap.el.children[0]) {
+                pageMap.el.children[0].appendChild(frag);
             } else {
-                pageMap.page.el.appendChild(frag);
+                pageMap.el.appendChild(frag);
             }
         });
     },
@@ -20792,4 +20787,4 @@ RouteManager.prototype = /** @lends RouteManager */{
 module.exports = function (options) {
     return new RouteManager(options);
 };
-},{"./page":57,"event-handler":11,"handlebars":31,"handlebars-helper-slugify":12,"module.js":44,"path":4,"promise":45,"resource-manager-js":55,"underscore":56}]},{},[58]);
+},{"./page":57,"element-kit":6,"event-handler":11,"handlebars":31,"handlebars-helper-slugify":12,"module.js":44,"path":4,"promise":45,"underscore":56}]},{},[58]);

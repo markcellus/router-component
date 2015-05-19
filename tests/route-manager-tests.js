@@ -9,14 +9,13 @@ var _ = require('underscore');
 describe('Route Manager', function () {
     'use strict';
     var mockPage, mockModule,
-        resourceManagerLoadTemplateStub,
         origPushState,
         requireStub;
 
 
     var createPageStub = function (cls) {
         var page = sinon.createStubInstance(cls);
-        page.getTemplate.returns(Promise.resolve());
+        page.getTemplate.returns(Promise.resolve('<div class="page"></div>'));
         page.load.returns(Promise.resolve());
         page.hide.returns(Promise.resolve());
         page.show.returns(Promise.resolve());
@@ -43,8 +42,6 @@ describe('Route Manager', function () {
 
         requireStub = sinon.stub(window, 'require');
 
-        resourceManagerLoadTemplateStub = sinon.stub(ResourceManager, 'loadTemplate');
-        resourceManagerLoadTemplateStub.returns(Promise.resolve());
         // dont trigger any popstate events!
         sinon.stub(window, 'addEventListener');
 
@@ -52,7 +49,6 @@ describe('Route Manager', function () {
 
     afterEach(function () {
         window.history.pushState = origPushState;
-        resourceManagerLoadTemplateStub.restore();
         window.addEventListener.restore();
         requireStub.restore();
     });
@@ -115,7 +111,7 @@ describe('Route Manager', function () {
             });
     });
 
-    it('should use a fallback page instance when there is no script specified for a page in the route config', function (done) {
+    it('should use a fallback page instance when there is no script specified for a page in the route config', function () {
         // setup
         var pageUrl = 'my/index/with/no/script/url';
         var dataUrl = 'get/my/data';
@@ -124,7 +120,6 @@ describe('Route Manager', function () {
             data: dataUrl
         };
         var mockData = {};
-        resourceManagerLoadTemplateStub.returns(Promise.resolve());
         mockPage.getTemplate.returns();
         mockPage.fetchData.returns(Promise.resolve(mockData));
         var RouteManager = require('./../src/route-manager')({
@@ -133,16 +128,14 @@ describe('Route Manager', function () {
         var pageInitializeSpy = sinon.spy(Page.prototype, 'initialize');
         var pageGetDataStub = sinon.stub(Page.prototype, 'fetchData').returns(Promise.resolve({}));
         RouteManager.start();
-        RouteManager.triggerRoute(pageUrl)
+        return RouteManager.triggerRoute(pageUrl)
             .then(function () {
                 assert.equal(pageInitializeSpy.callCount, 1, 'fallback page instance was initialized');
                 assert.deepEqual(requireStub.callCount, 0, 'no script require() call was made');
                 pageInitializeSpy.restore();
                 pageGetDataStub.restore();
                 RouteManager.stop();
-                done();
-            })
-            .catch(done);
+            });
     });
 
     it('should call page\'s getTemplate method with template url specified in routes configuration', function () {
@@ -213,7 +206,6 @@ describe('Route Manager', function () {
         mockPage.load.returns(Promise.resolve());
         mockPage.show.returns(Promise.resolve());
         mockPage.fetchData.returns(Promise.resolve());
-        resourceManagerLoadTemplateStub.returns(Promise.resolve());
         var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl)
@@ -233,10 +225,6 @@ describe('Route Manager', function () {
         routesConfig.pages[pageUrl] = {};
         var RouteManager = require('./../src/route-manager')({config: routesConfig});
         var pageLoadSpy = sinon.spy();
-        mockPage.getTemplate.returns(Promise.resolve());
-        mockPage.fetchData.returns(Promise.resolve());
-        mockPage.load.returns(Promise.resolve());
-        mockPage.show.returns(Promise.resolve());
         var loadPageScript = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
         RouteManager.start();
         RouteManager.addEventListener('page:load', pageLoadSpy);
@@ -320,7 +308,6 @@ describe('Route Manager', function () {
             modules: [moduleName],
             template: pageTemplateUrl
         };
-        resourceManagerLoadTemplateStub.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
         var mockPage = new Page({el: document.createElement('div')});
         var pageShowStub = sinon.stub(mockPage, 'show').returns(Promise.resolve());
         var pageLoadStub = sinon.stub(mockPage, 'load').returns(Promise.resolve());
@@ -606,7 +593,7 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should attach page HTML to page\'s el', function () {
+    it('should append the requested page\'s element to the pages container element', function () {
         // setup
         var pageUrl = 'my/page/url';
         var routesConfig = {pages: {}, modules: {}};
@@ -618,25 +605,28 @@ describe('Route Manager', function () {
         };
         var pageHtml = '<div>mypagehtml</div>';
         mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        var pagesContainer = document.createElement('div');
+        var RouteManager = require('./../src/route-manager')({
+            config: routesConfig,
+            pagesContainer: pagesContainer
+        });
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         RouteManager.start();
-        // assume pages el is already created on instantiation
-        mockPage.el = document.createElement('div');
         return RouteManager.triggerRoute(pageUrl).then(function () {
-            assert.equal(mockPage.el.innerHTML, pageHtml,  'page html was attached to page\'s el');
+            assert.equal(pagesContainer.innerHTML, pageHtml,  'page html was appended to pages container');
             RouteManager.stop();
         });
     });
 
-    it('should attach module html to appropriate page\'s el', function () {
+    it('should attach module html to appropriate page\'s el within pages container element', function () {
         // setup
         var pageUrl = 'my/page/url';
         var routesConfig = {pages: {}, modules: {}};
         var moduleName = 'myCustomModule';
         var moduleOptions = {my: 'moduleOptions'};
         var moduleScriptUrl = 'path/to/module/script';
-        var moduleHtml = "<div>my module content</div>";
+        var moduleClassName = 'mod-class';
+        var moduleHtml = '<div class="' + moduleClassName + '">my module content</div>';
         var moduleTemplateUrl = 'url/to/my/template';
         routesConfig.modules[moduleName] = {
             template: moduleTemplateUrl,
@@ -651,51 +641,17 @@ describe('Route Manager', function () {
         };
         var pageHtml = '<div></div>';
         mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-        var RouteManager = require('./../src/route-manager')({config: routesConfig});
-        requireStub.withArgs(pageScriptUrl).returns(mockPage);
-        mockModule.getTemplate.returns(Promise.resolve(moduleHtml));
-        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
-        RouteManager.start();
-        // assume pages el is already created on instantiation
-        mockPage.el = document.createElement('div');
-        return RouteManager.triggerRoute(pageUrl).then(function () {
-            assert.equal(mockPage.el.children[0].innerHTML, moduleHtml,  'page html was attached to page\'s el');
-            RouteManager.stop();
+        var pagesEl = document.createElement('div');
+        var RouteManager = require('./../src/route-manager')({
+            config: routesConfig,
+            pagesContainer: pagesEl
         });
-    });
-
-    it('should append the requested page\'s element to the pages container element', function () {
-        // setup
-        var pageUrl = 'my/page/url';
-        var routesConfig = {pages: {}, modules: {}};
-        var moduleName = 'myCustomModule';
-        var moduleOptions = {my: 'moduleOptions'};
-        var moduleScriptUrl = 'path/to/module/script';
-        var moduleHtml = "<div>my module content</div>";
-        var moduleTemplateUrl = 'url/to/my/template';
-        routesConfig.modules[moduleName] = {
-            template: moduleTemplateUrl,
-            script: moduleScriptUrl
-        };
-        var pageScriptUrl = 'path/to/page/script';
-        var pageTemplateUrl = 'url/to/my/template';
-        routesConfig.pages[pageUrl] = {
-            template: pageTemplateUrl,
-            modules: [moduleName],
-            script: pageScriptUrl
-        };
-        var pageHtml = '<div>mypagehtml</div>';
-        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-        var pagesContainer = document.createElement('div');
-        var RouteManager = require('./../src/route-manager')({config: routesConfig, pagesContainer: pagesContainer});
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         mockModule.getTemplate.returns(Promise.resolve(moduleHtml));
         requireStub.withArgs(moduleScriptUrl).returns(mockModule);
         RouteManager.start();
-        // assume pages el is already created on instantiation
-        mockPage.el = document.createElement('div');
         return RouteManager.triggerRoute(pageUrl).then(function () {
-            assert.ok(pagesContainer.contains(mockPage.el), pageHtml,  'page element was appended to pages container');
+            assert.equal(pagesEl.children[0].innerHTML, moduleHtml,  'page html was attached to page\'s el in pages container');
             RouteManager.stop();
         });
     });
@@ -732,7 +688,11 @@ describe('Route Manager', function () {
         };
         var pageHtml = '<div></div>';
         mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        var pagesContainer = document.createElement('div');
+        var RouteManager = require('./../src/route-manager')({
+            config: routesConfig,
+            pagesContainer: pagesContainer
+        });
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         mockModule.getTemplate.withArgs(firstModuleTemplateUrl).returns(Promise.resolve(firstModuleHtml));
         mockModule.getTemplate.withArgs(secondModuleTemplateUrl).returns(Promise.resolve(secondModuleHtml));
@@ -741,7 +701,7 @@ describe('Route Manager', function () {
         // assume pages el is already created on instantiation
         mockPage.el = document.createElement('div');
         return RouteManager.triggerRoute(pageUrl).then(function () {
-            assert.equal(mockPage.el.children[0].innerHTML, secondModuleHtml + firstModuleHtml,  'second module html was appended first because it was specified first in routes config');
+            assert.equal(pagesContainer.children[0].innerHTML, secondModuleHtml + firstModuleHtml,  'second module html was appended first because it was specified first in routes config');
             RouteManager.stop();
         });
     });
