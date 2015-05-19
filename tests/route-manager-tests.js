@@ -593,7 +593,7 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should append the requested page\'s element to the pages container element', function () {
+    it('should wrap the requested page\'s element into a div that is appended to the pages container element', function () {
         // setup
         var pageUrl = 'my/page/url';
         var routesConfig = {pages: {}, modules: {}};
@@ -613,7 +613,7 @@ describe('Route Manager', function () {
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl).then(function () {
-            assert.equal(pagesContainer.innerHTML, pageHtml,  'page html was appended to pages container');
+            assert.equal(pagesContainer.children[0].innerHTML, pageHtml);
             RouteManager.stop();
         });
     });
@@ -651,7 +651,8 @@ describe('Route Manager', function () {
         requireStub.withArgs(moduleScriptUrl).returns(mockModule);
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl).then(function () {
-            assert.equal(pagesEl.children[0].innerHTML, moduleHtml,  'page html was attached to page\'s el in pages container');
+            var requestedPageEl = pagesEl.children[0];
+            assert.equal(requestedPageEl.innerHTML, pageHtml + moduleHtml,  'page html was attached to page\'s el in pages container');
             RouteManager.stop();
         });
     });
@@ -686,8 +687,7 @@ describe('Route Manager', function () {
             ],
             script: pageScriptUrl
         };
-        var pageHtml = '<div></div>';
-        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        mockPage.getTemplate.returns(Promise.resolve());
         var pagesContainer = document.createElement('div');
         var RouteManager = require('./../src/route-manager')({
             config: routesConfig,
