@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.1.2.
+* route-manager - v2.1.3.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -18301,6 +18301,7 @@ function requestFlush() {
 },{"_process":5,"domain":2}],55:[function(require,module,exports){
 var Promise = require('promise');
 var $ = require('jquery');
+var _ = require('underscore');
 
 /**
  * Custom request function (work in progress).
@@ -18358,7 +18359,7 @@ ResourceManager.prototype = {
     initialize: function () {
         this._head = document.getElementsByTagName('head')[0];
         this._cssPaths = {};
-        this._scriptPaths = {};
+        this._scriptMaps = {};
         this._dataPromises = {};
     },
 
@@ -18366,28 +18367,28 @@ ResourceManager.prototype = {
      * Loads a javascript file.
      * @param {string|Array} paths - The path to the view's js file
      * @memberOf ResourceManager
-     * @return {Promise}
+     * @return {Promise} Returns a promise that resolves when all scripts have been loaded
      */
     loadScript: function (paths) {
-        var script;
-        if (!this._loadScriptPromise) {
-            this._loadScriptPromise = new Promise(function (resolve) {
-                paths = this._ensurePathArray(paths);
-                paths.forEach(function (path) {
-                    if (!this._scriptPaths[path]) {
-                        this._scriptPaths[path] = path;
-                        script = this.createScriptElement();
-                        script.setAttribute('type','text/javascript');
-                        script.src = path;
-                        script.addEventListener('load', resolve);
-                        this._head.appendChild(script);
-                    }
+        var script,
+            map,
+            loadPromises = [];
+        paths = this._ensurePathArray(paths);
+        paths.forEach(function (path) {
+            map = this._scriptMaps[path] = this._scriptMaps[path] || {};
+            if (!map.promise) {
+                map.path = path;
+                map.promise = new Promise(function (resolve) {
+                    script = this.createScriptElement();
+                    script.setAttribute('type','text/javascript');
+                    script.src = path;
+                    script.addEventListener('load', resolve);
+                    this._head.appendChild(script);
                 }.bind(this));
-            }.bind(this));
-        } else {
-            this._loadScriptPromise = Promise.resolve();
-        }
-        return this._loadScriptPromise;
+            }
+            loadPromises.push(map.promise);
+        }.bind(this));
+        return Promise.all(loadPromises);
     },
 
     /**
@@ -18403,7 +18404,7 @@ ResourceManager.prototype = {
                 file = this._head.querySelectorAll('script[src="' + path + '"]')[0];
                 if (file) {
                     this._head.removeChild(file);
-                    this._scriptPaths[path] = null;
+                    delete this._scriptMaps[path];
                 }
             }.bind(this));
             resolve();
@@ -18436,13 +18437,14 @@ ResourceManager.prototype = {
             return this._dataPromises[cacheId];
         } else {
             this._dataPromises[cacheId] = new Promise(function (resolve, reject) {
-                $.ajax(url, options).done(resolve).fail(reject);
+                $.ajax(url, options).done(resolve).fail(function () {
+                    reject(new Error('ResourceManager Failure: request for data at ' + url + ' failed.'));
+                }.bind(this));
             }.bind(this));
             return this._dataPromises[cacheId].catch(function () {
-                    // if failure, remove cache so that subsequent
-                    // requests will trigger new ajax call
-                    this._dataPromises[cacheId] = null;
-                    reject(new Error('ResourceManager Failure: request for data at ' + url + ' failed.'));
+                // if failure, remove cache so that subsequent
+                // requests will trigger new ajax call
+                this._dataPromises[cacheId] = null;
             }.bind(this));
         }
     },
@@ -18537,8 +18539,10 @@ ResourceManager.prototype = {
     flush: function () {
         this.unloadCss(Object.getOwnPropertyNames(this._cssPaths));
         this._cssPaths = {};
-        this.unloadScript(Object.getOwnPropertyNames(this._scriptPaths));
-        this._scriptPaths = {};
+        _.each(this._scriptMaps, function (map) {
+            this.unloadScript(map.path);
+        }.bind(this));
+        this._scriptMaps = {};
         this._dataPromises = {};
         this._loadScriptPromise = null;
     }
@@ -18546,7 +18550,7 @@ ResourceManager.prototype = {
 };
 
 module.exports = new ResourceManager();
-},{"jquery":43,"promise":45}],56:[function(require,module,exports){
+},{"jquery":43,"promise":45,"underscore":56}],56:[function(require,module,exports){
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
