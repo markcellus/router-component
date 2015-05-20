@@ -107,9 +107,17 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     reset: function () {
         this.history = [];
+        // destroy all pages
+        _.each(this._pageMaps, function (pageMap) {
+            pageMap.page.destroy();
+            if (this.options.pagesContainer.contains(pageMap.el)) {
+                this.options.pagesContainer.removeChild(pageMap.el);
+            }
+            _.each(pageMap.modules, function (moduleMap) {
+                moduleMap.module.destroy();
+            });
+        }.bind(this));
         this._pageMaps = {};
-        this._config.pages = {};
-        this._config.modules = {};
     },
 
     /**
@@ -117,6 +125,8 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     stop: function () {
         this.reset();
+        this._config.pages = {};
+        this._config.modules = {};
         this._globalModuleMaps = {};
         this.unbindPopstateEvent();
         EventHandler.destroyTarget(this);
