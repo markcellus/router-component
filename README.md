@@ -91,7 +91,7 @@ You must start RouteManager and pass it your routes object to begin listening in
 ```javascript
 var RouteManager = require('route-manager')({
     config: routes,
-    pagesContainerEl: document.body.getElementsByClassName('page-container')[0]
+    pagesContainer: document.body.getElementsByClassName('page-container')[0]
 });
 ```
 
