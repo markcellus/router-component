@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.2.0.
+* route-manager - v2.2.1.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20294,6 +20294,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     reset: function () {
         this.history = [];
+
         // destroy all pages
         _.each(this._pageMaps, function (pageMap) {
             pageMap.page.destroy();
@@ -20305,6 +20306,14 @@ RouteManager.prototype = /** @lends RouteManager */{
             });
         }.bind(this));
         this._pageMaps = {};
+
+        // destroy all global modules
+        _.each(this._globalModuleMaps, function (globalMap) {
+            globalMap.module.hide().then(function () {
+                globalMap.module.destroy();
+            });
+        });
+        this._globalModuleMaps = {};
     },
 
     /**
@@ -20314,7 +20323,6 @@ RouteManager.prototype = /** @lends RouteManager */{
         this.reset();
         this._config.pages = {};
         this._config.modules = {};
-        this._globalModuleMaps = {};
         this.unbindPopstateEvent();
         EventHandler.destroyTarget(this);
     },
