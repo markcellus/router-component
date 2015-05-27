@@ -111,4 +111,6 @@ RouteManager.triggerRoute('home').then(function () {
 ### Important Notes
 
 * Any javascript files that you include in your routes configuration must be "require"-able using either 
-Browserify, RequireJS or any other script loader that exposes a global "require" variable. 
+Browserify, RequireJS or any other script loader that exposes a global "require" variable.
+ * Once a CSS file is loaded, it is loaded infinitely, so it's important to namespace your styles and be specific 
+ if you do not want your styles to overlap and apply between pages.

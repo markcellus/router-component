@@ -1,6 +1,6 @@
 {
   "name": "route-manager",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "A simple routing framework for web apps",
   "repository": {
     "type": "git",
@@ -26,7 +26,7 @@
     "underscore": "^1.8.3"
   },
   "devDependencies": {
-    "build-tools": "^1.2.7",
+    "build-tools": "^1.5.0",
     "grunt": "~0.4.5",
     "sinon": "^1.14.1"
   },
