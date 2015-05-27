@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.2.2.
+* route-manager - v2.2.3.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -17218,6 +17218,8 @@ Module.prototype = {
         this._handleElementInitialState();
 
         this.subModules = {};
+        this.active = false;
+        this.loaded = false;
     },
 
     /**
@@ -17368,9 +17370,6 @@ Module.prototype = {
      */
     show: function () {
         var el = this.options.el;
-        if (!this.loaded) {
-            console.warn('Module show() method was called before its load() method.');
-        }
         if (el) {
             el.classList.add(this.options.activeClass);
         }
@@ -17384,9 +17383,6 @@ Module.prototype = {
      */
     hide: function () {
         var el = this.options.el;
-        if (!this.loaded) {
-            console.warn('Module hide() method was called before its load() method.');
-        }
         if (el) {
             el.classList.remove(this.options.activeClass);
         }
@@ -17502,6 +17498,7 @@ Module.prototype = {
         }
         this.subModules = {};
         this.active = false;
+        this.loaded = false;
 
         this._resetElementInitialState();
     }
