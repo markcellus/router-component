@@ -234,8 +234,13 @@ RouteManager.prototype = /** @lends RouteManager */{
                                     });
                                 }.bind(this));
                                 return pageMap.page.show();
-                            }.bind(this))
-                            .catch(function (e) {
+                            }.bind(this), function (e) {
+                                console.log('RouteManager Error: Page could not be loaded');
+                                if (e.detail) {
+                                    console.log(e.detail.stack);
+                                } else {
+                                    console.log(arguments);
+                                }
                                 this.dispatchEvent('page:error', e);
                             }.bind(this));
                     }.bind(this));
@@ -353,27 +358,33 @@ RouteManager.prototype = /** @lends RouteManager */{
         if (!this._pageMaps[pageKey]) {
             this._pageMaps[pageKey] = pageMap;
             pageMap.config = config;
-            pageMap.promise = this.loadPageScript(config.script).then(function (page) {
-                pageMap.page = page;
-                return page.getStyles(config.styles).then(function () {
-                    return page.getTemplate(config.template).then(function (html) {
-                        return page.fetchData(config.data, {cache: true}).then(function (data) {
-                            html = html || '';
-                            if (data) {
-                                html = Handlebars.compile(html)(data);
-                            }
-                            pageMap.data = data;
-                            pageMap.el = ElementKit.utils.createHtmlElement('<div>' + html + '</div>');
-                            this.options.pagesContainer.appendChild(pageMap.el);
-                            return this._loadPageModules(config.modules, pageMap).then(function () {
-                                return page.load({data: data, el: pageMap.el}).then(function () {
-                                    return pageMap;
-                                });
+            pageMap.promise = this.loadPageScript(config.script)
+                .then(function (page) {
+                    pageMap.page = page;
+                    return page.getStyles(config.styles).then(function () {
+                        return page.getTemplate(config.template).then(function (html) {
+                            return page.fetchData(config.data, {cache: true}).then(function (data) {
+                                html = html || '';
+                                if (data) {
+                                    html = Handlebars.compile(html)(data);
+                                }
+                                pageMap.data = data;
+                                pageMap.el = ElementKit.utils.createHtmlElement('<div>' + html + '</div>');
+                                this.options.pagesContainer.appendChild(pageMap.el);
+                                return this._loadPageModules(config.modules, pageMap).then(function () {
+                                    return page.load({data: data, el: pageMap.el}).then(function () {
+                                        return pageMap;
+                                    });
+                                }.bind(this));
                             }.bind(this));
                         }.bind(this));
                     }.bind(this));
+                }.bind(this), function (){
+                    // if page loading happens to cause an error, remove
+                    // item from page cache to force a hard
+                    // reload next time a request is made to this page
+                    delete this._pageMaps[pageKey];
                 }.bind(this));
-            }.bind(this));
             return pageMap.promise;
         } else {
             return this._pageMaps[pageKey].promise;
@@ -390,14 +401,22 @@ RouteManager.prototype = /** @lends RouteManager */{
             previousPath = this._getRouteMapKeyByPath(prevHistory.path);
         // hide previous page if exists
         if (previousPath && this._pageMaps[previousPath] && this._pageMaps[previousPath].promise) {
-            return this._pageMaps[previousPath].promise.then(function (pageMap) {
-                pageMap.page.hide().then(function () {
-                    // call hide on all of pages modules
-                    _.each(this._pageMaps[previousPath].modules, function (moduleMap) {
-                        moduleMap.module.hide();
+            return this._pageMaps[previousPath].promise
+                .then(function (pageMap) {
+                    pageMap.page.hide().then(function () {
+                        // call hide on all of pages modules
+                        _.each(this._pageMaps[previousPath].modules, function (moduleMap) {
+                            moduleMap.module.hide();
+                        }.bind(this));
                     }.bind(this));
-                }.bind(this));
-            }.bind(this));
+                }.bind(this))
+                .catch(function () {
+                    // if previous page load caused an error,
+                    // lets still ignore and just resolve because by
+                    // this time we're loading a new page
+                    // and no longer care about previous page
+                    return Promise.resolve();
+                });
         } else {
             return Promise.resolve();
         }
@@ -464,7 +483,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     _handleGlobalModules: function (pageConfig) {
         var showHidePromises = [];
-
+        pageConfig = pageConfig || {};
         pageConfig.modules = pageConfig.modules || [];
 
         _.each(this._globalModuleMaps, function (map, moduleKey) {

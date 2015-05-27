@@ -97,7 +97,8 @@ describe('Route Manager', function () {
     it('should call pushState with correct path when triggering url', function () {
         var RouteManager = require('./../src/route-manager')({config: {}});
         var url = 'my/testable/url';
-        var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
+        var loadPageStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
+        mockPage.show.returns(Promise.resolve());
         RouteManager.start();
         var origPushState = window.history.pushState;
         window.history.pushState = sinon.stub();
@@ -397,7 +398,8 @@ describe('Route Manager', function () {
         var routesConfig = {pages: {}};
         var popStateListener = window.addEventListener.withArgs('popstate');
         var RouteManager = require('./../src/route-manager')({config: routesConfig});
-        var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
+        var loadPageStub = sinon.stub(RouteManager, 'loadPage');
+        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
         RouteManager.start();
         var url = 'my/url';
         var event = {state: {path: url}};
@@ -406,6 +408,7 @@ describe('Route Manager', function () {
         _.delay(function () {
             assert.equal(loadPageStub.args[0][0], url, 'loadPage() was called with new pop state url');
             loadPageStub.restore();
+            loadPageScriptStub.restore();
             RouteManager.stop();
             done();
         }, 10);
@@ -426,19 +429,6 @@ describe('Route Manager', function () {
                 assert.deepEqual(mockPage.getStyles.args[0], [stylesUrls], 'page instance\'s getStyles() method was passed with correct style paths');
                 RouteManager.stop();
             });
-    });
-
-    it('should call loadPage() with new url when overriding route request', function () {
-        var routesConfig = {pages: {}};
-        var RouteManager = require('./../src/route-manager')({config: routesConfig});
-        var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
-        RouteManager.start();
-        var url = 'my/url';
-        return RouteManager.triggerRoute(url).then(function () {
-            assert.equal(loadPageStub.args[0][0], url, 'loadPage() was called with new pop state url');
-            loadPageStub.restore();
-            RouteManager.stop();
-        });
     });
 
     it('registerUrl() method should call window.history.pushState() with correct parameters', function () {
@@ -494,14 +484,16 @@ describe('Route Manager', function () {
             config: routesConfig,
             onRouteRequest: onRouteRequestStub
         });
-        var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
+        var loadPageSpy = sinon.spy(RouteManager, 'loadPage');
+        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
         RouteManager.start();
         // redirect to new route
         onRouteRequestStub.returns(Promise.resolve(secondTestUrl));
         return RouteManager.triggerRoute(firstPageUrl).then(function () {
-            assert.equal(loadPageStub.args[0][0], secondTestUrl, 'loadPage() was called with second url');
-            assert.equal(loadPageStub.callCount, 1, 'loadPage() was only called once');
-            loadPageStub.restore();
+            assert.equal(loadPageSpy.args[0][0], secondTestUrl, 'loadPage() was called with second url');
+            assert.equal(loadPageSpy.callCount, 1, 'loadPage() was only called once');
+            loadPageSpy.restore();
+            loadPageScriptStub.restore();
             RouteManager.stop();
         });
     });
@@ -521,7 +513,8 @@ describe('Route Manager', function () {
             config: routesConfig,
             onRouteRequest: onRouteRequestStub
         });
-        var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
+        var loadPageSpy = sinon.spy(RouteManager, 'loadPage');
+        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
         var registerUrlStub = sinon.stub(RouteManager, 'registerUrl');
         RouteManager.start();
         // redirect to new route
@@ -530,7 +523,8 @@ describe('Route Manager', function () {
             assert.equal(registerUrlStub.args[1][0], secondPageUrl, 'new url was passed to second registerUrl() call');
             RouteManager.stop();
             registerUrlStub.restore();
-            loadPageStub.restore();
+            loadPageScriptStub.restore();
+            loadPageSpy.restore();
         });
     });
 
@@ -549,7 +543,8 @@ describe('Route Manager', function () {
             config: routesConfig,
             onRouteRequest: onRouteRequestStub
         });
-        var loadPageStub = sinon.stub(RouteManager, 'loadPage').returns(Promise.resolve(mockPage));
+        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
+        var loadPageSpy = sinon.spy(RouteManager, 'loadPage');
         var registerUrlStub = sinon.stub(RouteManager, 'registerUrl');
         RouteManager.start();
         // redirect to new route
@@ -557,7 +552,8 @@ describe('Route Manager', function () {
         return RouteManager.triggerRoute(firstPageUrl).then(function () {
             assert.equal(registerUrlStub.args[0][0], firstPageUrl, 'original url was added to history');
             RouteManager.stop();
-            loadPageStub.restore();
+            loadPageSpy.restore();
+            loadPageScriptStub.restore();
             registerUrlStub.restore();
         });
     });
@@ -930,6 +926,72 @@ describe('Route Manager', function () {
         return RouteManager.triggerRoute(pageUrl).then(function () {
             assert.equal(mockPage.show.callCount, 1,  'show call was still triggered');
             RouteManager.stop();
+        });
+    });
+
+    it('should call show() on a page that is navigated back to, from a page that fails to load', function () {
+        var secondPageUrl = 'my/second/url';
+        var firstPageUrl = 'my/real/url';
+        var firstPageRouteRegex = '^' + firstPageUrl;
+        var secondPageRouteRegex = '^' + secondPageUrl;
+        var firstPageScriptUrl = 'path/to/my/script.js';
+        var secondPageScriptUrl = 'path/to/my/script2.js';
+        var routesConfig = {pages: {}};
+        routesConfig.pages[firstPageRouteRegex] = {script: firstPageScriptUrl};
+        routesConfig.pages[secondPageRouteRegex] = {script: secondPageScriptUrl};
+        var RouteManager = require('./../src/route-manager')({
+            config: routesConfig
+        });
+        var loadPageSpy = sinon.spy(RouteManager, 'loadPage');
+        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript');
+        var firstMockPage = createPageStub(Page);
+        var secondMockPage = createPageStub(Page);
+        loadPageScriptStub.withArgs(firstPageScriptUrl).returns(Promise.resolve(firstMockPage));
+        loadPageScriptStub.withArgs(secondPageScriptUrl).returns(Promise.resolve(secondMockPage));
+        // fail load on second page
+        secondMockPage.load.returns(Promise.reject());
+        RouteManager.start();
+        var firstPageShowCallCount = 0;
+        return RouteManager.triggerRoute(firstPageUrl).then(function () {
+            firstPageShowCallCount++;
+            return RouteManager.triggerRoute(secondPageUrl).catch(function () {
+                return RouteManager.triggerRoute(firstPageUrl).then(function () {
+                    firstPageShowCallCount++;
+                    assert.equal(firstMockPage.show.callCount, firstPageShowCallCount, 'first page show() method was called again even after a previous page fails to load');
+                    RouteManager.stop();
+                    loadPageScriptStub.restore();
+                    loadPageSpy.restore();
+                });
+            });
+        });
+    });
+
+    it('should call load() on a page that is requested again after it previously failed to load', function () {
+        var pageUrl = 'my/real/url';
+        var pageRouteRegex = '^' + pageUrl;
+        var pageScriptUrl = 'path/to/my/script.js';
+        var routesConfig = {pages: {}};
+        routesConfig.pages[pageRouteRegex] = {script: pageScriptUrl};
+        var RouteManager = require('./../src/route-manager')({
+            config: routesConfig
+        });
+        var loadPageSpy = sinon.spy(RouteManager, 'loadPage');
+        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript');
+        var mockPage = createPageStub(Page);
+        loadPageScriptStub.withArgs(pageScriptUrl).returns(Promise.resolve(mockPage));
+        // fail load call
+        mockPage.load.returns(Promise.reject());
+        RouteManager.start();
+        var pageLoadCallCount = 0;
+        return RouteManager.triggerRoute(pageUrl).catch(function () {
+            pageLoadCallCount++;
+                return RouteManager.triggerRoute(pageUrl).catch(function () {
+                    pageLoadCallCount++;
+                    assert.equal(mockPage.load.callCount, pageLoadCallCount);
+                    RouteManager.stop();
+                    loadPageScriptStub.restore();
+                    loadPageSpy.restore();
+                });
         });
     });
 
