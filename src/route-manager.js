@@ -221,24 +221,24 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @return {Promise}
      */
     _onRouteRequest: function (path) {
-        var pageLoadPromises = [];
         if (path !== this._currentPath) {
             return this._handleRequestedUrl(path).then(function (path) {
                 return this._handlePreviousPage().then(function () {
-                    return this.loadPage(path)
-                        .then(function (pageMap) {
-                            this.dispatchEvent('page:load');
-                            return this._handleGlobalModules(pageMap.config).then(function () {
-                                _.each(pageMap.modules, function (moduleMap) {
-                                    pageLoadPromises.push(moduleMap.module.show());
-                                });
-                                pageLoadPromises.push(pageMap.page.show());
-                                return pageLoadPromises;
+                    return this.loadGlobalModules().then(function () {
+                        return this.loadPage(path)
+                            .then(function (pageMap) {
+                                this.dispatchEvent('page:load');
+                                this._handleGlobalModules(pageMap.config).then(function () {
+                                    _.each(pageMap.modules, function (moduleMap) {
+                                        moduleMap.module.show();
+                                    });
+                                }.bind(this));
+                                return pageMap.page.show();
+                            }.bind(this))
+                            .catch(function (e) {
+                                this.dispatchEvent('page:error', e);
                             }.bind(this));
-                        }.bind(this))
-                        .catch(function (e) {
-                            this.dispatchEvent('page:error', e);
-                        }.bind(this));
+                    }.bind(this));
                 }.bind(this));
             }.bind(this));
         } else {
@@ -353,24 +353,22 @@ RouteManager.prototype = /** @lends RouteManager */{
         if (!this._pageMaps[pageKey]) {
             this._pageMaps[pageKey] = pageMap;
             pageMap.config = config;
-            pageMap.promise = this.loadGlobalModules().then(function () {
-                return this.loadPageScript(config.script).then(function (page) {
-                    pageMap.page = page;
-                    return page.getStyles(config.styles).then(function () {
-                        return page.getTemplate(config.template).then(function (html) {
-                            return page.fetchData(config.data, {cache: true}).then(function (data) {
-                                html = html || '';
-                                if (data) {
-                                    html = Handlebars.compile(html)(data);
-                                }
-                                pageMap.data = data;
-                                pageMap.el = ElementKit.utils.createHtmlElement('<div>' + html + '</div>');
-                                this.options.pagesContainer.appendChild(pageMap.el);
-                                return this._loadPageModules(config.modules, pageMap).then(function () {
-                                    return page.load({data: data, el: pageMap.el}).then(function () {
-                                        return pageMap;
-                                    });
-                                }.bind(this));
+            pageMap.promise = this.loadPageScript(config.script).then(function (page) {
+                pageMap.page = page;
+                return page.getStyles(config.styles).then(function () {
+                    return page.getTemplate(config.template).then(function (html) {
+                        return page.fetchData(config.data, {cache: true}).then(function (data) {
+                            html = html || '';
+                            if (data) {
+                                html = Handlebars.compile(html)(data);
+                            }
+                            pageMap.data = data;
+                            pageMap.el = ElementKit.utils.createHtmlElement('<div>' + html + '</div>');
+                            this.options.pagesContainer.appendChild(pageMap.el);
+                            return this._loadPageModules(config.modules, pageMap).then(function () {
+                                return page.load({data: data, el: pageMap.el}).then(function () {
+                                    return pageMap;
+                                });
                             }.bind(this));
                         }.bind(this));
                     }.bind(this));
