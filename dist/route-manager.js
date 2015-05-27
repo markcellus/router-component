@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.2.3.
+* route-manager - v2.2.4.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -18424,7 +18424,8 @@ ResourceManager.prototype = {
      */
     fetchData: function (url, options) {
         var objId = options ? JSON.stringify(options) : '',
-            cacheId = url + objId;
+            cacheId = url + objId,
+            promise;
 
         options = options || {};
 
@@ -18434,14 +18435,15 @@ ResourceManager.prototype = {
             return this._dataPromises[cacheId];
         } else {
             this._dataPromises[cacheId] = new Promise(function (resolve, reject) {
-                $.ajax(url, options).done(resolve).fail(function () {
-                    reject(new Error('ResourceManager Failure: request for data at ' + url + ' failed.'));
-                }.bind(this));
+                $.ajax(url, options).done(resolve).fail(function (jqXHR, textStatus, errorThrown) {
+                    reject(errorThrown);
+                });
             }.bind(this));
-            return this._dataPromises[cacheId].catch(function () {
+            return this._dataPromises[cacheId].catch(function (e) {
                 // if failure, remove cache so that subsequent
                 // requests will trigger new ajax call
                 this._dataPromises[cacheId] = null;
+                throw e;
             }.bind(this));
         }
     },
@@ -20408,26 +20410,25 @@ RouteManager.prototype = /** @lends RouteManager */{
         if (path !== this._currentPath) {
             return this._handleRequestedUrl(path).then(function (path) {
                 return this._handlePreviousPage().then(function () {
-                    return this.loadGlobalModules().then(function () {
-                        return this.loadPage(path)
-                            .then(function (pageMap) {
-                                this.dispatchEvent('page:load');
-                                this._handleGlobalModules(pageMap.config).then(function () {
-                                    _.each(pageMap.modules, function (moduleMap) {
-                                        moduleMap.module.show();
-                                    });
-                                }.bind(this));
-                                return pageMap.page.show();
-                            }.bind(this), function (e) {
-                                console.log('RouteManager Error: Page could not be loaded');
-                                if (e.detail) {
-                                    console.log(e.detail.stack);
-                                } else {
-                                    console.log(arguments);
-                                }
-                                this.dispatchEvent('page:error', e);
+                    this.loadGlobalModules();
+                    return this.loadPage(path)
+                        .then(function (pageMap) {
+                            this.dispatchEvent('page:load');
+                            this._handleGlobalModules(pageMap.config).then(function () {
+                                _.each(pageMap.modules, function (moduleMap) {
+                                    moduleMap.module.show();
+                                });
                             }.bind(this));
-                    }.bind(this));
+                            return pageMap.page.show();
+                        }.bind(this), function (e) {
+                            console.log('RouteManager Error: Page could not be loaded');
+                            if (e.detail) {
+                                console.log(e.detail.stack);
+                            } else {
+                                console.log(arguments);
+                            }
+                            this.dispatchEvent('page:error', e);
+                        }.bind(this));
                 }.bind(this));
             }.bind(this));
         } else {
@@ -20559,7 +20560,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                                     return page.load({data: data, el: pageMap.el}).then(function () {
                                         return pageMap;
                                     });
-                                }.bind(this));
+                                });
                             }.bind(this));
                         }.bind(this));
                     }.bind(this));
@@ -20699,24 +20700,28 @@ RouteManager.prototype = /** @lends RouteManager */{
 
         moduleMap.promise = this.loadModuleScript(config.script, config.options).then(function (module) {
             moduleMap.module = module;
-            return module.getStyles(config.styles).then(function () {
-                return module.getTemplate(config.template).then(function (html) {
-                    return module.fetchData(config.data, {cache: true}).then(function (data) {
-                        // use page data as fallback
-                        data = _.extend({}, pageMap.data, data);
-                        html = html ? Handlebars.compile(html)(data): '';
-                        var div = document.createElement('div');
-                        div.innerHTML = html;
-                        // create html into DOM element and pass it off to load call for
-                        // custom mangling before it gets appended to DOM
-                        moduleMap.el = div.children[0];
-                        moduleMap.html = html;
-                        return module.load({el: moduleMap.el, data: data}).then(function () {
-                            return moduleMap;
-                        });
+            return module.getStyles(config.styles)
+                .then(function () {
+                    return module.getTemplate(config.template).then(function (html) {
+                        return module.fetchData(config.data, {cache: true}).then(function (data) {
+                            // use page data as fallback
+                            data = _.extend({}, pageMap.data, data);
+                            html = html ? Handlebars.compile(html)(data): '';
+                            var div = document.createElement('div');
+                            div.innerHTML = html;
+                            // create html into DOM element and pass it off to load call for
+                            // custom mangling before it gets appended to DOM
+                            moduleMap.el = div.children[0];
+                            moduleMap.html = html;
+                            return module.load({el: moduleMap.el, data: data}).then(function () {
+                                return moduleMap;
+                            });
+                        }.bind(this));
                     }.bind(this));
-                }.bind(this));
-            }.bind(this));
+                }.bind(this), function (e) {
+                    moduleMap.module.error(e);
+                    return moduleMap;
+                });
         }.bind(this));
         return moduleMap.promise;
     },
@@ -20749,10 +20754,11 @@ RouteManager.prototype = /** @lends RouteManager */{
                         }.bind(this));
                     }.bind(this));
                 }.bind(this));
-                map.promise.then(function () {
-                    this._globalModuleMaps[moduleKey] = map;
-                }.bind(this));
+                this._globalModuleMaps[moduleKey] = map;
                 promises.push(map.promise);
+                map.promise.catch(function (e) {
+                    map.module.error(e);
+                });
             }
         }.bind(this));
         return Promise.all(promises);
