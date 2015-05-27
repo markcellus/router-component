@@ -920,7 +920,7 @@ describe('Route Manager', function () {
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
         // fail the global module show
-        mockModule.show.returns(Promise.reject());
+        mockModule.load.returns(Promise.reject());
         requireStub.returns(mockModule);
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl).then(function () {
@@ -995,5 +995,77 @@ describe('Route Manager', function () {
         });
     });
 
+    it('should call a global module\'s error method when global module fails to load', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleHtml = "<div>my module content</div>";
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
+        // fail global module loading
+        var errorObj = {my: 'error'};
+        mockModule.load.returns(Promise.reject(errorObj));
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            assert.deepEqual(mockModule.error.args[0][0], errorObj,  'modules error method was called with error object as first argument');
+            RouteManager.stop();
+        });
+    });
+
+    it('loadPage() should reject when a global module fails to load', function (done) {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleHtml = "<div>my module content</div>";
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var pageHtml = '<div></div>';
+        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
+        // fail global module loading
+        var errorObj = {my: 'error'};
+        mockModule.load.returns(Promise.reject(errorObj));
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        return RouteManager.loadPage(pageUrl).catch(function (err) {
+            assert.deepEqual(err, errorObj,  'modules error method was called with error object as first argument');
+            RouteManager.stop();
+            done();
+        });
+    });
 
 });
