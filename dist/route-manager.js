@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.2.4.
+* route-manager - v2.3.0.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20414,11 +20414,10 @@ RouteManager.prototype = /** @lends RouteManager */{
                     return this.loadPage(path)
                         .then(function (pageMap) {
                             this.dispatchEvent('page:load');
-                            this._handleGlobalModules(pageMap.config).then(function () {
-                                _.each(pageMap.modules, function (moduleMap) {
-                                    moduleMap.module.show();
-                                });
-                            }.bind(this));
+                            this._handleGlobalModules(pageMap.config);
+                            _.each(pageMap.modules, function (moduleMap) {
+                                moduleMap.module.show();
+                            });
                             return pageMap.page.show();
                         }.bind(this), function (e) {
                             console.log('RouteManager Error: Page could not be loaded');
@@ -20672,14 +20671,17 @@ RouteManager.prototype = /** @lends RouteManager */{
         pageConfig.modules = pageConfig.modules || [];
 
         _.each(this._globalModuleMaps, function (map, moduleKey) {
-            if (pageConfig.modules.indexOf(moduleKey) !== -1) {
-                // page has this global module, so lets show it
-                showHidePromises.push(map.module.show());
-            } else if (map.module.active) {
-                // page does not have global module so lets hide it only if it is showing
-                showHidePromises.push(map.module.hide());
-            }
+            showHidePromises.push(map.promise.then(function () {
+                if (pageConfig.modules.indexOf(moduleKey) !== -1) {
+                    // page has this global module, so lets show it
+                    return map.module.show();
+                } else if (map.module.active) {
+                    // page does not have global module so lets hide it only if it is showing
+                    return map.module.hide();
+                }
+            }));
         }.bind(this));
+
         return Promise.all(showHidePromises);
 
     },

@@ -1,6 +1,6 @@
 {
   "name": "route-manager",
-  "version": "2.2.4",
+  "version": "2.3.0",
   "description": "A simple routing framework for web apps",
   "repository": {
     "type": "git",

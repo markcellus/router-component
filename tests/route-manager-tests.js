@@ -1068,4 +1068,45 @@ describe('Route Manager', function () {
         });
     });
 
+    it('should allow global modules to finish fetching its data before its show method is called', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        // build promise
+        var moduleFetchDataPromiseObj = {};
+        var moduleFetchDataPromise = new Promise(function (resolve, reject){
+            moduleFetchDataPromiseObj.resolve = resolve;
+            moduleFetchDataPromiseObj.reject = reject;
+        });
+        mockModule.fetchData.returns(moduleFetchDataPromise);
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        var loadGlobaModulesPromise = RouteManager.loadGlobalModules();
+        assert.equal(mockModule.show.callCount, 0,  'module show() is not yet called because its data hasnt finished fetching');
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            moduleFetchDataPromiseObj.resolve();
+            return loadGlobaModulesPromise.then(function () {
+                assert.equal(mockModule.show.callCount, 1,  'module show() is called after its data is done fetching');
+                RouteManager.stop();
+            });
+        });
+    });
+
 });
