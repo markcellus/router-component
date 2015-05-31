@@ -1105,4 +1105,44 @@ describe('Route Manager', function () {
         });
     });
 
+    it('should call show() for a global module on page that has already been visited, after having visited a page without it', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var noGlobalModulePageUrl = 'no/gm';
+        routesConfig.pages[noGlobalModulePageUrl] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        // build promise
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.show.callCount, 1,  'global modules show() method was called');
+            return RouteManager.triggerRoute(noGlobalModulePageUrl).then(function () {
+                return RouteManager.triggerRoute(pageUrl).then(function () {
+                    assert.equal(mockModule.show.callCount, 2,  'global modules show() method was called again');
+                    RouteManager.stop();
+                });
+            });
+        });
+    });
+
 });
