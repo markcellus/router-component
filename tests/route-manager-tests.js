@@ -190,35 +190,6 @@ describe('Route Manager', function () {
             .catch(done);
     });
 
-    it('should console an error and reject promise if a module doesnt have a script file', function () {
-        // setup
-        var pageUrl = 'my/real/url';
-        var dataUrl = 'get/my/data';
-        var routesConfig = {pages: {}, modules: {}};
-        var moduleName = 'myCustomModule';
-        routesConfig.modules[moduleName] = {};
-        routesConfig.pages[pageUrl] = {
-            data: dataUrl,
-            modules: [moduleName]
-        };
-        var consoleErrorStub = sinon.stub(console, 'error');
-        var RouteManager = require('./../src/route-manager')({config: routesConfig});
-        mockPage.getTemplate.returns(Promise.resolve());
-        mockPage.load.returns(Promise.resolve());
-        mockPage.show.returns(Promise.resolve());
-        mockPage.fetchData.returns(Promise.resolve());
-        var loadPageScriptStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
-        RouteManager.start();
-        return RouteManager.triggerRoute(pageUrl)
-            .catch(function () {
-                assert.ok(error, 'promise was rejected');
-                assert.equal(consoleErrorStub.callCount, 1, 'console error was printed');
-                loadPageScriptStub.restore();
-                consoleErrorStub.restore();
-                RouteManager.stop();
-            });
-    });
-
     it('should fire a page load event when a url is triggered', function () {
         // setup
         var pageUrl = 'my/page/load/event/url';
@@ -894,7 +865,7 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should still call show a page, even if a global module fails to load', function () {
+    it('should reject a page load and NOT call page\'s load method, when a global module fails to load', function (done) {
         // setup
         var pageUrl = 'my/page/url';
         var routesConfig = {pages: {}, modules: {}};
@@ -923,9 +894,10 @@ describe('Route Manager', function () {
         mockModule.load.returns(Promise.reject());
         requireStub.returns(mockModule);
         RouteManager.start();
-        return RouteManager.triggerRoute(pageUrl).then(function () {
-            assert.equal(mockPage.show.callCount, 1,  'show call was still triggered');
+        RouteManager.triggerRoute(pageUrl).catch(function () {
+            assert.equal(mockPage.load.callCount, 0,  'page was not loaded');
             RouteManager.stop();
+            done();
         });
     });
 
@@ -1023,7 +995,7 @@ describe('Route Manager', function () {
         mockModule.load.returns(Promise.reject(errorObj));
         requireStub.returns(mockModule);
         RouteManager.start();
-        return RouteManager.loadGlobalModule(moduleName).catch(function () {
+        return RouteManager.triggerRoute(pageUrl).catch(function () {
             assert.deepEqual(mockModule.error.args[0][0], errorObj,  'modules error method was called with error object as first argument');
             RouteManager.stop();
             done();
@@ -1065,7 +1037,7 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should allow a global modules to finish fetching its data before its show method is called', function () {
+    it('should allow a global module to finish fetching its data before its show method is called', function (done) {
         // setup
         var pageUrl = 'my/page/url';
         var routesConfig = {pages: {}, modules: {}};
@@ -1095,14 +1067,13 @@ describe('Route Manager', function () {
         mockModule.fetchData.returns(moduleFetchDataPromise);
         requireStub.returns(mockModule);
         RouteManager.start();
-        var loadGlobaModulesPromise = RouteManager.loadGlobalModule(moduleName);
+        var triggerRoutePromise = RouteManager.triggerRoute(pageUrl);
         assert.equal(mockModule.show.callCount, 0,  'module show() is not yet called because its data hasnt finished fetching');
-        return RouteManager.triggerRoute(pageUrl).then(function () {
-            moduleFetchDataPromiseObj.resolve();
-            return loadGlobaModulesPromise.then(function () {
-                assert.equal(mockModule.show.callCount, 1,  'module show() is called after its data is done fetching');
-                RouteManager.stop();
-            });
+        moduleFetchDataPromiseObj.resolve();
+        triggerRoutePromise.then(function () {
+            assert.equal(mockModule.show.callCount, 1,  'module show() is called after its data is done fetching');
+            RouteManager.stop();
+            done();
         });
     });
 
