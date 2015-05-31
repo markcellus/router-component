@@ -495,16 +495,15 @@ RouteManager.prototype = /** @lends RouteManager */{
             if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                 // page has this global module specified so lets load it
                 promise = this._loadGlobalModule(map).then(function () {
-                    if (map.module && map.module.loaded && map.module.active) {
-                        // page does not not need module
-                        return map.module.hide();
-                    } else {
-                        // page needs module
-                        return map.module.show();
-                    }
+                    return map.module.show();
                 });
-                promises.push(promise);
+            } else if (map.promise) {
+                // page does not need module but may be loading
+                promise = map.promise.then(function () {
+                    return map.module.hide();
+                });
             }
+            promises.push(promise);
         }.bind(this));
 
         return Promise.all(promises);
