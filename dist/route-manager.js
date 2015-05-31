@@ -1,5 +1,5 @@
 /** 
-* route-manager - v2.4.0.
+* route-manager - v2.4.1.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -20414,23 +20414,24 @@ RouteManager.prototype = /** @lends RouteManager */{
         if (path !== this._currentPath) {
             return this._handleRequestedUrl(path).then(function (path) {
                 return this._handlePreviousPage().then(function () {
-                    return this.loadPage(path)
-                        .then(function (pageMap) {
-                            this._handleGlobalModules(pageMap.config);
-                            _.each(pageMap.modules, function (moduleMap) {
-                                moduleMap.module.show();
-                            });
-                            this.dispatchEvent('page:load');
-                            return pageMap.page.show();
-                        }.bind(this), function (e) {
-                            console.log('RouteManager Error: Page could not be loaded');
-                            if (e.detail) {
-                                console.log(e.detail.stack);
-                            } else {
-                                console.log(arguments);
-                            }
-                            this.dispatchEvent('page:error', e);
-                        }.bind(this));
+                    return this._handleGlobalModules(path).then(function () {
+                        return this.loadPage(path)
+                            .then(function (pageMap) {
+                                _.each(pageMap.modules, function (moduleMap) {
+                                    moduleMap.module.show();
+                                });
+                                this.dispatchEvent('page:load');
+                                return pageMap.page.show();
+                            }.bind(this), function (e) {
+                                console.log('RouteManager Error: Page could not be loaded');
+                                if (e.detail) {
+                                    console.log(e.detail.stack);
+                                } else {
+                                    console.log(arguments);
+                                }
+                                this.dispatchEvent('page:error', e);
+                            }.bind(this));
+                    }.bind(this));
                 }.bind(this));
             }.bind(this));
         } else {
@@ -20663,27 +20664,34 @@ RouteManager.prototype = /** @lends RouteManager */{
     },
 
     /**
-     * Handles either showing or hiding global modules based on a page.
-     * @param {Object} pageConfig - The page's config
+     * Handles either showing or hiding global modules based on the supplied path.
+     * @param {string} path - The page path
      * @returns {Promise} Returns a promise that resolves when global modules are shown and hidden
      * @private
      */
-    _handleGlobalModules: function (pageConfig) {
-        var promises = [];
-        pageConfig = pageConfig || {};
+    _handleGlobalModules: function (path) {
+        var pageKey = this._getRouteMapKeyByPath(path),
+            pageConfig = this._config.pages[pageKey] || {},
+            promises = [],
+            promise = Promise.resolve();
+
         pageConfig.modules = pageConfig.modules || [];
 
         _.each(this._globalModuleMaps, function (map, moduleKey) {
             if (pageConfig.modules.indexOf(moduleKey) !== -1) {
-                // page has this global module, so lets load and handle it properly
-                promises.push(this.loadGlobalModule(moduleKey)
-                    .then(function () {
-                        return map.module.show();
-                    }));
-            } else if (map.module && map.module.loaded && map.module.active) {
-                // page does not have global module so lets hide it only if it is loaded and showing
-                promises.push(map.module.hide());
+                // page has this global module specified so lets load it
+                promise = this._loadGlobalModule(map);
             }
+            promise.then(function () {
+                if (map.module && map.module.loaded && map.module.active) {
+                    // page does not not need module
+                    return map.module.hide();
+                } else {
+                    // page needs module
+                    return map.module.show();
+                }
+            });
+            promises.push(promise);
         }.bind(this));
 
         return Promise.all(promises);
@@ -20734,33 +20742,33 @@ RouteManager.prototype = /** @lends RouteManager */{
 
     /**
      * Loads all global modules.
-     * @param {string} moduleKey - The global module id
+     * @param {Object} map - The global module map
      * @return {*}
      */
-    loadGlobalModule: function (moduleKey) {
-        var map = this._globalModuleMaps[moduleKey];
+    _loadGlobalModule: function (map) {
+        map = map || {};
         if (!map.promise) {
             map.promise = this.loadModuleScript(map.config.script).then(function (module) {
-                return module.getStyles(map.config.styles).then(function () {
-                    return module.getTemplate(map.config.template).then(function (html) {
-                        return module.fetchData(map.config.data, {cache: true}).then(function (data) {
-                            html = html ? Handlebars.compile(html)(data || {}): '';
-                            // inject modules into page DOM
-                            var div = document.createElement('div');
-                            div.innerHTML = html;
-                            map.el = div.children[0];
-                            // create html into DOM element and pass it off to load call for
-                            // custom mangling before it gets appended to DOM
-                            map.module = module;
-                            return module.load({data: data, el: map.el});
+                    return module.getStyles(map.config.styles).then(function () {
+                        return module.getTemplate(map.config.template).then(function (html) {
+                            return module.fetchData(map.config.data, {cache: true}).then(function (data) {
+                                html = html ? Handlebars.compile(html)(data || {}): '';
+                                // inject modules into page DOM
+                                var div = document.createElement('div');
+                                div.innerHTML = html;
+                                map.el = div.children[0];
+                                // create html into DOM element and pass it off to load call for
+                                // custom mangling before it gets appended to DOM
+                                map.module = module;
+                                return module.load({data: data, el: map.el}).catch(function (e) {
+                                    // error loading global module!
+                                    map.module.error(e);
+                                    throw e;
+                                });
+                            }.bind(this));
                         }.bind(this));
                     }.bind(this));
                 }.bind(this));
-            }.bind(this));
-
-            map.promise.catch(function (e) {
-                map.module.error(e);
-            });
         }
         return map.promise;
     },
