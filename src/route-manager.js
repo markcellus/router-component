@@ -487,24 +487,25 @@ RouteManager.prototype = /** @lends RouteManager */{
         var pageKey = this._getRouteMapKeyByPath(path),
             pageConfig = this._config.pages[pageKey] || {},
             promises = [],
-            map;
+            promise = Promise.resolve();
 
-        _.each(pageConfig.modules, function (moduleKey) {
-            map = this._globalModuleMaps[moduleKey];
-            if (!map) {
-                // no matching global module, lets bail...
-                return false;
-            } else if (map.module && map.module.loaded && map.module.active) {
-                // page does not have global module specified so lets hide it only if it is loaded and showing
-                promises.push(map.module.hide());
-            } else {
-                // page has this global module, so lets load and then show it
-                promises.push(this._loadGlobalModule(map).then(function () {
-                    return map.promise.then(function() {
-                        map.module.show();
-                    });
-                }));
+        pageConfig.modules = pageConfig.modules || [];
+
+        _.each(this._globalModuleMaps, function (map, moduleKey) {
+            if (pageConfig.modules.indexOf(moduleKey) !== -1) {
+                // page has this global module specified so lets load it
+                promise = this._loadGlobalModule(map);
             }
+            promise.then(function () {
+                if (map.module && map.module.loaded && map.module.active) {
+                    // page does not not need module
+                    return map.module.hide();
+                } else {
+                    // page needs module
+                    return map.module.show();
+                }
+            });
+            promises.push(promise);
         }.bind(this));
 
         return Promise.all(promises);
