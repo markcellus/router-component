@@ -445,7 +445,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                 globalModuleKeys.push(moduleKey);
             } else {
                 pageModuleKeys.push(moduleKey); //we must keep track of the order of the modules
-                loadPromise = this._loadPageModule(moduleKey, pageMap).then(function (moduleMap) {
+                loadPromise = this.loadPageModule(moduleKey, pageMap.data).then(function (moduleMap) {
                     pageMap.modules[moduleKey] = moduleMap;
                 });
             }
@@ -515,10 +515,9 @@ RouteManager.prototype = /** @lends RouteManager */{
     /**
      * Loads a single module for a page.
      * @param {string} moduleKey - The key of which module to load
-     * @param {Object} pageMap - The page map
-     * @private
+     * @param {Object} [fallbackData] - Any fallback data to be used inside the module's template
      */
-    _loadPageModule: function (moduleKey, pageMap) {
+    loadPageModule: function (moduleKey, fallbackData) {
         var config = this._config.modules[moduleKey],
             moduleMap = {};
 
@@ -533,7 +532,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                     return module.getTemplate(config.template).then(function (html) {
                         return module.fetchData(config.data, {cache: true}).then(function (data) {
                             // use page data as fallback
-                            data = _.extend({}, pageMap.data, data);
+                            data = _.extend({}, fallbackData, data);
                             html = html ? Handlebars.compile(html)(data): '';
                             var div = document.createElement('div');
                             div.innerHTML = html;
