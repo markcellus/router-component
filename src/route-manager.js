@@ -400,16 +400,35 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     _handlePreviousPage: function () {
         var prevHistory = this.history[this.history.length - 2] || {},
-            previousPath = this._getRouteMapKeyByPath(prevHistory.path);
+            previousPath = this._getRouteMapKeyByPath(prevHistory.path),
+            prevConfig = this._pageMaps[previousPath],
+            globalPromises = [];
         // hide previous page if exists
-        if (previousPath && this._pageMaps[previousPath] && this._pageMaps[previousPath].promise) {
-            return this._pageMaps[previousPath].promise
+        if (previousPath && prevConfig && prevConfig.promise) {
+            this._currentPreviousPagePromise = prevConfig.promise
                 .then(function (pageMap) {
-                    pageMap.page.hide().then(function () {
+                    return pageMap.page.hide().then(function () {
+
                         // call hide on all of pages modules
-                        _.each(this._pageMaps[previousPath].modules, function (moduleMap) {
+                        _.each(prevConfig.modules, function (moduleMap) {
                             moduleMap.module.hide();
                         }.bind(this));
+
+                        // call hide on all global modules
+                        _.each(this._globalModuleMaps, function (map, moduleKey) {
+                            // only call hide on modules that have been loaded for performance
+                            if (map.promise) {
+                                globalPromises.push(map.promise.then(function () {
+                                    // if there are matching global modules,
+                                    // we dont want to call show before previous page hides them
+                                    // wait until previous page is done hiding
+                                    return map.module.hide();
+                                }.bind(this)));
+                            }
+                        }.bind(this));
+
+                        return Promise.all(globalPromises);
+
                     }.bind(this));
                 }.bind(this))
                 .catch(function () {
@@ -420,8 +439,9 @@ RouteManager.prototype = /** @lends RouteManager */{
                     return Promise.resolve();
                 });
         } else {
-            return Promise.resolve();
+            this._currentPreviousPagePromise = Promise.resolve();
         }
+        return this._currentPreviousPagePromise;
     },
 
     /**
@@ -487,21 +507,28 @@ RouteManager.prototype = /** @lends RouteManager */{
         var pageKey = this._getRouteMapKeyByPath(path),
             pageConfig = this._config.pages[pageKey] || {},
             promises = [],
-            promise = Promise.resolve();
+            promise;
 
         pageConfig.modules = pageConfig.modules || [];
 
         _.each(this._globalModuleMaps, function (map, moduleKey) {
             if (pageConfig.modules.indexOf(moduleKey) !== -1) {
-                // page has this global module specified so lets load it
+                // page has this global module specified!
                 promise = this._loadGlobalModule(map).then(function () {
-                    return map.module.show();
-                });
-            } else if (map.promise) {
-                // page does not need module but may be loading
+                    // if there are matching global modules,
+                    // we dont want to call show before previous page hides them
+                    // wait until previous page is done hiding
+                    this._currentPreviousPagePromise.then(function () {
+                        return map.module.show();
+                    });
+                }.bind(this));
+            } else if (map.module) {
+                // page does not have this global module specified!
                 promise = map.promise.then(function () {
-                    return map.module.hide();
+                    map.module.hide();
                 });
+            } else {
+                promise = Promise.resolve();
             }
             promises.push(promise);
         }.bind(this));
