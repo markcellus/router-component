@@ -127,6 +127,7 @@ describe('Route Manager', function () {
             config: routesConfig
         });
         var pageInitializeSpy = sinon.spy(Page.prototype, 'initialize');
+        var showPageStub = sinon.stub(RouteManager, 'showPage').returns(Promise.resolve());
         var pageGetDataStub = sinon.stub(Page.prototype, 'fetchData').returns(Promise.resolve({}));
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl)
@@ -136,6 +137,7 @@ describe('Route Manager', function () {
                 pageInitializeSpy.restore();
                 pageGetDataStub.restore();
                 RouteManager.stop();
+                showPageStub.restore();
             });
     });
 
@@ -385,7 +387,7 @@ describe('Route Manager', function () {
         }, 10);
     });
 
-    it('should pass the styles property of the matching route config of the url requested to the associated page\'s getStyles() method', function () {
+    it('loadPage() should pass the styles property of the matching route config of the url requested to the associated page\'s getStyles() method', function () {
         // setup
         var pageUrl = 'my/real/url';
         var pageScriptUrl = 'path/to/page/script';
@@ -395,10 +397,12 @@ describe('Route Manager', function () {
         var RouteManager = require('./../src/route-manager')({config: routesConfig});
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         RouteManager.start();
-        return RouteManager.triggerRoute(pageUrl)
+        var showPageStub = sinon.stub(RouteManager, 'showPage').returns(Promise.resolve());
+        return RouteManager.loadPage(pageUrl)
             .then(function () {
                 assert.deepEqual(mockPage.getStyles.args[0], [stylesUrls], 'page instance\'s getStyles() method was passed with correct style paths');
                 RouteManager.stop();
+                showPageStub.restore();
             });
     });
 
@@ -1144,5 +1148,136 @@ describe('Route Manager', function () {
             });
         });
     });
+
+    it('hidePage() should call hideGlobalModules() with same path', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var noGlobalModulePageUrl = 'no/gm';
+        routesConfig.pages[noGlobalModulePageUrl] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        // build promise
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        var hideGlobalModulesStub = sinon.stub(RouteManager, 'hidePage').returns(Promise.resolve());
+        return RouteManager.loadPage(pageUrl).then(function () {
+            return RouteManager.hidePage(pageUrl).then(function () {
+                assert.equal(hideGlobalModulesStub.args[0][0], pageUrl, 'hideGlobalModules() was called with same page url passed to hidePage()');
+                hideGlobalModulesStub.restore();
+                RouteManager.stop();
+            });
+        });
+    });
+
+    it('hideGlobalModules() should call hide on all modules on a previous page', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var noGlobalModulePageUrl = 'no/gm';
+        routesConfig.pages[noGlobalModulePageUrl] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        // load global modules first
+        return RouteManager.loadGlobalModules(pageUrl).then(function () {
+            return RouteManager.hideGlobalModules(pageUrl).then(function () {
+                assert.equal(mockModule.hide.callCount, 1);
+                RouteManager.stop();
+            });
+        });
+    });
+
+    it('should resolve a global module\'s hide() method before its show() method is triggered again', function (done) {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var noGlobalModulePageUrl = 'no/gm';
+        routesConfig.pages[noGlobalModulePageUrl] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        // build promise
+        requireStub.returns(mockModule);
+        var hideGlobalModulesStub = sinon.stub(RouteManager, 'hideGlobalModules');
+        RouteManager.start();
+        RouteManager.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.show.callCount, 1);
+            // call another url to trigger global module hide
+            RouteManager.triggerRoute(noGlobalModulePageUrl);
+            var globalModuleHidePromiseObj = {};
+            var globalModuleHidePromise = new Promise(function (resolve, reject){
+                globalModuleHidePromiseObj.resolve = resolve;
+                globalModuleHidePromiseObj.reject = reject;
+            });
+            hideGlobalModulesStub.returns(globalModuleHidePromise);
+            var pr2 = RouteManager.triggerRoute(pageUrl);
+            // resolve modules hide
+            assert.equal(mockModule.show.callCount, 1);
+            //assert.equal(mockModule.hide.callCount, 1);
+            globalModuleHidePromiseObj.resolve();
+            pr2.then(function () {
+                assert.equal(mockModule.show.callCount, 2);
+                RouteManager.stop();
+                hideGlobalModulesStub.restore();
+                done();
+            });
+        });
+    });
+
 
 });
