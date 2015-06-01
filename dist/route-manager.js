@@ -1,5 +1,5 @@
 /** 
-* route-manager - v3.0.0.
+* route-manager - v3.0.1.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
