@@ -150,11 +150,14 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @param {Object} [options] - Set of navigation options
      * @param {boolean} [options.trigger] - True if the route function should be called (defaults to true)
      * @param {boolean} [options.replace] - True to update the URL without creating an entry in the browser's history
+     * @param {boolean} [options.triggerUrlChange] - False to not trigger the browser url to change
      * @returns {Promise} Returns a Promise when the page of the route has loaded
      */
     triggerRoute: function (url, options) {
+        options = options || {};
+        options.triggerUrlChange = typeof options.triggerUrlChange !== 'undefined' ? options.triggerUrlChange : true;
         if (url !== this._currentPath) {
-            return this._onRouteRequest(url);
+            return this._onRouteRequest(url, options);
         } else {
             return Promise.resolve();
         }
@@ -224,9 +227,9 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @private
      * @return {Promise}
      */
-    _onRouteRequest: function (path) {
+    _onRouteRequest: function (path, options) {
         if (path !== this._currentPath) {
-            return this._handleRequestedUrl(path).then(function (path) {
+            return this._handleRequestedUrl(path, options).then(function (path) {
                 return this._handlePreviousPage().then(function () {
                     return this.loadPage(path)
                         .then(function () {
@@ -252,14 +255,20 @@ RouteManager.prototype = /** @lends RouteManager */{
     /**
      * Sets a url has active and adds it to the history.
      * @param {string} path - The url to set
+     * @param {Object} options - Set of options
+     * @param {Object} options.triggerUrlChange - Whether to trigger a url change
      */
-    registerUrl: function (path) {
+    registerUrl: function (path, options) {
         var windowHistory = this.getWindow().history;
+        options = options || {};
+        options.triggerUrlChange = typeof options.triggerUrlChange !== 'undefined' ? options.triggerUrlChange : true;
         // register new url in history
-        windowHistory.pushState({path: path}, document.title, path);
-        // push to internal history for tracking
-        this.history.push(windowHistory.state);
-        this._currentPath = path;
+        if (options.triggerUrlChange) {
+            windowHistory.pushState({path: path}, document.title, path);
+            // push to internal history for tracking
+            this.history.push(windowHistory.state);
+            this._currentPath = path;
+        }
         this.dispatchEvent('url:change', {url: path});
     },
 
@@ -278,11 +287,11 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {Promise} Returns a promise that resolves with a path to go to when done
      * @private
      */
-    _handleRequestedUrl: function (path) {
+    _handleRequestedUrl: function (path, options) {
         var getRedirectedUrl = this.options.onRouteRequest ? this.options.onRouteRequest(path) : Promise.resolve(path);
 
         // register attempted url
-        this.registerUrl(path);
+        this.registerUrl(path, options);
 
         //convert to promise if not already
         if (!getRedirectedUrl.then) {

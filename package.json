@@ -1,6 +1,6 @@
 {
   "name": "route-manager",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "A simple routing framework for web apps",
   "repository": {
     "type": "git",
@@ -13,6 +13,19 @@
     "name": "Mark Kennedy",
     "url": "http://heyimmark.com"
   },
+  "keywords": [
+    "route manager",
+    "routing",
+    "route management",
+    "url",
+    "page load",
+    "routing urls",
+    "web app",
+    "dynamic urls",
+    "page load",
+    "dynamic page"
+  ],
+  "license": "MIT",
   "main": "src/route-manager.js",
   "dependencies": {
     "element-kit": "*",
