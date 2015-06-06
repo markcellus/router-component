@@ -5,6 +5,7 @@ var Promise = require('promise');
 var Page = require('../src/page');
 var Module = require('module.js');
 var _ = require('underscore');
+var Listen = require('listen-js');
 
 describe('Route Manager', function () {
     'use strict';
@@ -29,6 +30,9 @@ describe('Route Manager', function () {
         origPushState = window.history.pushState;
         window.history.pushState = function () {};
 
+        sinon.spy(Listen, 'createTarget');
+        sinon.spy(Listen, 'destroyTarget');
+
         // set up mock page and set defaults
         mockPage = createPageStub(Page);
         // setup module and set defaults
@@ -48,9 +52,28 @@ describe('Route Manager', function () {
     });
 
     afterEach(function () {
+
+        Listen.createTarget.restore();
+        Listen.destroyTarget.restore();
+
         window.history.pushState = origPushState;
         window.addEventListener.restore();
         requireStub.restore();
+    });
+
+    it('should call Listen.createTarget on initialize to attach all event handling logic', function () {
+        var RouteManager = require('./../src/route-manager')({config: {}});
+        RouteManager.start();
+        assert.deepEqual(Listen.createTarget.args[0][0], RouteManager, 'RouteManager instance was passed to Listen.createTarget');
+        RouteManager.stop();
+    });
+
+    it('should call Listen.destroyTarget on stop to detach all event handling logic', function () {
+        var RouteManager = require('./../src/route-manager')({config: {}});
+        RouteManager.start();
+        assert.equal(Listen.destroyTarget.callCount, 0);
+        RouteManager.stop();
+        assert.deepEqual(Listen.destroyTarget.args[0][0], RouteManager, 'RouteManager instance was passed to Listen.destroyTarget');
     });
 
     it('should return query params from provided url', function () {
