@@ -35,7 +35,6 @@ describe('Page', function () {
             assert.deepEqual(moduleLoadStub.args[0][0], loadOptions, 'modules prototype load method was called with options passed into load call');
             pageInstance.destroy();
             moduleLoadStub.restore();
-            moduleLoadStub.restore();
         });
     });
 
@@ -87,4 +86,20 @@ describe('Page', function () {
             });
         });
     });
+
+    it('should call Module prototype\'s load() after initial transition has completed on page element', function () {
+        var moduleLoadStub = sinon.stub(Module.prototype, 'load').returns(Promise.resolve());
+        var pageInstance = new Page({pagesContainer: document.createDocumentFragment()});
+        var pageEl = document.createElement('div');
+        var elementKitWaitForTransitionStub = sinon.stub(pageEl.kit, 'waitForTransition');
+        var loadOptions = {el: pageEl};
+        pageInstance.load(loadOptions);
+        assert.equal(moduleLoadStub.callCount, 0, 'modules prototype load method was not yet called because page hasnt been transitioned yet');
+        elementKitWaitForTransitionStub.yield();
+        assert.deepEqual(moduleLoadStub.args[0][0], loadOptions, 'after page element transitions, modules prototype load method was called with options passed into load call');
+        elementKitWaitForTransitionStub.restore();
+        pageInstance.destroy();
+        moduleLoadStub.restore();
+    });
+
 });
