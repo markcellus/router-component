@@ -47,8 +47,11 @@ var Page = Module.extend({
             this.el = document.createElement('div');
         }
         this.el.classList.add('page');
-
-        return Module.prototype.load.call(this, options);
+        return new Promise(function (resolve, reject) {
+            this.el.kit.waitForTransition(function () {
+                Module.prototype.load.call(this, options).then(resolve, reject);
+            }.bind(this));
+        }.bind(this));
     },
 
     /**
