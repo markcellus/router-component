@@ -1,6 +1,6 @@
 {
   "name": "route-manager",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "A simple routing framework for web apps",
   "repository": {
     "type": "git",
@@ -28,7 +28,7 @@
   "license": "MIT",
   "main": "src/route-manager.js",
   "dependencies": {
-    "element-kit": "*",
+    "element-kit": "^1.0.5",
     "event-handler": "^1.0.1",
     "handlebars": "^3.0.0",
     "handlebars-helper-slugify": "^0.3.2",
