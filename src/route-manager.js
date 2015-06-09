@@ -489,7 +489,8 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {Promise} Returns promise when page is done hiding.
      */
     hidePage: function (path) {
-        var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
+        var route = this._getRouteMapKeyByPath(path) || '^404(/)?$',
+            pageMap = this._pageMaps[route];
         // hide previous page if exists
         if (pageMap && pageMap.promise) {
             return pageMap.promise
@@ -518,7 +519,8 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @return {Promise} Returns a promise when complete
      */
     hidePageModules: function (path) {
-        var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)],
+        var route = this._getRouteMapKeyByPath(path) || '^404(/)?$',
+            pageMap = this._pageMaps[route],
             promises = [];
         // call hide on all of pages modules
         _.each(pageMap.modules, function (moduleMap) {
