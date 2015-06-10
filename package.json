@@ -29,10 +29,10 @@
   "main": "src/route-manager.js",
   "dependencies": {
     "element-kit": "^1.0.5",
-    "event-handler": "^1.0.1",
     "handlebars": "^3.0.0",
     "handlebars-helper-slugify": "^0.3.2",
     "jquery": "^2.1.3",
+    "listen-js": "^1.0.1",
     "module.js": "^2.2.2",
     "promise": "^7.0.0",
     "resource-manager-js": "^1.1.4",
