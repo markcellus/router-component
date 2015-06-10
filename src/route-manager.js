@@ -35,10 +35,16 @@ RouteManager.prototype = /** @lends RouteManager */{
     /**
      * Initialize options
      * @param {Object} [options]
+     * @param {Object} [options.config] - The configuration object
+     * @param {Object} [options.config.pages] - The pages
+     * @param {Object} [options.config.modules] - The modules
      * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
      */
     initialize: function (options) {
+
+        options = options || {};
+        options.config = options.config || {};
 
         this.options = _.extend({
             onRouteRequest: null,
