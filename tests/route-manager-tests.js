@@ -106,22 +106,27 @@ describe('Route Manager', function () {
         RouteManager.stop();
     });
 
-    it('should reject the promise when trying to trigger a url that has not been specified in the route config', function () {
+    it('should reject the triggerRoute() promise when trying to trigger a url that has not been specified in the route config', function () {
         var RouteManager = require('./../src/route-manager')({config: {}});
         var url = 'my/testable/url';
         RouteManager.start();
         return RouteManager.triggerRoute(url)
-            .catch(function (obj) {
+            .then(function () {
+                throw new Error('error should exist');
+            }, function (err) {
                 RouteManager.stop();
-                assert.equal(obj.message, 'Router Error: No routes configuration for ' + url, 'triggerRoute returns with an error message because no url match in route config');
+                assert.ok(err, 'triggerRoute returns with an error message because no url match in route config');
             });
     });
 
     it('should call pushState with correct path when triggering url', function () {
-        var RouteManager = require('./../src/route-manager')({config: {}});
         var url = 'my/testable/url';
+        var routesConfig = {pages: {}};
+        routesConfig.pages[url] = {};
+        var RouteManager = require('./../src/route-manager')({
+            config: routesConfig
+        });
         var loadPageStub = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
-        mockPage.show.returns(Promise.resolve());
         RouteManager.start();
         var origPushState = window.history.pushState;
         window.history.pushState = sinon.stub();
@@ -340,9 +345,8 @@ describe('Route Manager', function () {
         var loadPageScript = sinon.stub(RouteManager, 'loadPageScript').returns(Promise.resolve(mockPage));
         RouteManager.start();
         RouteManager.addEventListener('page:error', pageErrorSpy);
-        return RouteManager.triggerRoute(pageUrl).catch(function (obj) {
+        return RouteManager.triggerRoute(pageUrl).catch(function () {
             assert.equal(pageErrorSpy.args[0][0].type, 'page:error', 'correct error was thrown');
-            assert.equal(obj.message, 'Router Error: No routes configuration for ' + pageUrl, 'correct error was thrown');
             RouteManager.removeEventListener('page:error', pageErrorSpy);
             RouteManager.stop();
             loadPageScript.restore();
@@ -892,42 +896,6 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should reject a page load and NOT call page\'s load method, when a global module fails to load', function (done) {
-        // setup
-        var pageUrl = 'my/page/url';
-        var routesConfig = {pages: {}, modules: {}};
-        var moduleName = 'customModule';
-        var moduleScriptUrl = 'path/to/module/script';
-        var moduleHtml = "<div>my module content</div>";
-        var moduleTemplateUrl = 'url/to/my/template';
-        routesConfig.modules[moduleName] = {
-            template: moduleTemplateUrl,
-            script: moduleScriptUrl,
-            global: true
-        };
-        var pageScriptUrl = 'path/to/page/script';
-        var pageTemplateUrl = 'url/to/my/template';
-        routesConfig.pages[pageUrl] = {
-            template: pageTemplateUrl,
-            modules: [moduleName],
-            script: pageScriptUrl
-        };
-        var pageHtml = '<div></div>';
-        mockPage.getTemplate.returns(Promise.resolve(pageHtml));
-        var RouteManager = require('./../src/route-manager')({config: routesConfig});
-        requireStub.withArgs(pageScriptUrl).returns(mockPage);
-        mockModule.getTemplate.withArgs(moduleTemplateUrl).returns(Promise.resolve(moduleHtml));
-        // fail the global module show
-        mockModule.load.returns(Promise.reject());
-        requireStub.returns(mockModule);
-        RouteManager.start();
-        RouteManager.triggerRoute(pageUrl).catch(function () {
-            assert.equal(mockPage.load.callCount, 0,  'page was not loaded');
-            RouteManager.stop();
-            done();
-        });
-    });
-
     it('should call show() on a page that is navigated back to, from a page that fails to load', function () {
         var secondPageUrl = 'my/second/url';
         var firstPageUrl = 'my/real/url';
@@ -994,13 +962,12 @@ describe('Route Manager', function () {
         });
     });
 
-    it('should call a global module\'s error method when global module fails to load', function (done) {
+    it('should resolve the triggerRoute promise but still call a global module\'s error method when global module fails to load', function () {
         // setup
         var pageUrl = 'my/page/url';
         var routesConfig = {pages: {}, modules: {}};
         var moduleName = 'customModule';
         var moduleScriptUrl = 'path/to/module/script';
-        var moduleHtml = "<div>my module content</div>";
         var moduleTemplateUrl = 'url/to/my/template';
         routesConfig.modules[moduleName] = {
             template: moduleTemplateUrl,
@@ -1014,7 +981,6 @@ describe('Route Manager', function () {
             modules: [moduleName],
             script: pageScriptUrl
         };
-        var pageHtml = '<div></div>';
         var RouteManager = require('./../src/route-manager')({config: routesConfig});
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         // fail global module loading
@@ -1022,10 +988,9 @@ describe('Route Manager', function () {
         mockModule.load.returns(Promise.reject(errorObj));
         requireStub.returns(mockModule);
         RouteManager.start();
-        return RouteManager.triggerRoute(pageUrl).catch(function () {
+        return RouteManager.triggerRoute(pageUrl).then(function () {
             assert.deepEqual(mockModule.error.args[0][0], errorObj,  'modules error method was called with error object as first argument');
             RouteManager.stop();
-            done();
         });
     });
 
@@ -1094,6 +1059,7 @@ describe('Route Manager', function () {
         mockModule.fetchData.returns(moduleFetchDataPromise);
         requireStub.returns(mockModule);
         RouteManager.start();
+        mockPage.show.returns(Promise.resolve());
         var triggerRoutePromise = RouteManager.triggerRoute(pageUrl);
         assert.equal(mockModule.show.callCount, 0,  'module show() is not yet called because its data hasnt finished fetching');
         moduleFetchDataPromiseObj.resolve();
@@ -1103,6 +1069,7 @@ describe('Route Manager', function () {
             done();
         });
     });
+
 
     it('should NOT call a global module\'s load() method when page does not specify it', function () {
         // setup
@@ -1158,8 +1125,7 @@ describe('Route Manager', function () {
         };
         var RouteManager = require('./../src/route-manager')({config: routesConfig});
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
-        // build promise
-        requireStub.returns(mockModule);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
         RouteManager.start();
         return RouteManager.triggerRoute(pageUrl).then(function () {
             assert.equal(mockModule.show.callCount, 1,  'global modules show() method was called');
@@ -1245,6 +1211,129 @@ describe('Route Manager', function () {
                 assert.equal(mockModule.hide.callCount, 1);
                 RouteManager.stop();
             });
+        });
+    });
+
+    it('loadPage() should call loadGlobalModules() with same path', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        RouteManager.start();
+        var loadGlobalModulesStub = sinon.stub(RouteManager, 'loadGlobalModules').returns(Promise.resolve());
+        assert.equal(loadGlobalModulesStub.callCount, 0, 'not yet called');
+        return RouteManager.loadPage(pageUrl).then(function () {
+            assert.equal(loadGlobalModulesStub.args[0][0], pageUrl);
+            loadGlobalModulesStub.restore();
+            RouteManager.stop();
+        });
+    });
+
+    it('showPage() should call showGlobalModules() with same path', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var routesConfig = {pages: {}, modules: {}};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        routesConfig.modules[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var noGlobalModulePageUrl = 'no/gm';
+        routesConfig.pages[noGlobalModulePageUrl] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        // build promise
+        requireStub.returns(mockModule);
+        RouteManager.start();
+        var showGlobalModulesStub = sinon.stub(RouteManager, 'showGlobalModules').returns(Promise.resolve());
+        assert.equal(showGlobalModulesStub.callCount, 0, 'not yet called');
+        RouteManager.showPage(pageUrl);
+        assert.equal(showGlobalModulesStub.args[0][0], pageUrl);
+        showGlobalModulesStub.restore();
+        RouteManager.stop();
+    });
+
+    it('getPageConfigByPath() should return the config of the first matching page if more than one regex match exists', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var firstPageUrlRegex = pageUrl + '';
+        var secondPageUrlRegex = pageUrl + '/?'; // optional slash
+        var routesConfig = {pages: {}, modules: {}};
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        routesConfig.pages[firstPageUrlRegex] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl,
+            test: '1'
+        };
+        // add second matching page config
+        routesConfig.pages[secondPageUrlRegex] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl,
+            test: '2'
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        RouteManager.start();
+        assert.deepEqual(RouteManager.getPageConfigByPath(pageUrl), routesConfig.pages[firstPageUrlRegex]);
+        RouteManager.stop();
+    });
+
+    it('loadPage() should load the first matching page if more than one page matches the url passed to triggerRoute()', function () {
+        // setup
+        var pageUrl = 'my/page/url';
+        var firstPageUrlRegex = pageUrl + '';
+        var secondPageUrlRegex = pageUrl + '/?'; // optional slash
+        var routesConfig = {pages: {}, modules: {}};
+        var pageScriptUrl = 'path/to/page/script';
+        var secondPageScriptUrl = 'path/to/page/script2';
+        routesConfig.pages[firstPageUrlRegex] = {
+            script: pageScriptUrl
+        };
+        // add second matching page config
+        routesConfig.pages[secondPageUrlRegex] = {
+            script: secondPageScriptUrl
+        };
+        var RouteManager = require('./../src/route-manager')({config: routesConfig});
+        var firstMockPage = createPageStub(Page);
+        requireStub.withArgs(pageScriptUrl).returns(firstMockPage);
+        var secondMockPage = createPageStub(Page);
+        requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
+        RouteManager.start();
+        return RouteManager.triggerRoute(pageUrl).then(function () {
+            assert.deepEqual(firstMockPage.load.callCount, 1, 'first matching page was loaded');
+            assert.deepEqual(secondMockPage.load.callCount, 0, 'second matching page was NOT loaded');
+            RouteManager.stop();
         });
     });
 
