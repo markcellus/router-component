@@ -1,7 +1,7 @@
 'use strict';
 var Promise = require('promise');
 var path = require('path');
-var EventHandler = require('event-handler');
+var Listen = require('listen-js');
 var Handlebars = require('handlebars');
 var slugify = require('handlebars-helper-slugify');
 var _ = require('underscore');
@@ -46,7 +46,7 @@ RouteManager.prototype = /** @lends RouteManager */{
         }, options);
 
         // allow event listeners
-        EventHandler.createTarget(this);
+        Listen.createTarget(this);
 
         this._pageMaps = {};
         this._globalModuleMaps = {};
@@ -141,7 +141,7 @@ RouteManager.prototype = /** @lends RouteManager */{
         this._config.pages = {};
         this._config.modules = {};
         this.unbindPopstateEvent();
-        EventHandler.destroyTarget(this);
+        Listen.destroyTarget(this);
     },
 
     /**
