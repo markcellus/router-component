@@ -35,22 +35,39 @@ RouteManager.prototype = /** @lends RouteManager */{
     /**
      * Initialize options
      * @param {Object} [options]
+     * @param {Object} [options.config] - The configuration object
+     * @param {Object} [options.config.pages] - The pages
+     * @param {Object} [options.config.modules] - The modules
      * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
      */
     initialize: function (options) {
+
+        if (!options.config) {
+            console.error('Route Error: no configuration data was supplied.');
+        }
+
+        options = options || {};
+        options.config = options.config || {};
 
         this.options = _.extend({
             onRouteRequest: null,
             pagesContainer: document.body
         }, options);
 
-        // allow event listeners
-        Listen.createTarget(this);
+
+        // fallback backs
+        this._config = this.options.config;
+        this._config.pages = this._config.pages || {};
+        this._config.modules = this._config.modules || {};
 
         this._pageMaps = {};
         this._globalModuleMaps = {};
         this.history = [];
+
+
+        // convert page keys into array to preserve order for later use
+        this._pageKeys = _.keys(this._config.pages);
 
         // setup helpers
         Handlebars.registerHelper('slugify', slugify);
@@ -61,17 +78,18 @@ RouteManager.prototype = /** @lends RouteManager */{
      * Starts managing routes.
      */
     start: function () {
-        this._config = this.options.config;
-        if (!this._config) {
-            console.error('Route Error: no configuration data was supplied.');
-        }
-
-        // fallback backs
-        this._config.pages = this._config.pages || {};
-        this._config.modules = this._config.modules || {};
+        Listen.createTarget(this);
         this._globalModuleMaps = this._buildGlobalModuleMaps();
-
         this.bindPopstateEvent();
+    },
+
+    /**
+     * Stops routing urls.
+     */
+    stop: function () {
+        this.reset();
+        this.unbindPopstateEvent();
+        Listen.destroyTarget(this);
     },
 
     /**
@@ -131,17 +149,6 @@ RouteManager.prototype = /** @lends RouteManager */{
             }
         });
         this._globalModuleMaps = this._buildGlobalModuleMaps();
-    },
-
-    /**
-     * Stops routing urls.
-     */
-    stop: function () {
-        this.reset();
-        this._config.pages = {};
-        this._config.modules = {};
-        this.unbindPopstateEvent();
-        Listen.destroyTarget(this);
     },
 
     /**
@@ -224,13 +231,16 @@ RouteManager.prototype = /** @lends RouteManager */{
     /**
      * When a route is requested.
      * @param {string} path - The path that is
+     * @param {Object} [options] - request options
      * @private
      * @return {Promise}
      */
     _onRouteRequest: function (path, options) {
-        if (path !== this._currentPath) {
+        var prevPath = this._currentPath;
+        if (path !== prevPath) {
             return this._handleRequestedUrl(path, options).then(function (path) {
-                return this._handlePreviousPage().then(function () {
+                this._currentPreviousPageHidePromise = this.hidePage(prevPath);
+                return this._currentPreviousPageHidePromise.then(function () {
                     return this.loadPage(path)
                         .then(function () {
                             this.dispatchEvent('page:load');
@@ -243,6 +253,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                                 console.log(arguments);
                             }
                             this.dispatchEvent('page:error', e);
+                            throw e;
                         }.bind(this));
                 }.bind(this));
             }.bind(this));
@@ -259,17 +270,21 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @param {Object} options.triggerUrlChange - Whether to trigger a url change
      */
     registerUrl: function (path, options) {
-        var windowHistory = this.getWindow().history;
+        var window = this.getWindow(),
+            windowHistory = window.history;
+
         options = options || {};
         options.triggerUrlChange = typeof options.triggerUrlChange !== 'undefined' ? options.triggerUrlChange : true;
-        // register new url in history
+
         if (options.triggerUrlChange) {
+            // register new url in history
             windowHistory.pushState({path: path}, document.title, path);
             // push to internal history for tracking
             this.history.push(windowHistory.state);
             this._currentPath = path;
+            this.dispatchEvent('url:change', {url: path});
         }
-        this.dispatchEvent('url:change', {url: path});
+
     },
 
     /**
@@ -284,6 +299,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * A function that allows custom redirects of routes if necessary.
      * This method is called every time a route request is made.
      * @param {string} path - The url path that was requested
+     * @param {Object} [options] - The request options
      * @returns {Promise} Returns a promise that resolves with a path to go to when done
      * @private
      */
@@ -307,22 +323,44 @@ RouteManager.prototype = /** @lends RouteManager */{
     },
 
     /**
+     * Gets the page config object for a supplied path.
+     * @param {string} path - The path of the page
+     * @returns {Object}
+     */
+    getPageConfigByPath: function (path) {
+        var pageKey = this._getRouteMapKeyByPath(path);
+        return this._config.pages[pageKey] || {};
+    },
+
+    /**
+     * Gets the config object for module.
+     * @param {string} key - The module key
+     * @returns {Object}
+     */
+    getModuleConfig: function (key) {
+        return this._config.modules[key] || {};
+    },
+
+    /**
      * Sanitizes a path to match to the correct item in the route config.
      * @param path
      * @returns {string}
      * @private
      */
     _getRouteMapKeyByPath: function (path) {
-        var regex;
+        var matchingKeys,
+            regex;
 
         if (!path && typeof path !== 'string') {
             return null;
         }
         path = path.replace(/^\//g, ''); // remove leading slash!
-        return _.findKey(this._config.pages, function (obj, key) {
+
+        matchingKeys = this._pageKeys.filter(function (key) {
             regex = new RegExp(key, 'gi');
             return key === path || path.match(regex);
         });
+        return matchingKeys[0];
     },
 
     /**
@@ -348,11 +386,11 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     loadPage: function (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
-            config = this._config.pages[pageKey],
+            pageConfig = this._config.pages[pageKey],
             pageMap = {},
             e;
 
-        if (!config) {
+        if (!pageConfig) {
             // no page configured!
             e = new Error('RouteManager Error: No routes configuration for ' + this.getRelativeUrl());
             console.error(e);
@@ -361,14 +399,14 @@ RouteManager.prototype = /** @lends RouteManager */{
 
         if (!this._pageMaps[pageKey]) {
             this._pageMaps[pageKey] = pageMap;
-            pageMap.config = config;
+            pageMap.config = pageConfig;
             pageMap.promise = this.loadGlobalModules(path).then(function () {
-                return this.loadPageScript(config.script)
+                return this.loadPageScript(pageConfig.script)
                     .then(function (page) {
                         pageMap.page = page;
-                        return page.getStyles(config.styles).then(function () {
-                            return page.getTemplate(config.template).then(function (html) {
-                                return page.fetchData(config.data, {cache: true}).then(function (data) {
+                        return page.getStyles(pageConfig.styles).then(function () {
+                            return page.getTemplate(pageConfig.template).then(function (html) {
+                                return page.fetchData(pageConfig.data, {cache: true}).then(function (data) {
                                     html = html || '';
                                     if (data) {
                                         html = Handlebars.compile(html)(data);
@@ -383,16 +421,15 @@ RouteManager.prototype = /** @lends RouteManager */{
                             }.bind(this));
                         }.bind(this));
                     }.bind(this));
-            }.bind(this), function (){
+            }.bind(this), function () {
                 // if page loading happens to cause an error, remove
                 // item from page cache to force a hard
                 // reload next time a request is made to this page
                 delete this._pageMaps[pageKey];
             }.bind(this));
-            return pageMap.promise;
-        } else {
-            return this._pageMaps[pageKey].promise;
         }
+        return this._pageMaps[pageKey].promise;
+
     },
 
     /**
@@ -402,8 +439,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     showPageModules: function (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
-            pageMap = this._pageMaps[pageKey];
-        // show page modules
+            pageMap = this._pageMaps[pageKey] || {};
         _.each(pageMap.modules, function (moduleMap) {
             moduleMap.module.show();
         });
@@ -416,8 +452,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {Promise} Returns a promise when all global modules are shown
      */
     showGlobalModules: function (path) {
-        var pageKey = this._getRouteMapKeyByPath(path),
-            pageConfig = this._config.pages[pageKey] || {},
+        var pageConfig = this.getPageConfigByPath(path),
             promises = [];
 
         pageConfig.modules = pageConfig.modules || [];
@@ -443,21 +478,11 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     showPage: function (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
-            pageMap = this._pageMaps[pageKey];
+            pageMap = this._pageMaps[pageKey] || {};
         this.showPageModules(path);
-        return pageMap.page.show();
-    },
-
-    /**
-     * Hides the previous page if a new one is requested.
-     * @returns {*}
-     * @private
-     */
-    _handlePreviousPage: function () {
-        // hide previous page if exists
-        var prevHistory = this.history[this.history.length - 2] || {};
-        this._currentPreviousPageHidePromise = this.hidePage(prevHistory.path);
-        return this._currentPreviousPageHidePromise;
+        if (pageMap.page) {
+            return pageMap.page.show();
+        }
     },
 
     /**
@@ -465,8 +490,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {*}
      */
     hideGlobalModules: function (path) {
-        var pageKey = this._getRouteMapKeyByPath(path),
-            pageConfig = this._config.pages[pageKey] || {},
+        var pageConfig = this.getPageConfigByPath(path),
             promises = [];
 
         pageConfig.modules = pageConfig.modules || [];
@@ -490,7 +514,6 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     hidePage: function (path) {
         var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
-        // hide previous page if exists
         if (pageMap && pageMap.promise) {
             return pageMap.promise
                 .then(function () {
@@ -518,12 +541,12 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @return {Promise} Returns a promise when complete
      */
     hidePageModules: function (path) {
-        var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)],
-            promises = [];
-        // call hide on all of pages modules
+        var promises = [];
+        var pageKey = this._getRouteMapKeyByPath(path),
+            pageMap = this._pageMaps[pageKey] || {};
         _.each(pageMap.modules, function (moduleMap) {
             promises.push(moduleMap.module.hide());
-        }.bind(this));
+        });
         return Promise.all(promises);
     },
 
@@ -533,21 +556,19 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     loadPageModules: function (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
-            config = this._config.pages[pageKey] || {},
+            config = this.getPageConfigByPath(path),
             pageMap = this._pageMaps[pageKey] || {},
             promises = [],
             loadPromise,
             pageModuleKeys = [],
-            moduleMap,
-            globalModuleKeys = [];
+            moduleMap;
 
         config.modules = config.modules || [];
         pageMap.modules = pageMap.modules || {};
 
         config.modules.forEach(function (moduleKey) {
-            if (this._globalModuleMaps[moduleKey]) {
-                globalModuleKeys.push(moduleKey);
-            } else {
+            // only handle modules which are not global
+            if (!this._globalModuleMaps[moduleKey]) {
                 pageModuleKeys.push(moduleKey); //we must keep track of the order of the modules
                 loadPromise = this.loadPageModule(moduleKey, pageMap.data).then(function (moduleMap) {
                     pageMap.modules[moduleKey] = moduleMap;
@@ -587,8 +608,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {Promise} Returns a promise that resolves when global modules are shown and hidden
      */
     loadGlobalModules: function (path) {
-        var pageKey = this._getRouteMapKeyByPath(path),
-            pageConfig = this._config.pages[pageKey] || {},
+        var pageConfig = this.getPageConfigByPath(path),
             promises = [];
 
         pageConfig.modules = pageConfig.modules || [];
@@ -596,7 +616,7 @@ RouteManager.prototype = /** @lends RouteManager */{
         _.each(this._globalModuleMaps, function (map, moduleKey) {
             if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                 // page has this global module specified!
-                promises.push(this._loadGlobalModule(map));
+                promises.push(this.loadGlobalModule(moduleKey));
             }
         }.bind(this));
 
@@ -609,10 +629,8 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @param {Object} [fallbackData] - Any fallback data to be used inside the module's template
      */
     loadPageModule: function (moduleKey, fallbackData) {
-        var config = this._config.modules[moduleKey],
+        var config = this.getModuleConfig(moduleKey),
             moduleMap = {};
-
-        config.options = config.options || {};
 
         moduleMap = {};
 
@@ -645,17 +663,18 @@ RouteManager.prototype = /** @lends RouteManager */{
     },
 
     /**
-     * Loads all global modules.
-     * @param {Object} map - The global module map
-     * @return {*}
+     * Loads a global module based on the supplied module key.
+     * @param {string} moduleKey - The module key
+     * @return {Promise} Returns a promise that resolves when the module is loaded
      */
-    _loadGlobalModule: function (map) {
-        map = map || {};
+    loadGlobalModule: function (moduleKey) {
+        var map = this._globalModuleMaps[moduleKey] || {},
+            config = this.getModuleConfig(moduleKey);
         if (!map.promise) {
-            map.promise = this.loadModuleScript(map.config.script).then(function (module) {
-                    return module.getStyles(map.config.styles).then(function () {
-                        return module.getTemplate(map.config.template).then(function (html) {
-                            return module.fetchData(map.config.data, {cache: true}).then(function (data) {
+            map.promise = this.loadModuleScript(config.script).then(function (module) {
+                    return module.getStyles(config.styles).then(function () {
+                        return module.getTemplate(config.template).then(function (html) {
+                            return module.fetchData(config.data, {cache: true}).then(function (data) {
                                 html = html ? Handlebars.compile(html)(data || {}): '';
                                 // inject modules into page DOM
                                 var div = document.createElement('div');
