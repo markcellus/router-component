@@ -1,5 +1,5 @@
 /** 
-* route-manager - v3.0.3.
+* route-manager - v3.1.0.
 * git://github.com/mkay581/route-manager.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -2464,217 +2464,6 @@ module.exports = {
 };
 },{}],13:[function(require,module,exports){
 'use strict';
-/**
- A class to add a simple EventTarget (https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) API
- around any object or function, so that it can begin to receive and trigger event listeners.
- @class EventHandler
- */
-
-var EventHandler = {
-
-    /**
-     * Registers a target to begin receiving and triggering events.
-     * @param {Object|Function} target - The target
-     */
-    createTarget: function (target) {
-        this._targets = this._targets || [];
-
-        var targetMap = this._getTargetMap(target);
-        if (!targetMap.target) {
-            target.addEventListener = this._getEventMethod(target, '_addEvent').bind(this);
-            target.removeEventListener = this._getEventMethod(target, '_removeEvent').bind(this);
-            target.dispatchEvent = this._getEventMethod(target, '_dispatchEvent').bind(this);
-            targetMap.target = target;
-            this._targets.push(targetMap);
-        }
-    },
-
-    /**
-     * Looks through all targets and finds the one that has a target object that matches the passed in instance
-     * @param target
-     * @returns {Object}
-     * @private
-     */
-    _getTargetMap: function (target) {
-        return this._targets.filter(function (map) {
-                return map.target === target;
-            })[0] || {};
-    },
-
-    /**
-     * Registers a callback to be fired when the url changes.
-     * @private
-     * @param {Object|Function} target
-     * @param {String} eventName
-     * @param {Function} listener
-     * @param {boolean} useCapture
-     * @param {Object} [context]
-     */
-    _addEvent: function (target, eventName, listener, useCapture, context) {
-
-        if (typeof useCapture !== 'boolean') {
-            context = useCapture;
-            useCapture = null;
-        }
-
-        // replicating native JS default useCapture option
-        useCapture = useCapture || false;
-
-        var existingListeners = this.getNested(this._getTargetMap(target), eventName);
-        if (!existingListeners) {
-            existingListeners = this.setNested(this._getTargetMap(target), eventName, []);
-        }
-
-        var listenerObj = {
-            listener: listener,
-            context: context,
-            useCapture: useCapture
-        };
-        // dont add event listener if target already has it
-        if (existingListeners.indexOf(listenerObj) === -1) {
-            existingListeners.push(listenerObj);
-        }
-    },
-
-    /**
-     * Returns our internal method for a target.
-     * @private
-     * @param target
-     * @param method
-     * @returns {*|function(this:EventHandler)}
-     */
-    _getEventMethod: function (target, method) {
-        return function () {
-            var args = Array.prototype.slice.call(arguments, 0);
-            args.unshift(target);
-            this[method].apply(this, args);
-        }.bind(this);
-    },
-
-    /**
-     * Removes an event listener from the target.
-     * @private
-     * @param target
-     * @param eventName
-     * @param listener
-     */
-    _removeEvent: function (target, eventName, listener) {
-        var existingListeners = this.getNested(this._getTargetMap(target), eventName, []);
-        existingListeners.forEach(function (listenerObj, idx) {
-            if (listenerObj.listener === listener) {
-                existingListeners.splice(idx, 1);
-            }
-        });
-    },
-
-    /**
-     * Triggers all event listeners on a target.
-     * @private
-     * @param {Object|Function} target - The target
-     * @param {String} eventName - The event name
-     * @param {Object} customData - Custom data that will be sent to the url
-     */
-    _dispatchEvent: function (target, eventName, customData) {
-        var targetObj = this._getTargetMap(target) || {},
-            e;
-        if (targetObj[eventName]) {
-            targetObj[eventName].forEach(function (listenerObj) {
-                e = this._createEvent(eventName, customData);
-                listenerObj.listener.call(listenerObj.context || target, e);
-            }.bind(this));
-        }
-    },
-
-    /**
-     * Creates an event.
-     * @param {string} eventName - The event name
-     * @param {Object} customData - Custom data that will be sent to the url
-     * @private
-     */
-    _createEvent: function (eventName, customData) {
-        // For IE 9+ compatibility, we must use document.createEvent() for our CustomEvent.
-        var evt = document.createEvent('CustomEvent');
-        evt.initCustomEvent(eventName, false, false, customData);
-        return evt;
-    },
-
-    /**
-     * Merges the contents of two or more objects.
-     * @param {object} obj - The target object
-     * @param {...object} - Additional objects who's properties will be merged in
-     */
-    extend: function (target) {
-        var merged = target,
-            source, i;
-        for (i = 1; i < arguments.length; i++) {
-            source = arguments[i];
-            for (var prop in source) {
-                if (source.hasOwnProperty(prop)) {
-                    merged[prop] = source[prop];
-                }
-            }
-        }
-        return merged;
-    },
-
-    /**
-     * Gets a deeply nested property of an object.
-     * @param {object} obj - The object to evaluate
-     * @param {string} map - A string denoting where the property that should be extracted exists
-     * @param {object} [fallback] - The fallback if the property does not exist
-     */
-    getNested: function (obj, map, fallback) {
-        var mapFragments = map.split('.'),
-            val = obj;
-        for (var i = 0; i < mapFragments.length; i++) {
-            if (val[mapFragments[i]]) {
-                val = val[mapFragments[i]];
-            } else {
-                val = fallback;
-                break;
-            }
-        }
-        return val;
-    },
-
-    /**
-     * Sets a nested property on an object, creating empty objects as needed to avoid undefined errors.
-     * @param {object} obj - The initial object
-     * @param {string} map - A string denoting where the property that should be set exists
-     * @param {*} value - New value to set
-     * @example this.setNested(obj, 'path.to.value.to.set', 'newValue');
-     */
-    setNested: function (obj, map, value) {
-        var mapFragments = map.split('.'),
-            val = obj;
-        for (var i = 0; i < mapFragments.length; i++) {
-            var isLast = i === (mapFragments.length - 1);
-            if (!isLast) {
-                val[mapFragments[i]] = val[mapFragments[i]] || {};
-                val = val[mapFragments[i]];
-            } else {
-                val[mapFragments[i]] = value;
-            }
-        }
-        return value;
-    },
-
-    /**
-     * Removes target from being tracked therefore eliminating all listeners.
-     * @param target
-     */
-    destroyTarget: function (target) {
-        var map = this._getTargetMap(target),
-            index = this._targets.indexOf(map);
-        if (index > -1) {
-            this._targets.splice(index, 1);
-        }
-    }
-};
-
-module.exports = EventHandler;
-},{}],14:[function(require,module,exports){
-'use strict';
 
 /**
  * Handlebars Helpers: {{slugify}}
@@ -2701,7 +2490,7 @@ module.exports = function (assemble) {
 
   return helpers;
 };
-},{"./slugify.js":15}],15:[function(require,module,exports){
+},{"./slugify.js":14}],14:[function(require,module,exports){
 /*
  * Copyright (c) 2014 Jon Schlinkert
  * Licensed under the MIT license.
@@ -2757,7 +2546,7 @@ module.exports = function (str) {
   });
   return dasherize(str.replace(/[^\w\s-]/g, '')).replace(/^\W|\W$/g, '');
 };
-},{}],16:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2821,7 +2610,7 @@ inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-},{"./handlebars.runtime":17,"./handlebars/compiler/ast":19,"./handlebars/compiler/base":20,"./handlebars/compiler/compiler":22,"./handlebars/compiler/javascript-compiler":24,"./handlebars/compiler/visitor":27,"./handlebars/no-conflict":30}],17:[function(require,module,exports){
+},{"./handlebars.runtime":16,"./handlebars/compiler/ast":18,"./handlebars/compiler/base":19,"./handlebars/compiler/compiler":21,"./handlebars/compiler/javascript-compiler":23,"./handlebars/compiler/visitor":26,"./handlebars/no-conflict":29}],16:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -2882,7 +2671,7 @@ inst['default'] = inst;
 
 exports['default'] = inst;
 module.exports = exports['default'];
-},{"./handlebars/base":18,"./handlebars/exception":29,"./handlebars/no-conflict":30,"./handlebars/runtime":31,"./handlebars/safe-string":32,"./handlebars/utils":33}],18:[function(require,module,exports){
+},{"./handlebars/base":17,"./handlebars/exception":28,"./handlebars/no-conflict":29,"./handlebars/runtime":30,"./handlebars/safe-string":31,"./handlebars/utils":32}],17:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -3156,7 +2945,7 @@ function createFrame(object) {
 }
 
 /* [args, ]options */
-},{"./exception":29,"./utils":33}],19:[function(require,module,exports){
+},{"./exception":28,"./utils":32}],18:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -3309,7 +3098,7 @@ var AST = {
 // must modify the object to operate properly.
 exports['default'] = AST;
 module.exports = exports['default'];
-},{}],20:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -3356,7 +3145,7 @@ function parse(input, options) {
   var strip = new _WhitespaceControl2['default']();
   return strip.accept(_parser2['default'].parse(input));
 }
-},{"../utils":33,"./ast":19,"./helpers":23,"./parser":25,"./whitespace-control":28}],21:[function(require,module,exports){
+},{"../utils":32,"./ast":18,"./helpers":22,"./parser":24,"./whitespace-control":27}],20:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -3521,7 +3310,7 @@ exports['default'] = CodeGen;
 module.exports = exports['default'];
 
 /* NOP */
-},{"../utils":33,"source-map":35}],22:[function(require,module,exports){
+},{"../utils":32,"source-map":34}],21:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -4049,7 +3838,7 @@ function transformLiteralToPath(sexpr) {
     sexpr.path = new _AST2['default'].PathExpression(false, 0, [literal.original + ''], literal.original + '', literal.loc);
   }
 }
-},{"../exception":29,"../utils":33,"./ast":19}],23:[function(require,module,exports){
+},{"../exception":28,"../utils":32,"./ast":18}],22:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -4181,7 +3970,7 @@ function prepareBlock(openBlock, program, inverseAndProgram, close, inverted, lo
 
   return new this.BlockStatement(openBlock.path, openBlock.params, openBlock.hash, program, inverse, openBlock.strip, inverseStrip, close && close.strip, this.locInfo(locInfo));
 }
-},{"../exception":29}],24:[function(require,module,exports){
+},{"../exception":28}],23:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -5244,7 +5033,7 @@ function strictLookup(requireTerminal, compiler, parts, type) {
 
 exports['default'] = JavaScriptCompiler;
 module.exports = exports['default'];
-},{"../base":18,"../exception":29,"../utils":33,"./code-gen":21}],25:[function(require,module,exports){
+},{"../base":17,"../exception":28,"../utils":32,"./code-gen":20}],24:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -5923,7 +5712,7 @@ var handlebars = (function () {
     return new Parser();
 })();exports["default"] = handlebars;
 module.exports = exports["default"];
-},{}],26:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -6089,7 +5878,7 @@ PrintVisitor.prototype.HashPair = function (pair) {
   return pair.key + '=' + this.accept(pair.value);
 };
 /*eslint-enable new-cap */
-},{"./visitor":27}],27:[function(require,module,exports){
+},{"./visitor":26}],26:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -6222,7 +6011,7 @@ Visitor.prototype = {
 exports['default'] = Visitor;
 module.exports = exports['default'];
 /* content */ /* comment */ /* path */ /* string */ /* number */ /* bool */ /* literal */ /* literal */
-},{"../exception":29,"./ast":19}],28:[function(require,module,exports){
+},{"../exception":28,"./ast":18}],27:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -6435,7 +6224,7 @@ function omitLeft(body, i, multiple) {
 
 exports['default'] = WhitespaceControl;
 module.exports = exports['default'];
-},{"./visitor":27}],29:[function(require,module,exports){
+},{"./visitor":26}],28:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -6474,7 +6263,7 @@ Exception.prototype = new Error();
 
 exports['default'] = Exception;
 module.exports = exports['default'];
-},{}],30:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -6495,7 +6284,7 @@ exports['default'] = function (Handlebars) {
 
 module.exports = exports['default'];
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],31:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 'use strict';
 
 var _interopRequireWildcard = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
@@ -6728,7 +6517,7 @@ function initData(context, data) {
   }
   return data;
 }
-},{"./base":18,"./exception":29,"./utils":33}],32:[function(require,module,exports){
+},{"./base":17,"./exception":28,"./utils":32}],31:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -6743,7 +6532,7 @@ SafeString.prototype.toString = SafeString.prototype.toHTML = function () {
 
 exports['default'] = SafeString;
 module.exports = exports['default'];
-},{}],33:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -6858,7 +6647,7 @@ function blockParams(params, ids) {
 function appendContextPath(contextPath, id) {
   return (contextPath ? contextPath + '.' : '') + id;
 }
-},{}],34:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 // USAGE:
 // var handlebars = require('handlebars');
 /* eslint-disable no-var */
@@ -6885,7 +6674,7 @@ if (typeof require !== 'undefined' && require.extensions) {
   require.extensions['.hbs'] = extension;
 }
 
-},{"../dist/cjs/handlebars":16,"../dist/cjs/handlebars/compiler/printer":26,"fs":1}],35:[function(require,module,exports){
+},{"../dist/cjs/handlebars":15,"../dist/cjs/handlebars/compiler/printer":25,"fs":1}],34:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -6895,7 +6684,7 @@ exports.SourceMapGenerator = require('./source-map/source-map-generator').Source
 exports.SourceMapConsumer = require('./source-map/source-map-consumer').SourceMapConsumer;
 exports.SourceNode = require('./source-map/source-node').SourceNode;
 
-},{"./source-map/source-map-consumer":41,"./source-map/source-map-generator":42,"./source-map/source-node":43}],36:[function(require,module,exports){
+},{"./source-map/source-map-consumer":40,"./source-map/source-map-generator":41,"./source-map/source-node":42}],35:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -6994,7 +6783,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":44,"amdefine":45}],37:[function(require,module,exports){
+},{"./util":43,"amdefine":44}],36:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7138,7 +6927,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./base64":38,"amdefine":45}],38:[function(require,module,exports){
+},{"./base64":37,"amdefine":44}],37:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7182,7 +6971,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":45}],39:[function(require,module,exports){
+},{"amdefine":44}],38:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7264,7 +7053,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":45}],40:[function(require,module,exports){
+},{"amdefine":44}],39:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2014 Mozilla Foundation and contributors
@@ -7352,7 +7141,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./util":44,"amdefine":45}],41:[function(require,module,exports){
+},{"./util":43,"amdefine":44}],40:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -7929,7 +7718,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":36,"./base64-vlq":37,"./binary-search":39,"./util":44,"amdefine":45}],42:[function(require,module,exports){
+},{"./array-set":35,"./base64-vlq":36,"./binary-search":38,"./util":43,"amdefine":44}],41:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -8331,7 +8120,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./array-set":36,"./base64-vlq":37,"./mapping-list":40,"./util":44,"amdefine":45}],43:[function(require,module,exports){
+},{"./array-set":35,"./base64-vlq":36,"./mapping-list":39,"./util":43,"amdefine":44}],42:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -8747,7 +8536,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"./source-map-generator":42,"./util":44,"amdefine":45}],44:[function(require,module,exports){
+},{"./source-map-generator":41,"./util":43,"amdefine":44}],43:[function(require,module,exports){
 /* -*- Mode: js; js-indent-level: 2; -*- */
 /*
  * Copyright 2011 Mozilla Foundation and contributors
@@ -9068,7 +8857,7 @@ define(function (require, exports, module) {
 
 });
 
-},{"amdefine":45}],45:[function(require,module,exports){
+},{"amdefine":44}],44:[function(require,module,exports){
 (function (process,__filename){
 /** vim: et:ts=4:sw=4:sts=4
  * @license amdefine 0.1.0 Copyright (c) 2011, The Dojo Foundation All Rights Reserved.
@@ -9371,7 +9160,7 @@ function amdefine(module, requireFn) {
 module.exports = amdefine;
 
 }).call(this,require('_process'),"/node_modules/handlebars/node_modules/source-map/node_modules/amdefine/amdefine.js")
-},{"_process":5,"path":4}],46:[function(require,module,exports){
+},{"_process":5,"path":4}],45:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v2.1.4
  * http://jquery.com/
@@ -18583,6 +18372,217 @@ return jQuery;
 
 }));
 
+},{}],46:[function(require,module,exports){
+'use strict';
+/**
+ A class to add a simple EventTarget (https://developer.mozilla.org/en-US/docs/Web/API/EventTarget) API
+ around any object or function, so that it can begin to receive and trigger event listeners.
+ @class Listen
+ */
+
+var Listen = {
+
+    /**
+     * Registers a target to begin receiving and triggering events.
+     * @param {Object|Function} target - The target
+     */
+    createTarget: function (target) {
+        this._targets = this._targets || [];
+
+        var targetMap = this._getTargetMap(target);
+        if (!targetMap.target) {
+            target.addEventListener = this._getEventMethod(target, '_addEvent').bind(this);
+            target.removeEventListener = this._getEventMethod(target, '_removeEvent').bind(this);
+            target.dispatchEvent = this._getEventMethod(target, '_dispatchEvent').bind(this);
+            targetMap.target = target;
+            this._targets.push(targetMap);
+        }
+    },
+
+    /**
+     * Looks through all targets and finds the one that has a target object that matches the passed in instance
+     * @param target
+     * @returns {Object}
+     * @private
+     */
+    _getTargetMap: function (target) {
+        return this._targets.filter(function (map) {
+                return map.target === target;
+            })[0] || {};
+    },
+
+    /**
+     * Registers a callback to be fired when the url changes.
+     * @private
+     * @param {Object|Function} target
+     * @param {String} eventName
+     * @param {Function} listener
+     * @param {boolean} useCapture
+     * @param {Object} [context]
+     */
+    _addEvent: function (target, eventName, listener, useCapture, context) {
+
+        if (typeof useCapture !== 'boolean') {
+            context = useCapture;
+            useCapture = null;
+        }
+
+        // replicating native JS default useCapture option
+        useCapture = useCapture || false;
+
+        var existingListeners = this.getNested(this._getTargetMap(target), eventName);
+        if (!existingListeners) {
+            existingListeners = this.setNested(this._getTargetMap(target), eventName, []);
+        }
+
+        var listenerObj = {
+            listener: listener,
+            context: context,
+            useCapture: useCapture
+        };
+        // dont add event listener if target already has it
+        if (existingListeners.indexOf(listenerObj) === -1) {
+            existingListeners.push(listenerObj);
+        }
+    },
+
+    /**
+     * Returns our internal method for a target.
+     * @private
+     * @param target
+     * @param method
+     * @returns {*|function(this:Listen)}
+     */
+    _getEventMethod: function (target, method) {
+        return function () {
+            var args = Array.prototype.slice.call(arguments, 0);
+            args.unshift(target);
+            this[method].apply(this, args);
+        }.bind(this);
+    },
+
+    /**
+     * Removes an event listener from the target.
+     * @private
+     * @param target
+     * @param eventName
+     * @param listener
+     */
+    _removeEvent: function (target, eventName, listener) {
+        var existingListeners = this.getNested(this._getTargetMap(target), eventName, []);
+        existingListeners.forEach(function (listenerObj, idx) {
+            if (listenerObj.listener === listener) {
+                existingListeners.splice(idx, 1);
+            }
+        });
+    },
+
+    /**
+     * Triggers all event listeners on a target.
+     * @private
+     * @param {Object|Function} target - The target
+     * @param {String} eventName - The event name
+     * @param {Object} customData - Custom data that will be sent to the url
+     */
+    _dispatchEvent: function (target, eventName, customData) {
+        var targetObj = this._getTargetMap(target) || {},
+            e;
+        if (targetObj[eventName]) {
+            targetObj[eventName].forEach(function (listenerObj) {
+                e = this._createEvent(eventName, customData);
+                listenerObj.listener.call(listenerObj.context || target, e);
+            }.bind(this));
+        }
+    },
+
+    /**
+     * Creates an event.
+     * @param {string} eventName - The event name
+     * @param {Object} customData - Custom data that will be sent to the url
+     * @private
+     */
+    _createEvent: function (eventName, customData) {
+        // For IE 9+ compatibility, we must use document.createEvent() for our CustomEvent.
+        var evt = document.createEvent('CustomEvent');
+        evt.initCustomEvent(eventName, false, false, customData);
+        return evt;
+    },
+
+    /**
+     * Merges the contents of two or more objects.
+     * @param {object} obj - The target object
+     * @param {...object} - Additional objects who's properties will be merged in
+     */
+    extend: function (target) {
+        var merged = target,
+            source, i;
+        for (i = 1; i < arguments.length; i++) {
+            source = arguments[i];
+            for (var prop in source) {
+                if (source.hasOwnProperty(prop)) {
+                    merged[prop] = source[prop];
+                }
+            }
+        }
+        return merged;
+    },
+
+    /**
+     * Gets a deeply nested property of an object.
+     * @param {object} obj - The object to evaluate
+     * @param {string} map - A string denoting where the property that should be extracted exists
+     * @param {object} [fallback] - The fallback if the property does not exist
+     */
+    getNested: function (obj, map, fallback) {
+        var mapFragments = map.split('.'),
+            val = obj;
+        for (var i = 0; i < mapFragments.length; i++) {
+            if (val[mapFragments[i]]) {
+                val = val[mapFragments[i]];
+            } else {
+                val = fallback;
+                break;
+            }
+        }
+        return val;
+    },
+
+    /**
+     * Sets a nested property on an object, creating empty objects as needed to avoid undefined errors.
+     * @param {object} obj - The initial object
+     * @param {string} map - A string denoting where the property that should be set exists
+     * @param {*} value - New value to set
+     * @example this.setNested(obj, 'path.to.value.to.set', 'newValue');
+     */
+    setNested: function (obj, map, value) {
+        var mapFragments = map.split('.'),
+            val = obj;
+        for (var i = 0; i < mapFragments.length; i++) {
+            var isLast = i === (mapFragments.length - 1);
+            if (!isLast) {
+                val[mapFragments[i]] = val[mapFragments[i]] || {};
+                val = val[mapFragments[i]];
+            } else {
+                val[mapFragments[i]] = value;
+            }
+        }
+        return value;
+    },
+
+    /**
+     * Removes target from being tracked therefore eliminating all listeners.
+     * @param target
+     */
+    destroyTarget: function (target) {
+        var map = this._getTargetMap(target),
+            index = this._targets.indexOf(map);
+        if (index > -1) {
+            this._targets.splice(index, 1);
+        }
+    }
+};
+
+module.exports = Listen;
 },{}],47:[function(require,module,exports){
 'use strict';
 
@@ -18962,7 +18962,7 @@ Module.prototype = {
 
 
 module.exports = Module;
-},{"jquery":46,"promise":48,"resource-manager-js":58,"underscore":59}],48:[function(require,module,exports){
+},{"jquery":45,"promise":48,"resource-manager-js":58,"underscore":59}],48:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib')
@@ -20031,7 +20031,7 @@ ResourceManager.prototype = {
 };
 
 module.exports = new ResourceManager();
-},{"jquery":46,"promise":48,"underscore":59}],59:[function(require,module,exports){
+},{"jquery":45,"promise":48,"underscore":59}],59:[function(require,module,exports){
 //     Underscore.js 1.8.3
 //     http://underscorejs.org
 //     (c) 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
@@ -21672,7 +21672,7 @@ module.exports = Page;
 'use strict';
 var Promise = require('promise');
 var path = require('path');
-var EventHandler = require('event-handler');
+var Listen = require('listen-js');
 var Handlebars = require('handlebars');
 var slugify = require('handlebars-helper-slugify');
 var _ = require('underscore');
@@ -21717,7 +21717,7 @@ RouteManager.prototype = /** @lends RouteManager */{
         }, options);
 
         // allow event listeners
-        EventHandler.createTarget(this);
+        Listen.createTarget(this);
 
         this._pageMaps = {};
         this._globalModuleMaps = {};
@@ -21812,7 +21812,7 @@ RouteManager.prototype = /** @lends RouteManager */{
         this._config.pages = {};
         this._config.modules = {};
         this.unbindPopstateEvent();
-        EventHandler.destroyTarget(this);
+        Listen.destroyTarget(this);
     },
 
     /**
@@ -22411,4 +22411,4 @@ RouteManager.prototype = /** @lends RouteManager */{
 module.exports = function (options) {
     return new RouteManager(options);
 };
-},{"./page":60,"element-kit":6,"event-handler":13,"handlebars":34,"handlebars-helper-slugify":14,"module.js":47,"path":4,"promise":48,"underscore":59}]},{},[61]);
+},{"./page":60,"element-kit":6,"handlebars":33,"handlebars-helper-slugify":13,"listen-js":46,"module.js":47,"path":4,"promise":48,"underscore":59}]},{},[61]);
