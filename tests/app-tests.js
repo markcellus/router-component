@@ -3,7 +3,7 @@ var ResourceManager = require('resource-manager-js');
 var assert = require('assert');
 var Promise = require('promise');
 var Page = require('../src/page');
-var Module = require('module.js');
+var Module = require('../src/module');
 var _ = require('underscore');
 var Listen = require('listen-js');
 
