@@ -7,15 +7,15 @@ module.exports = function(grunt) {
             dist: 'dist',
             build: {
                 files: {
-                    'dist/route-manager.js': ['src/route-manager.js']
+                    'dist/router.js': ['src/router.js']
                 },
                 browserifyOptions: {
-                    standalone: 'RouteManager'
+                    standalone: 'Router'
                 }
             },
             min: {
                 files: {
-                    'dist/route-manager-min.js': ['dist/route-manager.js']
+                    'dist/router-min.js': ['dist/router.js']
                 }
             },
             banner: {
