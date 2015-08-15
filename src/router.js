@@ -11,23 +11,23 @@ var ElementKit = require('element-kit');
 
 /**
  * The function that is triggered the selected dropdown value changes
- * @callback App~onRouteRequest
+ * @callback Router~onRouteRequest
  * @param {string} input - The url that was a requested
  * @returns {Promise} Returns a promise that resolves with a path string of the route to go to when done
  */
 
 /**
- * App class.
- * @description Represents a manager that handles all routes throughout the app.
- * @class App
- * @return {App} Returns a singleton instance of app
+ * Router class.
+ * @description Represents a manager that handles all routes, pages and modules throughout the app.
+ * @class Router
+ * @return {Router} Returns a singleton instance of app
  */
-var App = function (options){
+var Router = function (options){
     this.initialize(options);
     return this;
 };
 
-App.prototype = /** @lends App */{
+Router.prototype = /** @lends Router */{
 
     /**
      * Initialize options
@@ -56,12 +56,6 @@ App.prototype = /** @lends App */{
         // setup helpers
         Handlebars.registerHelper('slugify', slugify);
 
-    },
-
-    /**
-     * Starts managing routes.
-     */
-    start: function () {
         Listen.createTarget(this);
         this._globalModuleMaps = this._buildGlobalModuleMaps();
         this.bindPopstateEvent();
@@ -103,6 +97,15 @@ App.prototype = /** @lends App */{
                 self._onRouteRequest.call(self, event.state.path);
             }
         }
+    },
+
+    /**
+     * Destroys the app instance.
+     */
+    destroy: function () {
+        this.reset();
+        this.unbindPopstateEvent();
+        Listen.destroyTarget(this);
     },
 
     /**
@@ -230,7 +233,7 @@ App.prototype = /** @lends App */{
                             this.dispatchEvent('page:load');
                             return this.showPage(path);
                         }.bind(this), function (e) {
-                            console.log('App Error: Page could not be loaded');
+                            console.log('Router Error: Page could not be loaded');
                             if (e.detail) {
                                 console.log(e.detail.stack);
                             } else {
@@ -376,7 +379,7 @@ App.prototype = /** @lends App */{
 
         if (!pageConfig) {
             // no page configured!
-            e = new Error('App Error: No routes configuration for ' + this.getRelativeUrl());
+            e = new Error('Router Error: No routes configuration for ' + this.getRelativeUrl());
             console.error(e);
             return Promise.reject(e);
         }
@@ -740,4 +743,4 @@ App.prototype = /** @lends App */{
 
 };
 
-module.exports = App;
+module.exports = Router;
