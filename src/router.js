@@ -22,10 +22,7 @@ var ElementKit = require('element-kit');
  * @class Router
  * @return {Router} Returns a singleton instance of app
  */
-var Router = function (options){
-    this.initialize(options);
-    return this;
-};
+var Router = function (){};
 
 Router.prototype = /** @lends Router */{
 
@@ -37,7 +34,7 @@ Router.prototype = /** @lends Router */{
      * @param {Object} [options.moduleConfig] - An object mapping of all available modules
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
      */
-    initialize: function (options) {
+    start: function (options) {
 
         this.options = _.extend({
             onRouteRequest: null,
@@ -49,6 +46,8 @@ Router.prototype = /** @lends Router */{
         this._pageMaps = {};
         this._globalModuleMaps = {};
         this.history = [];
+
+        this._currentPath = this.getWindow().location.hash.replace('#', '');
 
         // convert page keys into array to preserve order for later use
         this._pageKeys = _.keys(this.options.pagesConfig);
@@ -65,6 +64,8 @@ Router.prototype = /** @lends Router */{
      * Stops routing urls.
      */
     stop: function () {
+        this.options = {};
+        this._currentPath = null;
         this.reset();
         this.unbindPopstateEvent();
         Listen.destroyTarget(this);
@@ -100,15 +101,6 @@ Router.prototype = /** @lends Router */{
     },
 
     /**
-     * Destroys the app instance.
-     */
-    destroy: function () {
-        this.reset();
-        this.unbindPopstateEvent();
-        Listen.destroyTarget(this);
-    },
-
-    /**
      * Resets Route Manager.
      */
     reset: function () {
@@ -117,7 +109,7 @@ Router.prototype = /** @lends Router */{
         // destroy all pages
         _.each(this._pageMaps, function (pageMap) {
             pageMap.page.destroy();
-            if (this.options.pagesContainer.contains(pageMap.el)) {
+            if (this.options.pagesContainer && this.options.pagesContainer.contains(pageMap.el)) {
                 this.options.pagesContainer.removeChild(pageMap.el);
             }
             _.each(pageMap.modules, function (moduleMap) {
@@ -209,7 +201,7 @@ Router.prototype = /** @lends Router */{
      * @returns {string} Returns a url string
      */
     getRelativeUrl: function () {
-        var url = this._currentPath || this.getWindow().location.hash.replace('#', '');
+        var url = this._currentPath;
         // remove leading slash if there is one
         url = url.replace(/^\//g, '');
         return url;
@@ -743,4 +735,4 @@ Router.prototype = /** @lends Router */{
 
 };
 
-module.exports = Router;
+module.exports = new Router();
