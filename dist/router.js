@@ -1,5 +1,5 @@
 /** 
-* router-js - v1.0.0.
+* router-js - v1.0.1.
 * git://github.com/mkay581/router-js.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -18588,8 +18588,6 @@ module.exports = Listen;
 
 var Promise = require('promise');
 var _ = require('underscore');
-var $ = require('jquery');
-var ResourceManager = require('resource-manager-js');
 
 /**
  * @class Module
@@ -18925,7 +18923,7 @@ Module.prototype = {
 
 
 module.exports = Module;
-},{"jquery":45,"promise":48,"resource-manager-js":58,"underscore":59}],48:[function(require,module,exports){
+},{"promise":48,"underscore":59}],48:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib')

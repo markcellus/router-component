@@ -1,6 +1,6 @@
 {
   "name": "router-js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A simple routing framework for web apps",
   "repository": {
     "type": "git",
