@@ -6,78 +6,55 @@ var Handlebars = require('handlebars');
 var slugify = require('handlebars-helper-slugify');
 var _ = require('underscore');
 var Page = require('./page');
-var Module = require('module.js');
+var Module = require('module-js');
 var ElementKit = require('element-kit');
 
 /**
  * The function that is triggered the selected dropdown value changes
- * @callback RouteManager~onRouteRequest
+ * @callback Router~onRouteRequest
  * @param {string} input - The url that was a requested
  * @returns {Promise} Returns a promise that resolves with a path string of the route to go to when done
  */
 
 /**
- * RouteManager class.
- * @description Represents a manager that handles all routes throughout the app.
- * @class RouteManager
- * @param options
- * @param {String|Object} options.config - Configuration data or url to file that has it
- * @param {RouteManager~onRouteRequest} [options.onRouteRequest] - A callback function that is called whenever a new url is requested
- * @return {RouteManager}
+ * Router class.
+ * @description Represents a manager that handles all routes, pages and modules throughout the app.
+ * @class Router
+ * @return {Router} Returns a singleton instance of app
  */
-var RouteManager = function (options){
-    this.initialize(options);
-    return this;
-};
+var Router = function (){};
 
-RouteManager.prototype = /** @lends RouteManager */{
+Router.prototype = /** @lends Router */{
 
     /**
      * Initialize options
-     * @param {Object} [options]
-     * @param {Object} [options.config] - The configuration object
-     * @param {Object} [options.config.pages] - The pages
-     * @param {Object} [options.config.modules] - The modules
+     * @param {Object} [options] - The options object
+     * @param {Object} [options.pagesConfig] - An object mapping of all pages along with their associated urls
      * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
+     * @param {Object} [options.moduleConfig] - An object mapping of all available modules
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
      */
-    initialize: function (options) {
-
-        if (!options.config) {
-            console.error('Route Error: no configuration data was supplied.');
-        }
-
-        options = options || {};
-        options.config = options.config || {};
+    start: function (options) {
 
         this.options = _.extend({
             onRouteRequest: null,
-            pagesContainer: document.body
+            pagesContainer: document.body,
+            pagesConfig: {},
+            modulesConfig: {}
         }, options);
-
-
-        // fallback backs
-        this._config = this.options.config;
-        this._config.pages = this._config.pages || {};
-        this._config.modules = this._config.modules || {};
 
         this._pageMaps = {};
         this._globalModuleMaps = {};
         this.history = [];
 
+        this._currentPath = this.getWindow().location.hash.replace('#', '');
 
         // convert page keys into array to preserve order for later use
-        this._pageKeys = _.keys(this._config.pages);
+        this._pageKeys = _.keys(this.options.pagesConfig);
 
         // setup helpers
         Handlebars.registerHelper('slugify', slugify);
 
-    },
-
-    /**
-     * Starts managing routes.
-     */
-    start: function () {
         Listen.createTarget(this);
         this._globalModuleMaps = this._buildGlobalModuleMaps();
         this.bindPopstateEvent();
@@ -87,6 +64,8 @@ RouteManager.prototype = /** @lends RouteManager */{
      * Stops routing urls.
      */
     stop: function () {
+        this.options = {};
+        this._currentPath = null;
         this.reset();
         this.unbindPopstateEvent();
         Listen.destroyTarget(this);
@@ -130,7 +109,7 @@ RouteManager.prototype = /** @lends RouteManager */{
         // destroy all pages
         _.each(this._pageMaps, function (pageMap) {
             pageMap.page.destroy();
-            if (this.options.pagesContainer.contains(pageMap.el)) {
+            if (this.options.pagesContainer && this.options.pagesContainer.contains(pageMap.el)) {
                 this.options.pagesContainer.removeChild(pageMap.el);
             }
             _.each(pageMap.modules, function (moduleMap) {
@@ -222,7 +201,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {string} Returns a url string
      */
     getRelativeUrl: function () {
-        var url = this._currentPath || this.getWindow().location.hash.replace('#', '');
+        var url = this._currentPath;
         // remove leading slash if there is one
         url = url.replace(/^\//g, '');
         return url;
@@ -246,7 +225,7 @@ RouteManager.prototype = /** @lends RouteManager */{
                             this.dispatchEvent('page:load');
                             return this.showPage(path);
                         }.bind(this), function (e) {
-                            console.log('RouteManager Error: Page could not be loaded');
+                            console.log('Router Error: Page could not be loaded');
                             if (e.detail) {
                                 console.log(e.detail.stack);
                             } else {
@@ -329,7 +308,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     getPageConfigByPath: function (path) {
         var pageKey = this._getRouteMapKeyByPath(path);
-        return this._config.pages[pageKey] || {};
+        return this.options.pagesConfig[pageKey] || {};
     },
 
     /**
@@ -338,7 +317,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      * @returns {Object}
      */
     getModuleConfig: function (key) {
-        return this._config.modules[key] || {};
+        return this.options.modulesConfig[key] || {};
     },
 
     /**
@@ -386,13 +365,13 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     loadPage: function (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
-            pageConfig = this._config.pages[pageKey],
+            pageConfig = this.options.pagesConfig[pageKey],
             pageMap = {},
             e;
 
         if (!pageConfig) {
             // no page configured!
-            e = new Error('RouteManager Error: No routes configuration for ' + this.getRelativeUrl());
+            e = new Error('Router Error: No routes configuration for ' + this.getRelativeUrl());
             console.error(e);
             return Promise.reject(e);
         }
@@ -703,7 +682,7 @@ RouteManager.prototype = /** @lends RouteManager */{
      */
     _buildGlobalModuleMaps: function () {
         var configs = {};
-        _.each(this._config.modules, function (config, key) {
+        _.each(this.options.modulesConfig, function (config, key) {
             if (config.global) {
                 configs[key] = {config: config}
             }
@@ -756,6 +735,4 @@ RouteManager.prototype = /** @lends RouteManager */{
 
 };
 
-module.exports = function (options) {
-    return new RouteManager(options);
-};
+module.exports = new Router();

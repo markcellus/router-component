@@ -1,9 +1,10 @@
-[![Build Status](https://travis-ci.org/mkay581/route-manager.svg?branch=master)](https://travis-ci.org/mkay581/route-manager)
+[![Build Status](https://travis-ci.org/mkay581/router-js.svg?branch=master)](https://travis-ci.org/mkay581/router-js)
 
-# Route Manager
+# RouterJS
 
-A simple routing framework that allows you to load, show, and hide "pages" dynamically when urls within your 
-app are requested without having to refresh the page.
+A simple framework for single-page, in-browser apps that allows you to load, show, and
+hide "pages" dynamically when urls are requested without having to refresh the page.
+Also allows you to map specific modules to pages all through one simple configuration file.
 
 ## Benefits
 
@@ -37,7 +38,7 @@ one html element that your pages will be shown in.
 ### 2. Style your divs
 
 When a page url (route) is requested, css classes are applied and removed. So you'll need to setup a few lines of css 
-to show and hide based on the css classes that RouteManager applies. 
+to show and hide based on the css classes that Router applies. 
 
 ```css
 .page {
@@ -51,58 +52,63 @@ to show and hide based on the css classes that RouteManager applies.
 
 Of course, you can use fancier CSS transitions if you'd like.
 
-### 3. Configure your routes
+### 3. Configure your modules, pages and routes
 
-In your javascript file, create a routes object like so:
+Create your modules configuration:
 
 ```javascript
-var routes = {
-    pages: {
-        '^home(/)?$': {
-            template: '/path/to/homepage.html',
-            modules: [
-                'header',
-                'custom-module'
-            ],
-            script: 'home-page.js,
-            data: 'url/to/home-page/data
-        }                
+var modules = {
+    'header': {
+        script: 'path/to/header.js'',
+        template: 'path/to/header.html',
+        data: 'url/to/my/header/data',
+        global: true
     },
-    modules: {
-        'header': {
-            script: 'path/to/header.js'',
-            template: 'path/to/header.html',
-            data: 'url/to/my/header/data',
-            global: true
-        },
-        'custom-module': {
-            script: 'custom/module/path.js',
-            template: 'custom/module/template.html'
-        }
+    'custom-module': {
+        script: 'custom/module/path.js',
+        template: 'custom/module/template.html'
+    }
+};
+```
+
+Then map your urls to your pages in another configuration object.
+
+```javascript
+var pages = {
+    '^home(/)?$': {
+        template: '/path/to/homepage.html',
+        modules: [
+            'header',
+            'custom-module'
+        ],
+        script: 'home-page.js,
+        data: 'url/to/home-page/data
     }
 };
 
 ```
 
-### 4. Start RouteManager
+### 4. Start Routing
 
-You must start RouteManager and pass it your routes object to begin listening in on url requests.
+You must start the Router and pass it your routes object to begin listening in on url requests.
 
 ```javascript
-var RouteManager = require('route-manager')({
-    config: routes,
+var Router = require('router-js');
+Router.start({
+    pagesConfig: pages,
+    modulesConfig: modules,
     pagesContainer: document.body.getElementsByClassName('page-container')[0]
 });
 ```
 
 Then, when a user requests the `/home` url,  the templates, script, modules and data 
-under your `home` routes config entry will load instantly.
+under your `home` pages config entry will load instantly.
 
 
 If you need to trigger new urls in your javascript programmatically, you can do things like this:
 
 ```javascript
-RouteManager.triggerRoute('home').then(function () {
+Router.triggerRoute('home').then(function () {
    // home page element has been injected into DOM and active class has been applied
 });
 ```

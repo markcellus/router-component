@@ -1,6 +1,6 @@
 var sinon = require('sinon');
 var assert = require('assert');
-var Module = require('module.js');
+var Module = require('./../src/module');
 var Promise = require('promise');
 var Page = require('./../src/page');
 var ElementKit = require('element-kit');
