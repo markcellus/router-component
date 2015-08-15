@@ -1,5 +1,5 @@
 'use strict';
-var Module = require('module.js');
+var Module = require('./module');
 var Promise = require('promise');
 var _ = require('underscore');
 

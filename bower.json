@@ -1,7 +1,7 @@
 {
-  "name": "route-manager",
-  "version": "3.2.1",
-  "homepage": "https://github.com/mkay581/route-manager",
+  "name": "router-js",
+  "version": "0.0.0",
+  "homepage": "https://github.com/mkay581/router-js",
   "authors": [
     "Mark Kennedy <mkay581@gmail.com>"
   ],
@@ -24,16 +24,13 @@
     "test",
     "tests"
   ],
-  "main": "src/route-manager.js",
+  "main": "src/router.js",
   "dependencies": {
-    "event-handler": "^1.0.1",
     "jquery": "^2.1.3",
-    "promise": "^7.0.0",
     "resource-manager-js": "^1.1.1",
     "underscore": "^1.8.3",
-    "element-kit": "^0.5.0",
-    "module.js": "^1.0.5",
+    "module-js": "^2.2.4",
     "handlebars": "^3.0.0",
-    "handlebars-helper-slugify": "^0.3.2"
+    "listen-js": "~1.1.1"
   }
 }

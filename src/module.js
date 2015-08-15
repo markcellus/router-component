@@ -2,6 +2,7 @@
 var BaseModule = require('module-js');
 var Promise = require('promise');
 var _ = require('underscore');
+var ResourceManager = require('resource-manager-js');
 
 // start element kit
 require('element-kit');
