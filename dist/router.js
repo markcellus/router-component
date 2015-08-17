@@ -1,5 +1,5 @@
 /** 
-* router-js - v1.0.1.
+* router-js - v1.0.2.
 * git://github.com/mkay581/router-js.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -21686,7 +21686,7 @@ var Handlebars = require('handlebars');
 var slugify = require('handlebars-helper-slugify');
 var _ = require('underscore');
 var Page = require('./page');
-var Module = require('module-js');
+var Module = require('./module');
 var ElementKit = require('element-kit');
 
 /**
@@ -22021,21 +22021,52 @@ Router.prototype = /** @lends Router */{
         });
         return matchingKeys[0];
     },
-
+    
     /**
      * Loads the script for a module and falls back to internal Module class if not found.
      * @param scriptUrl - Url to script
+     * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
+     * @param [fallbackClass] - Class to use as the fallback
      * @returns {*}
      */
-    loadPageScript: function (scriptUrl) {
-        var options = {pagesContainer: this.options.pagesContainer};
+    loadScript: function (scriptUrl, options, fallbackClass) {
         if (!scriptUrl) {
-            return Promise.resolve(new Page(options));
+            return Promise.resolve(new fallbackClass(options));
         }
-        return this.loadScript(scriptUrl)
+        return this.requireScript(scriptUrl, options)
             .then(null, function () {
-                return Promise.resolve(new Page(options));
+                // not found, so fallback to class
+                return Promise.resolve(new fallbackClass(options));
             });
+    },
+
+    /**
+     * Require()s a script and instantiates it if a non-singleton.
+     * @param scriptUrl - Url to script
+     * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
+     * @returns {*} Returns the script contents if found (usually a singleton or class) or rejects if not found
+     */
+    requireScript: function (scriptUrl, options) {
+        var contents;
+        return new Promise(function (resolve, reject) {
+            if (!scriptUrl) {
+                return reject();
+            }
+            try {
+                contents = require(scriptUrl);
+            } catch (e) {
+                console.error(e);
+                reject(e);
+            }
+            options = options || {};
+
+            // if function, assume it has a constructor and instantiate it
+            if (typeof contents === 'function') {
+                contents = new contents(options);
+            }
+            resolve(contents);
+        }.bind(this));
+
     },
 
     /**
@@ -22060,7 +22091,7 @@ Router.prototype = /** @lends Router */{
             this._pageMaps[pageKey] = pageMap;
             pageMap.config = pageConfig;
             pageMap.promise = this.loadGlobalModules(path).then(function () {
-                return this.loadPageScript(pageConfig.script)
+                return this.loadScript(pageConfig.script, {pagesContainer: this.options.pagesContainer}, Page)
                     .then(function (page) {
                         pageMap.page = page;
                         return page.getStyles(pageConfig.styles).then(function () {
@@ -22293,7 +22324,7 @@ Router.prototype = /** @lends Router */{
 
         moduleMap = {};
 
-        moduleMap.promise = this.loadModuleScript(config.script, config.options).then(function (module) {
+        moduleMap.promise = this.loadScript(config.script, config.options, Module).then(function (module) {
             moduleMap.module = module;
             return module.getStyles(config.styles)
                 .then(function () {
@@ -22330,7 +22361,7 @@ Router.prototype = /** @lends Router */{
         var map = this._globalModuleMaps[moduleKey] || {},
             config = this.getModuleConfig(moduleKey);
         if (!map.promise) {
-            map.promise = this.loadModuleScript(config.script).then(function (module) {
+            map.promise = this.loadScript(config.script, {}, Module).then(function (module) {
                     return module.getStyles(config.styles).then(function () {
                         return module.getTemplate(config.template).then(function (html) {
                             return module.fetchData(config.data, {cache: true}).then(function (data) {
@@ -22368,53 +22399,11 @@ Router.prototype = /** @lends Router */{
             }
         });
         return configs;
-    },
-
-    /**
-     * Require()s a script and instantiates it if a non-singleton.
-     * @param scriptUrl - Url to script
-     * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
-     * @returns {*} Returns the script contents if found (usually a singleton or class) or rejects if not found
-     */
-    loadScript: function (scriptUrl, options) {
-        var contents;
-        return new Promise(function (resolve, reject) {
-            if (!scriptUrl) {
-                return reject();
-            }
-            try {
-                contents = require(scriptUrl);
-            } catch (e) {
-                console.error(e);
-                reject(e);
-            }
-            options = options || {};
-
-            // if function, assume it has a constructor and instantiate it
-            if (typeof contents === 'function') {
-                contents = new contents(options);
-            }
-            resolve(contents);
-        }.bind(this));
-
-    },
-
-    /**
-     * Loads the script for a module and falls back to internal Module class if not found.
-     * @param scriptUrl - Url to script
-     * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
-     * @returns {*}
-     */
-    loadModuleScript: function (scriptUrl, options) {
-        return this.loadScript(scriptUrl, options)
-            .then(null, function () {
-                // not found, so fallback to internal module class
-                return Promise.resolve(new Module(options));
-            });
     }
+    
 
 };
 
 module.exports = new Router();
-},{"./page":61,"element-kit":6,"handlebars":33,"handlebars-helper-slugify":13,"listen-js":46,"module-js":47,"path":4,"promise":48,"underscore":59}]},{},[62])(62)
+},{"./module":60,"./page":61,"element-kit":6,"handlebars":33,"handlebars-helper-slugify":13,"listen-js":46,"path":4,"promise":48,"underscore":59}]},{},[62])(62)
 });
