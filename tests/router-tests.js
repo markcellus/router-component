@@ -180,6 +180,35 @@ describe('Router', function () {
             });
     });
 
+    it('should use a fallback Module instance when there is no script specified for a module in the route config', function () {
+        // setup
+        var pageUrl = 'my/index/with/no/script/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var pageScript = 'path/to/myscript';
+        modulesConfig[moduleName] = {};
+        pagesConfig[pageUrl] = {
+            script: pageScript,
+            modules: [moduleName]
+        };
+        var moduleInitializeSpy = sinon.spy(Module.prototype, 'initialize');
+        var router = require('./../src/router');
+        router.start({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        requireStub.withArgs(pageScript).returns(mockPage);
+        var showPageStub = sinon.stub(router, 'showPage').returns(Promise.resolve());
+        return router.triggerRoute(pageUrl)
+            .then(function () {
+                assert.equal(moduleInitializeSpy.callCount, 1, 'fallback Module instance was initialized');
+                router.stop();
+                moduleInitializeSpy.restore();
+                showPageStub.restore();
+            });
+    });
+
     it('should call page\'s getTemplate method with template url specified in routes configuration', function () {
         // setup
         var pageUrl = 'url/to/page/with/template';
