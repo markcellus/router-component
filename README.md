@@ -59,7 +59,7 @@ Create your modules configuration:
 ```javascript
 var modules = {
     'header': {
-        script: 'path/to/header.js'',
+        script: 'path/to/header.js',
         template: 'path/to/header.html',
         data: 'url/to/my/header/data',
         global: true
@@ -81,8 +81,8 @@ var pages = {
             'header',
             'custom-module'
         ],
-        script: 'home-page.js,
-        data: 'url/to/home-page/data
+        script: 'home-page.js',
+        data: 'url/to/home-page/data'
     }
 };
 
