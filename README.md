@@ -118,5 +118,6 @@ Router.triggerRoute('home').then(function () {
 
 * Any javascript files that you include in your routes configuration must be "require"-able using either 
 Browserify, RequireJS or any other script loader that exposes a global "require" variable.
- * Once a CSS file is loaded, it is loaded infinitely, so it's important to namespace your styles and be specific 
+* Once a CSS file is loaded, it is loaded infinitely, so it's important to namespace your styles and be specific 
  if you do not want your styles to overlap and apply between pages.
+* When a page is loaded, it is cached and will remain in the DOM until you physically remove the element in your custom destroy logic.
