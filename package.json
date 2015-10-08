@@ -43,7 +43,7 @@
     "build-tools": "^1.6.0",
     "grunt": "~0.4.5",
     "grunt-cli": "^0.1.13",
-    "sinon": "^1.14.1"
+    "sinon": "~1.16.1"
   },
   "scripts": {
     "test": "grunt bt:test"
