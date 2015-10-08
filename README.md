@@ -6,6 +6,8 @@ A simple framework for single-page, in-browser apps that allows you to load, sho
 hide "pages" dynamically when urls are requested without having to refresh the page.
 Also allows you to map specific modules to pages all through one simple configuration file.
 
+As seen on [fallout4.com](http://www.fallout4.com).
+
 ## Benefits
 
 * Loads scripts, templates, data, and css files
@@ -59,7 +61,7 @@ Create your modules configuration:
 ```javascript
 var modules = {
     'header': {
-        script: 'path/to/header.js'',
+        script: 'path/to/header.js',
         template: 'path/to/header.html',
         data: 'url/to/my/header/data',
         global: true
@@ -81,8 +83,8 @@ var pages = {
             'header',
             'custom-module'
         ],
-        script: 'home-page.js,
-        data: 'url/to/home-page/data
+        script: 'home-page.js',
+        data: 'url/to/home-page/data'
     }
 };
 
@@ -118,5 +120,6 @@ Router.triggerRoute('home').then(function () {
 
 * Any javascript files that you include in your routes configuration must be "require"-able using either 
 Browserify, RequireJS or any other script loader that exposes a global "require" variable.
- * Once a CSS file is loaded, it is loaded infinitely, so it's important to namespace your styles and be specific 
+* Once a CSS file is loaded, it is loaded infinitely, so it's important to namespace your styles and be specific 
  if you do not want your styles to overlap and apply between pages.
+* When a page is loaded, it is cached and will remain in the DOM until you physically remove the element in your custom destroy logic.
