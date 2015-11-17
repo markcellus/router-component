@@ -22,7 +22,7 @@ Before you begin using, you must setup your server to have all of urls point to
 your index.html page that will house your code.
  
 
-## Usage 
+## Setup
 
 ### 1. Create a container element for your pages
 
