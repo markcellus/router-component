@@ -63,7 +63,6 @@ describe('Router', function () {
 
     it('should call Listen.createTarget on initialize to attach all event handling logic', function () {
         var router = require('./../src/router');
-        var router = require('./../src/router');
         router.start();
         assert.deepEqual(Listen.createTarget.args[0][0], router, 'Router instance was passed to Listen.createTarget');
         router.stop();
@@ -856,7 +855,7 @@ describe('Router', function () {
         mockPage.getTemplate.returns(Promise.resolve(pageHtml));
         var router = require('./../src/router');
         router.start({
-            pagesConfig: pagesConfig, 
+            pagesConfig: pagesConfig,
             modulesConfig: modulesConfig
         });
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
@@ -904,7 +903,7 @@ describe('Router', function () {
         mockPage.getTemplate.returns(Promise.resolve(pageHtml));
         var router = require('./../src/router');
         router.start({
-            pagesConfig: pagesConfig, 
+            pagesConfig: pagesConfig,
             modulesConfig: modulesConfig
         });
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
@@ -1035,7 +1034,7 @@ describe('Router', function () {
         };
         var router = require('./../src/router');
         router.start({
-            pagesConfig: pagesConfig, 
+            pagesConfig: pagesConfig,
             modulesConfig: modulesConfig
         });
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
@@ -1110,7 +1109,7 @@ describe('Router', function () {
         };
         var router = require('./../src/router');
         router.start({
-            pagesConfig: pagesConfig, 
+            pagesConfig: pagesConfig,
             modulesConfig: modulesConfig
         });
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
@@ -1155,7 +1154,7 @@ describe('Router', function () {
         };
         var router = require('./../src/router');
         router.start({
-            pagesConfig: pagesConfig, 
+            pagesConfig: pagesConfig,
             modulesConfig: modulesConfig
         });
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
