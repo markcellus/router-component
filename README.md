@@ -22,7 +22,7 @@ Before you begin using, you must setup your server to have all of urls point to
 your index.html page that will house your code.
  
 
-## Usage 
+## Setup
 
 ### 1. Create a container element for your pages
 
@@ -107,6 +107,23 @@ Then, when a user requests the `/home` url,  the templates, script, modules and 
 under your `home` pages config entry will load instantly.
 
 
+## Usage
+
+### Initial Page Load
+
+When loading the initial page from your browser, the Router could possibly load before the DOM has been loaded
+(depending on when you decide to call `Router.start()`). If so, you'll need to listen for the DOM to be loaded,
+and then trigger the current url as illustrated below.
+The code below should be ran right after your `Router.start()` call.
+
+```javascript
+window.addEventListener('DOMContentLoaded', function () {
+    Router.triggerRoute(window.location.pathname);
+});
+```
+
+### Triggering URLs
+
 If you need to trigger new urls in your javascript programmatically, you can do things like this:
 
 ```javascript
@@ -114,7 +131,6 @@ Router.triggerRoute('home').then(function () {
    // home page element has been injected into DOM and active class has been applied
 });
 ```
-
 
 ### Important Notes
 
