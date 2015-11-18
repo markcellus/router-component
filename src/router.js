@@ -225,12 +225,10 @@ Router.prototype = /** @lends Router */{
                             this.dispatchEvent('page:load');
                             return this.showPage(path);
                         }.bind(this), function (e) {
-                            console.log('Router Error: Page could not be loaded');
+                            console.log('Router Error: Page at ' + path + ' could not be loaded');
                             if (e.detail) {
                                 console.log(e.detail.stack);
-                            } else {
-                                console.log(arguments);
-                            }
+                            } 
                             this.dispatchEvent('page:error', e);
                             throw e;
                         }.bind(this));
