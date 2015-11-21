@@ -1431,4 +1431,24 @@ describe('Router', function () {
         });
     });
 
+    it('should pass the data property with replaced reference group of the matching route config of the url requested to the associated page\'s fetchData() method ', function (done) {
+        // setup
+        var pageUrlRegex = '^profile/([0-9]+)$';
+        var pagesConfig = {};
+        var dataBaseUrl = 'http://localhost:8888/profile';
+        var dataUrl = dataBaseUrl + '/$1';
+        pagesConfig[pageUrlRegex] = {data: dataUrl};
+        var router = require('./../src/router');
+        var loadScriptStub = sinon.stub(router, 'loadScript');
+        loadScriptStub.returns(Promise.resolve(mockPage));
+        router.start({pagesConfig: pagesConfig});
+        var profileNum = '32';
+        router.triggerRoute('profile/' + profileNum).then(function () {
+            assert.equal(mockPage.fetchData.args[0][0], dataBaseUrl + '/' + profileNum);
+            router.stop();
+            loadScriptStub.restore();
+            done();
+        });
+    });
+
 });

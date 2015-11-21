@@ -405,6 +405,12 @@ Router.prototype = /** @lends Router */{
             return Promise.reject(e);
         }
 
+        // detect if data url is using captured regex groups
+        // TODO: create a better, safer solution rather than just detecting dollar signs
+        if (pageConfig.data && pageConfig.data.indexOf('$') !== -1) {
+            pageConfig.data = path.replace(new RegExp(pageKey, 'gi'), pageConfig.data);
+        }
+
         if (!this._pageMaps[pageKey]) {
             this._pageMaps[pageKey] = pageMap;
             pageMap.config = pageConfig;
