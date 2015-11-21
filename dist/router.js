@@ -1,5 +1,5 @@
 /** 
-* router-js - v1.0.4.
+* router-js - v1.1.0.
 * git://github.com/mkay581/router-js.git
 * Copyright 2015 Mark Kennedy. Licensed MIT.
 */
@@ -22152,6 +22152,12 @@ Router.prototype = /** @lends Router */{
             e = new Error('Router Error: No routes configuration for ' + this.getRelativeUrl());
             console.error(e);
             return Promise.reject(e);
+        }
+
+        // detect if data url is using captured regex groups
+        // TODO: create a better, safer solution rather than just detecting dollar signs
+        if (pageConfig.data && pageConfig.data.indexOf('$') !== -1) {
+            pageConfig.data = path.replace(new RegExp(pageKey, 'gi'), pageConfig.data);
         }
 
         if (!this._pageMaps[pageKey]) {
