@@ -40,7 +40,7 @@
     "underscore": "^1.8.3"
   },
   "devDependencies": {
-    "build-tools": "^1.6.0",
+    "build-tools": "^2.0.0",
     "grunt": "~0.4.5",
     "grunt-cli": "^0.1.13",
     "sinon": "~1.16.1"
