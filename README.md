@@ -132,6 +132,24 @@ Router.triggerRoute('home').then(function () {
 });
 ```
 
+### Regex URL Captured Groups
+
+The router accepts regex entries and [captured groups] in your pages configuration. So for instance, if you wanted all
+urls going to [/profile/[SOME_ID]](/profile/[SOME_ID]) to request data from http://someurl.com/[SOME_ID] and
+inject it into your template. You could set up your page configuration like so:
+
+```javascript
+var pages = {
+    '^profile/([0-9])': {
+        template: '/path/to/profile.hbs',
+        data: 'http://someurl.com/$1'
+    }
+};
+
+```
+
+Then any id used when accessing /profile/[SOME_ID], will request the appropriate http://someurl.com/[SOME_ID] uri.
+
 ### Important Notes
 
 * Any javascript files that you include in your routes configuration must be "require"-able using either 
