@@ -11,7 +11,6 @@ As seen on [fallout4.com](http://www.fallout4.com).
 ## Benefits
 
 * Loads scripts, templates, data, and css files
-* Supports Browserify and RequireJS builds
 * Caches requests for faster performance
 * Supports handlebar templates (.hbs) allowing them to be loaded on the client-side
 
@@ -95,12 +94,13 @@ var pages = {
 You must start the Router and pass it your routes object to begin listening in on url requests.
 
 ```javascript
-var Router = require('router-js');
-Router.start({
+import Router from 'router-js';
+var router = new Router({
     pagesConfig: pages,
     modulesConfig: modules,
     pagesContainer: document.body.getElementsByClassName('page-container')[0]
 });
+router.start();
 ```
 
 Then, when a user requests the `/home` url,  the templates, script, modules and data 
@@ -118,7 +118,7 @@ The code below should be ran right after your `Router.start()` call.
 
 ```javascript
 window.addEventListener('DOMContentLoaded', function () {
-    Router.triggerRoute(window.location.pathname);
+    router.triggerRoute(window.location.pathname);
 });
 ```
 
@@ -127,7 +127,7 @@ window.addEventListener('DOMContentLoaded', function () {
 If you need to trigger new urls in your javascript programmatically, you can do things like this:
 
 ```javascript
-Router.triggerRoute('home').then(function () {
+router.triggerRoute('home').then(function () {
    // home page element has been injected into DOM and active class has been applied
 });
 ```

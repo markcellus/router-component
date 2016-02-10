@@ -22,27 +22,29 @@ var ElementKit = require('element-kit');
  * @class Router
  * @return {Router} Returns a singleton instance of app
  */
-var Router = function (){};
-
-Router.prototype = /** @lends Router */{
+class Router {
 
     /**
-     * Initialize options
+     * Initialize options ran when an instance is created.
      * @param {Object} [options] - The options object
      * @param {Object} [options.pagesConfig] - An object mapping of all pages along with their associated urls
      * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
      * @param {Object} [options.moduleConfig] - An object mapping of all available modules
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
      */
-    start: function (options) {
-
+    constructor (options) {
         this.options = _.extend({
             onRouteRequest: null,
             pagesContainer: document.body,
             pagesConfig: {},
             modulesConfig: {}
         }, options);
+    }
 
+    /**
+     * Spawns off some required-initializations and starts router.
+     */
+    start () {
         this._pageMaps = {};
         this._globalModuleMaps = {};
         this.history = [];
@@ -58,39 +60,39 @@ Router.prototype = /** @lends Router */{
         Listen.createTarget(this);
         this._globalModuleMaps = this._buildGlobalModuleMaps();
         this.bindPopstateEvent();
-    },
+    }
 
     /**
      * Stops routing urls.
      */
-    stop: function () {
+    stop () {
         this.options = {};
         this._currentPath = null;
         this.reset();
         this.unbindPopstateEvent();
         Listen.destroyTarget(this);
-    },
+    }
 
     /**
      * Sets up pop state events for future urls.
      */
-    bindPopstateEvent: function () {
+    bindPopstateEvent () {
         window.addEventListener('popstate', this._getOnPopStateListener());
-    },
+    }
 
     /**
      * Removes pop state event listener.
      */
-    unbindPopstateEvent: function () {
+    unbindPopstateEvent () {
         window.removeEventListener('popstate', this._getOnPopStateListener());
-    },
+    }
 
     /**
      * Gets the cached listener for pop state changes.
      * @returns {Function}
      * @private
      */
-    _getOnPopStateListener: function () {
+    _getOnPopStateListener () {
         var self = this;
         return function (event) {
             // sometimes ios browser doesnt have a event state object on initial load *shrug*
@@ -98,12 +100,12 @@ Router.prototype = /** @lends Router */{
                 self._onRouteRequest.call(self, event.state.path);
             }
         }
-    },
+    }
 
     /**
      * Resets Route Manager.
      */
-    reset: function () {
+    reset () {
         this.history = [];
 
         // destroy all pages
@@ -128,7 +130,7 @@ Router.prototype = /** @lends Router */{
             }
         });
         this._globalModuleMaps = this._buildGlobalModuleMaps();
-    },
+    }
 
     /**
      * Navigates to a supplied url.
@@ -139,7 +141,7 @@ Router.prototype = /** @lends Router */{
      * @param {boolean} [options.triggerUrlChange] - False to not trigger the browser url to change
      * @returns {Promise} Returns a Promise when the page of the route has loaded
      */
-    triggerRoute: function (url, options) {
+    triggerRoute (url, options) {
         options = options || {};
         options.triggerUrlChange = typeof options.triggerUrlChange !== 'undefined' ? options.triggerUrlChange : true;
         if (url !== this._currentPath) {
@@ -147,14 +149,14 @@ Router.prototype = /** @lends Router */{
         } else {
             return Promise.resolve();
         }
-    },
+    }
 
     /**
      * Gets query string params.
      * @param {string} url - The full url to navigate to.
      * @returns {Object} Returns an object containing query params.
      */
-    getQueryParams: function (url) {
+    getQueryParams (url) {
         var url = url || this.getWindow().location.href,
             params = {};
         url.split('?')[1].split('&').forEach(function(queryParam) {
@@ -162,50 +164,50 @@ Router.prototype = /** @lends Router */{
             params[splitParam[0]] = splitParam[1];
         });
         return params;
-    },
+    }
 
     /**
      * Navigates to previous url in session history.
      * @param {Number} index - an index with a position relative to the current page (the current page being, of course, index 0)
      */
-    goBack: function (index) {
+    goBack (index) {
         if (index) {
             window.history.go(index);
         } else {
             window.history.back();
         }
-    },
+    }
 
     /**
      * Navigates forward (if gone back).
      * @param {Number} index - an index with a position relative to the current page
      */
-    goForward: function (index) {
+    goForward (index) {
         if (index) {
             window.history.go(index);
         } else {
             window.history.forward();
         }
-    },
+    }
 
     /**
      * Gets the current relative params.
      * @returns {Array} Returns an array of params
      */
-    getRelativeUrlParams: function () {
+    getRelativeUrlParams () {
         return this.getRelativeUrl().split('/') || [];
-    },
+    }
 
     /**
      * Gets the current relative url.
      * @returns {string} Returns a url string
      */
-    getRelativeUrl: function () {
+    getRelativeUrl () {
         var url = this._currentPath;
         // remove leading slash if there is one
         url = url.replace(/^\//g, '');
         return url;
-    },
+    }
 
     /**
      * When a route is requested.
@@ -214,7 +216,7 @@ Router.prototype = /** @lends Router */{
      * @private
      * @return {Promise}
      */
-    _onRouteRequest: function (path, options) {
+    _onRouteRequest (path, options) {
         var prevPath = this._currentPath;
         if (path !== prevPath) {
             return this._handleRequestedUrl(path, options).then(function (path) {
@@ -228,7 +230,7 @@ Router.prototype = /** @lends Router */{
                             console.log('Router Error: Page at ' + path + ' could not be loaded');
                             if (e.detail) {
                                 console.log(e.detail.stack);
-                            } 
+                            }
                             this.dispatchEvent('page:error', e);
                             throw e;
                         }.bind(this));
@@ -238,7 +240,7 @@ Router.prototype = /** @lends Router */{
             // already at url!
             return Promise.resolve();
         }
-    },
+    }
 
     /**
      * Sets a url has active and adds it to the history.
@@ -246,7 +248,7 @@ Router.prototype = /** @lends Router */{
      * @param {Object} options - Set of options
      * @param {Object} options.triggerUrlChange - Whether to trigger a url change
      */
-    registerUrl: function (path, options) {
+    registerUrl (path, options) {
         var window = this.getWindow(),
             windowHistory = window.history;
 
@@ -262,15 +264,15 @@ Router.prototype = /** @lends Router */{
             this.dispatchEvent('url:change', {url: path});
         }
 
-    },
+    }
 
     /**
      * Returns windows object.
      * @returns {History}
      */
-    getWindow: function () {
+    getWindow () {
         return window;
-    },
+    }
 
     /**
      * A function that allows custom redirects of routes if necessary.
@@ -280,7 +282,7 @@ Router.prototype = /** @lends Router */{
      * @returns {Promise} Returns a promise that resolves with a path to go to when done
      * @private
      */
-    _handleRequestedUrl: function (path, options) {
+    _handleRequestedUrl (path, options) {
         var getRedirectedUrl = this.options.onRouteRequest ? this.options.onRouteRequest(path) : Promise.resolve(path);
 
         // register attempted url
@@ -297,26 +299,26 @@ Router.prototype = /** @lends Router */{
             }
             return newPath;
         }.bind(this));
-    },
+    }
 
     /**
      * Gets the page config object for a supplied path.
      * @param {string} path - The path of the page
      * @returns {Object}
      */
-    getPageConfigByPath: function (path) {
+    getPageConfigByPath (path) {
         var pageKey = this._getRouteMapKeyByPath(path);
         return this.options.pagesConfig[pageKey] || {};
-    },
+    }
 
     /**
      * Gets the config object for module.
      * @param {string} key - The module key
      * @returns {Object}
      */
-    getModuleConfig: function (key) {
+    getModuleConfig (key) {
         return this.options.modulesConfig[key] || {};
-    },
+    }
 
     /**
      * Sanitizes a path to match to the correct item in the route config.
@@ -324,7 +326,7 @@ Router.prototype = /** @lends Router */{
      * @returns {string}
      * @private
      */
-    _getRouteMapKeyByPath: function (path) {
+    _getRouteMapKeyByPath (path) {
         var matchingKeys,
             regex;
 
@@ -338,8 +340,8 @@ Router.prototype = /** @lends Router */{
             return key === path || path.match(regex);
         });
         return matchingKeys[0];
-    },
-    
+    }
+
     /**
      * Loads the script for a module and falls back to internal Module class if not found.
      * @param scriptUrl - Url to script
@@ -347,7 +349,7 @@ Router.prototype = /** @lends Router */{
      * @param [fallbackClass] - Class to use as the fallback
      * @returns {*}
      */
-    loadScript: function (scriptUrl, options, fallbackClass) {
+    loadScript (scriptUrl, options, fallbackClass) {
         if (!scriptUrl) {
             return Promise.resolve(new fallbackClass(options));
         }
@@ -356,7 +358,7 @@ Router.prototype = /** @lends Router */{
                 // not found, so fallback to class
                 return Promise.resolve(new fallbackClass(options));
             });
-    },
+    }
 
     /**
      * Require()s a script and instantiates it if a non-singleton.
@@ -364,7 +366,7 @@ Router.prototype = /** @lends Router */{
      * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
      * @returns {*} Returns the script contents if found (usually a singleton or class) or rejects if not found
      */
-    requireScript: function (scriptUrl, options) {
+    requireScript (scriptUrl, options) {
         var contents;
         return new Promise(function (resolve, reject) {
             if (!scriptUrl) {
@@ -385,14 +387,14 @@ Router.prototype = /** @lends Router */{
             resolve(contents);
         }.bind(this));
 
-    },
+    }
 
     /**
      * Loads a page.
      * @param {string} path - The url of the page to load
      * @returns {*}
      */
-    loadPage: function (path) {
+    loadPage (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
             pageConfig = this.options.pagesConfig[pageKey],
             pageMap = {},
@@ -445,28 +447,28 @@ Router.prototype = /** @lends Router */{
         }
         return this._pageMaps[pageKey].promise;
 
-    },
+    }
 
     /**
      * Shows modules assigned to a supplied page path.
      * @param {string} path - The page url
      * @returns {Promise} Returns a promise when all modules are done showing
      */
-    showPageModules: function (path) {
+    showPageModules (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
             pageMap = this._pageMaps[pageKey] || {};
         _.each(pageMap.modules, function (moduleMap) {
             moduleMap.module.show();
         });
         return this.showGlobalModules(path);
-    },
+    }
 
     /**
      * Shows all global modules assigned to a page.
      * @param {string} path - The page path
      * @returns {Promise} Returns a promise when all global modules are shown
      */
-    showGlobalModules: function (path) {
+    showGlobalModules (path) {
         var pageConfig = this.getPageConfigByPath(path),
             promises = [];
 
@@ -484,27 +486,27 @@ Router.prototype = /** @lends Router */{
         }.bind(this));
 
         return Promise.all(promises);
-    },
+    }
 
     /**
      * Shows the page and its designated modules of the supplied url path.
      * @param {string} path - The url path of the page to show
      * @returns {*}
      */
-    showPage: function (path) {
+    showPage (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
             pageMap = this._pageMaps[pageKey] || {};
         this.showPageModules(path);
         if (pageMap.page) {
             return pageMap.page.show();
         }
-    },
+    }
 
     /**
      * Hides all global modules assigned to designated path.
      * @returns {*}
      */
-    hideGlobalModules: function (path) {
+    hideGlobalModules (path) {
         var pageConfig = this.getPageConfigByPath(path),
             promises = [];
 
@@ -520,14 +522,14 @@ Router.prototype = /** @lends Router */{
         }.bind(this));
 
         return Promise.all(promises);
-    },
+    }
 
     /**
      * Hides a page along with its designated modules.
      * @param {string} path - The path of the page
      * @returns {Promise} Returns promise when page is done hiding.
      */
-    hidePage: function (path) {
+    hidePage (path) {
         var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
         if (pageMap && pageMap.promise) {
             return pageMap.promise
@@ -548,14 +550,14 @@ Router.prototype = /** @lends Router */{
         } else {
             return Promise.resolve();
         }
-    },
+    }
 
     /**
      * Hides all of a pages modules.
      * @param {string} path - The page of the page to hide
      * @return {Promise} Returns a promise when complete
      */
-    hidePageModules: function (path) {
+    hidePageModules (path) {
         var promises = [];
         var pageKey = this._getRouteMapKeyByPath(path),
             pageMap = this._pageMaps[pageKey] || {};
@@ -563,13 +565,13 @@ Router.prototype = /** @lends Router */{
             promises.push(moduleMap.module.hide());
         });
         return Promise.all(promises);
-    },
+    }
 
     /**
      * Loads the modules of a page.
      * @param {string} path - The path to the page which contains the modules to be loaded
      */
-    loadPageModules: function (path) {
+    loadPageModules (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
             config = this.getPageConfigByPath(path),
             pageMap = this._pageMaps[pageKey] || {},
@@ -615,14 +617,14 @@ Router.prototype = /** @lends Router */{
                 pageMap.el.appendChild(frag);
             }
         });
-    },
+    }
 
     /**
      * Handles either showing or hiding global modules based on the supplied path.
      * @param {string} path - The page path
      * @returns {Promise} Returns a promise that resolves when global modules are shown and hidden
      */
-    loadGlobalModules: function (path) {
+    loadGlobalModules (path) {
         var pageConfig = this.getPageConfigByPath(path),
             promises = [];
 
@@ -636,14 +638,14 @@ Router.prototype = /** @lends Router */{
         }.bind(this));
 
         return Promise.all(promises);
-    },
+    }
 
     /**
      * Loads a single module for a page.
      * @param {string} moduleKey - The key of which module to load
      * @param {Object} [fallbackData] - Any fallback data to be used inside the module's template
      */
-    loadPageModule: function (moduleKey, fallbackData) {
+    loadPageModule (moduleKey, fallbackData) {
         var config = this.getModuleConfig(moduleKey),
             moduleMap = {};
 
@@ -675,48 +677,48 @@ Router.prototype = /** @lends Router */{
                 });
         }.bind(this));
         return moduleMap.promise;
-    },
+    }
 
     /**
      * Loads a global module based on the supplied module key.
      * @param {string} moduleKey - The module key
      * @return {Promise} Returns a promise that resolves when the module is loaded
      */
-    loadGlobalModule: function (moduleKey) {
+    loadGlobalModule (moduleKey) {
         var map = this._globalModuleMaps[moduleKey] || {},
             config = this.getModuleConfig(moduleKey);
         if (!map.promise) {
             map.promise = this.loadScript(config.script, {}, Module).then(function (module) {
-                    return module.getStyles(config.styles).then(function () {
-                        return module.getTemplate(config.template).then(function (html) {
-                            return module.fetchData(config.data, {cache: true}).then(function (data) {
-                                html = html ? Handlebars.compile(html)(data || {}): '';
-                                // inject modules into page DOM
-                                var div = document.createElement('div');
-                                div.innerHTML = html;
-                                map.el = div.children[0];
-                                // create html into DOM element and pass it off to load call for
-                                // custom mangling before it gets appended to DOM
-                                map.module = module;
-                                return module.load({data: data, el: map.el}).catch(function (e) {
-                                    // error loading global module!
-                                    map.module.error(e);
-                                    throw e;
-                                });
-                            }.bind(this));
+                return module.getStyles(config.styles).then(function () {
+                    return module.getTemplate(config.template).then(function (html) {
+                        return module.fetchData(config.data, {cache: true}).then(function (data) {
+                            html = html ? Handlebars.compile(html)(data || {}): '';
+                            // inject modules into page DOM
+                            var div = document.createElement('div');
+                            div.innerHTML = html;
+                            map.el = div.children[0];
+                            // create html into DOM element and pass it off to load call for
+                            // custom mangling before it gets appended to DOM
+                            map.module = module;
+                            return module.load({data: data, el: map.el}).catch(function (e) {
+                                // error loading global module!
+                                map.module.error(e);
+                                throw e;
+                            });
                         }.bind(this));
                     }.bind(this));
                 }.bind(this));
+            }.bind(this));
         }
         return map.promise;
-    },
+    }
 
     /**
      * Builds and returns a filtered mapping of configs for all modules that are global.
      * @returns {Object}
      * @private
      */
-    _buildGlobalModuleMaps: function () {
+    _buildGlobalModuleMaps () {
         var configs = {};
         _.each(this.options.modulesConfig, function (config, key) {
             if (config.global) {
@@ -725,8 +727,6 @@ Router.prototype = /** @lends Router */{
         });
         return configs;
     }
-    
+}
 
-};
-
-module.exports = new Router();
+export default Router;
