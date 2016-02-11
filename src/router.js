@@ -380,6 +380,12 @@ class Router {
             }
             options = options || {};
 
+            // support new es6 module exports (file must export a default)
+            // TODO: is __esModule safe to use?
+            if (contents.__esModule) {
+                contents = contents.default;
+            }
+
             // if function, assume it has a constructor and instantiate it
             if (typeof contents === 'function') {
                 contents = new contents(options);
