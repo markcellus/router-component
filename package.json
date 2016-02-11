@@ -1,6 +1,6 @@
 {
   "name": "router-js",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "A simple routing framework for web apps",
   "repository": {
     "type": "git",
@@ -40,7 +40,7 @@
     "underscore": "^1.8.3"
   },
   "devDependencies": {
-    "build-tools": "^1.6.0",
+    "build-tools": "^2.2.4",
     "grunt": "~0.4.5",
     "grunt-cli": "^0.1.13",
     "sinon": "~1.16.1"

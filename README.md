@@ -11,15 +11,27 @@ As seen on [fallout4.com](http://www.fallout4.com).
 ## Benefits
 
 * Loads scripts, templates, data, and css files
-* Supports Browserify and RequireJS builds
 * Caches requests for faster performance
 * Supports handlebar templates (.hbs) allowing them to be loaded on the client-side
 
 
 ## Prerequisites
 
+### Server setup
+
 Before you begin using, you must setup your server to have all of urls point to 
-your index.html page that will house your code.
+your index.html page that will house your code. If your server uses Apache, this can usually easily be done by
+placing something like the following in a [.htaccess](https://httpd.apache.org/docs/current/howto/htaccess.html) file.
+
+```
+<ifModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !index
+    RewriteRule (.*) index.html [L]
+</ifModule>
+```
  
 
 ## Setup
@@ -90,35 +102,36 @@ var pages = {
 
 ```
 
-### 4. Start Routing
+## Usage
 
-You must start the Router and pass it your routes object to begin listening in on url requests.
+### Listening in on url requests
+
+To start the router, you must pass it your page and module configuration objects and run the `start()` method
+ to begin listening in on url requests. This example uses the `pages` and `modules` configuration specified above.
 
 ```javascript
-var Router = require('router-js');
-Router.start({
+import Router from 'router-js';
+var router = new Router({
     pagesConfig: pages,
     modulesConfig: modules,
     pagesContainer: document.body.getElementsByClassName('page-container')[0]
 });
+router.start();
 ```
 
-Then, when a user requests the `/home` url,  the templates, script, modules and data 
+Then, when a user requests the `/home` url,  the templates, script, modules and data
 under your `home` pages config entry will load instantly.
 
+### Initial page load
 
-## Usage
-
-### Initial Page Load
-
-When loading the initial page from your browser, the Router could possibly load before the DOM has been loaded
-(depending on when you decide to call `Router.start()`). If so, you'll need to listen for the DOM to be loaded,
-and then trigger the current url as illustrated below.
-The code below should be ran right after your `Router.start()` call.
+When starting the router and loading the initial page from your browser, the Router could possibly load
+before the DOM has been loaded (depending on when you decide to call the `start()` method). If so,
+you'll need to listen for the DOM to be loaded, and then trigger the current url as illustrated below.
+This should be done right right after your call to `start()`.
 
 ```javascript
 window.addEventListener('DOMContentLoaded', function () {
-    Router.triggerRoute(window.location.pathname);
+    router.triggerRoute(window.location.pathname);
 });
 ```
 
@@ -127,33 +140,45 @@ window.addEventListener('DOMContentLoaded', function () {
 If you need to trigger new urls in your javascript programmatically, you can do things like this:
 
 ```javascript
-Router.triggerRoute('home').then(function () {
+router.triggerRoute('home').then(function () {
    // home page element has been injected into DOM and active class has been applied
 });
 ```
 
-### Regex URL Captured Groups
-
-The router accepts regex entries and [captured groups] in your pages configuration. So for instance, if you wanted all
-urls going to [/profile/[SOME_ID]](/profile/[SOME_ID]) to request data from http://someurl.com/[SOME_ID] and
-inject it into your template. You could set up your page configuration like so:
-
-```javascript
-var pages = {
-    '^profile/([0-9])': {
-        template: '/path/to/profile.hbs',
-        data: 'http://someurl.com/$1'
-    }
-};
-
-```
-
-Then any id used when accessing /profile/[SOME_ID], will request the appropriate http://someurl.com/[SOME_ID] uri.
-
-### Important Notes
+## Important Notes
 
 * Any javascript files that you include in your routes configuration must be "require"-able using either 
 Browserify, RequireJS or any other script loader that exposes a global "require" variable.
 * Once a CSS file is loaded, it is loaded infinitely, so it's important to namespace your styles and be specific 
  if you do not want your styles to overlap and apply between pages.
-* When a page is loaded, it is cached and will remain in the DOM until you physically remove the element in your custom destroy logic.
+* When a page is loaded, it is cached and will remain hidden in the DOM until you physically remove the
+element in your custom destroy logic.
+
+
+### ES6 Module Scripts
+
+If the `script` path you specify for any given route is an ES6 module, it must `export` a class as the `default` or router will fail.
+Here is a sample ES6 module.
+
+```
+class Person {
+    get age {
+        return 5;
+    }
+}
+
+export default Person;
+```
+
+## FAQ
+
+#### Why do I get "cannot find module", when attempting a url?
+
+This is most likely because you're using a tool like Browserify or similiar where code is compiled all at once before running in the browser.
+If this is the case, the router most likely is attempting to load your script (JS file), but it can't be found because you
+haven't compiled it. You must make sure that your js file path is already exposed (required) so that when router runs it, it can
+resolve to the correct place. If you are using browserify, you can do this by using the
+[`requires` option](https://github.com/substack/node-browserify#brequirefile-opts) which will ensure
+your scripts are loaded.
+
+
