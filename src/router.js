@@ -415,7 +415,7 @@ class Router {
 
         // detect if data url is using captured regex groups
         // TODO: create a better, safer solution rather than just detecting dollar signs
-        if (pageConfig.data && pageConfig.data.indexOf('$') !== -1) {
+        if (pageConfig.data && typeof pageConfig.data === 'string' && pageConfig.data.indexOf('$') !== -1) {
             pageConfig.data = path.replace(/^\//g, '') //must remove leading slash to compare
                 .replace(new RegExp(pageKey, 'gi'), pageConfig.data);
         }

@@ -1471,4 +1471,26 @@ describe('Router', function () {
         });
     });
 
+    it('should immediately display the page with the data if data passed is an object', function (done) {
+        // setup
+        var pageUrlRegex = '^test$';
+        var pagesConfig = {};
+        var data = {
+            'my-name': "Tester McTesterson"
+        };
+        pagesConfig[pageUrlRegex] = {
+            data: data
+        };
+        var router = new Router({pagesConfig: pagesConfig});
+        var loadScriptStub = sinon.stub(router, 'loadScript');
+        loadScriptStub.returns(Promise.resolve(mockPage));
+        router.start();
+        router.triggerRoute('test').then(function () {
+            assert.deepEqual(mockPage.fetchData.args[0][0], data);
+            router.stop();
+            loadScriptStub.restore();
+            done();
+        });
+    });
+
 });

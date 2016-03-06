@@ -16,11 +16,14 @@ var Module = BaseModule.extend({
 
     /**
      * Makes a request to get the data for the module.
-     * @param {string} url - The url to fetch data from
+     * @param {string|Object} url - The url to fetch data from or data object
      * @param [options] - ajax options
      * @returns {*}
      */
     fetchData: function (url, options) {
+        if (typeof url !== 'string') {
+            return Promise.resolve(url);
+        }
         return ResourceManager.fetchData(url, options);
     },
 
