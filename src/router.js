@@ -1,6 +1,5 @@
 'use strict';
 import Promise from 'promise';
-import path from 'path';
 import Listen from 'listen-js';
 import _ from 'lodash';
 import Module from 'module-js';
