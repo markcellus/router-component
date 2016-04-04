@@ -31,7 +31,7 @@
   "dependencies": {
     "listen-js": "^1.0.1",
     "module-js": "^5.1.0",
-    "promise": "^7.0.0",
+    "promise": "^7.1.1",
     "lodash": "^4.7.0"
   },
   "devDependencies": {
