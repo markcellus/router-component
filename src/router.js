@@ -1,13 +1,9 @@
 'use strict';
-var Promise = require('promise');
-var path = require('path');
-var Listen = require('listen-js');
-var Handlebars = require('handlebars');
-var slugify = require('handlebars-helper-slugify');
-var _ = require('underscore');
-var Page = require('./page');
-var Module = require('./module');
-var ElementKit = require('element-kit');
+import Promise from 'promise';
+import path from 'path';
+import Listen from 'listen-js';
+import _ from 'lodash';
+import Module from 'module-js';
 
 /**
  * The function that is triggered the selected dropdown value changes
@@ -39,26 +35,26 @@ class Router {
             pagesConfig: {},
             modulesConfig: {}
         }, options);
+
+        this._pageMaps = {};
+        this._globalModuleMaps = {};
+        this.history = [];
+
+        // convert page keys into array to preserve order for later use
+        this._pageKeys = _.keys(this.options.pagesConfig);
+
+        Listen.createTarget(this);
+
+        this._globalModuleMaps = this._buildGlobalModuleMaps();
+
     }
 
     /**
      * Spawns off some required-initializations and starts router.
      */
     start () {
-        this._pageMaps = {};
-        this._globalModuleMaps = {};
-        this.history = [];
 
         this._currentPath = this.getWindow().location.hash.replace('#', '');
-
-        // convert page keys into array to preserve order for later use
-        this._pageKeys = _.keys(this.options.pagesConfig);
-
-        // setup helpers
-        Handlebars.registerHelper('slugify', slugify);
-
-        Listen.createTarget(this);
-        this._globalModuleMaps = this._buildGlobalModuleMaps();
         this.bindPopstateEvent();
     }
 
@@ -344,19 +340,19 @@ class Router {
 
     /**
      * Loads the script for a module and falls back to internal Module class if not found.
-     * @param scriptUrl - Url to script
-     * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
-     * @param [fallbackClass] - Class to use as the fallback
+     * @param {string} [scriptUrl] - Url to script
+     * @param {HTMLElement} [el] - The element to use
+     * @param {Object} [options] - Options to pass to scripts instantiation (if not a singleton of course)
      * @returns {*}
      */
-    loadScript (scriptUrl, options, fallbackClass) {
+    loadScript (scriptUrl, el, options) {
         if (!scriptUrl) {
-            return Promise.resolve(new fallbackClass(options));
+            return Promise.resolve(new Module(el, options));
         }
-        return this.requireScript(scriptUrl, options)
+        return this.requireScript(scriptUrl, el, options)
             .then(null, function () {
                 // not found, so fallback to class
-                return Promise.resolve(new fallbackClass(options));
+                return Promise.resolve(new Module(el, options));
             });
     }
 
@@ -366,7 +362,7 @@ class Router {
      * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
      * @returns {*} Returns the script contents if found (usually a singleton or class) or rejects if not found
      */
-    requireScript (scriptUrl, options) {
+    requireScript (scriptUrl, el, options) {
         var contents;
         return new Promise(function (resolve, reject) {
             if (!scriptUrl) {
@@ -388,7 +384,7 @@ class Router {
 
             // if function, assume it has a constructor and instantiate it
             if (typeof contents === 'function') {
-                contents = new contents(options);
+                contents = new contents(el, options);
             }
             resolve(contents);
         }.bind(this));
@@ -423,33 +419,32 @@ class Router {
         if (!this._pageMaps[pageKey]) {
             this._pageMaps[pageKey] = pageMap;
             pageMap.config = pageConfig;
-            pageMap.promise = this.loadGlobalModules(path).then(function () {
-                return this.loadScript(pageConfig.script, {pagesContainer: this.options.pagesContainer}, Page)
-                    .then(function (page) {
+            pageMap.promise = this.loadGlobalModules(path).then(() => {
+                pageMap.el = document.createElement('div');
+                pageConfig = _.extend(pageConfig, {
+                    activeClass: 'page-active',
+                    loadedClass: 'page-loaded',
+                    disabledClass: 'page-disabled',
+                    errorClass: 'page-error'
+                });
+                return this.loadScript(pageConfig.script, pageMap.el, pageConfig).then((page) => {
                         pageMap.page = page;
-                        return page.getStyles(pageConfig.styles).then(function () {
-                            return page.getTemplate(pageConfig.template).then(function (html) {
-                                return page.fetchData(pageConfig.data, {cache: true}).then(function (data) {
-                                    html = html || '';
-                                    if (data) {
-                                        html = Handlebars.compile(html)(data);
-                                    }
-                                    pageMap.data = data;
-                                    pageMap.el = ElementKit.utils.createHtmlElement('<div>' + html + '</div>');
-                                    this.options.pagesContainer.appendChild(pageMap.el);
-                                    return this.loadPageModules(path).then(function () {
-                                        return page.load({data: data, el: pageMap.el});
-                                    });
-                                }.bind(this));
-                            }.bind(this));
-                        }.bind(this));
-                    }.bind(this));
-            }.bind(this), function () {
+                        pageMap.el.classList.add('page'); // add default page class
+                        // we need default page data available for the page's modules if they do not have already any
+                        return page.fetchData().then((data) => {
+                            pageMap.data = data;
+                            return this.loadPageModules(path).then(() => {
+                                this.options.pagesContainer.appendChild(pageMap.el);
+                                return page.load();
+                            });
+                        });
+                    });
+            }, () => {
                 // if page loading happens to cause an error, remove
                 // item from page cache to force a hard
                 // reload next time a request is made to this page
                 delete this._pageMaps[pageKey];
-            }.bind(this));
+            });
         }
         return this._pageMaps[pageKey].promise;
 
@@ -594,6 +589,9 @@ class Router {
             if (!this._globalModuleMaps[moduleKey]) {
                 pageModuleKeys.push(moduleKey); //we must keep track of the order of the modules
                 loadPromise = this.loadPageModule(moduleKey, pageMap.data).then(function (moduleMap) {
+                    if (!moduleMap.module.loaded) {
+                        pageMap.el.appendChild(moduleMap.el);
+                    }
                     pageMap.modules[moduleKey] = moduleMap;
                 });
             }
@@ -657,31 +655,22 @@ class Router {
 
         moduleMap = {};
 
-        moduleMap.promise = this.loadScript(config.script, config.options, Module).then(function (module) {
-            moduleMap.module = module;
-            return module.getStyles(config.styles)
-                .then(function () {
-                    return module.getTemplate(config.template).then(function (html) {
-                        return module.fetchData(config.data, {cache: true}).then(function (data) {
-                            // use page data as fallback
-                            data = _.extend({}, fallbackData, data);
-                            html = html ? Handlebars.compile(html)(data): '';
-                            var div = document.createElement('div');
-                            div.innerHTML = html;
-                            // create html into DOM element and pass it off to load call for
-                            // custom mangling before it gets appended to DOM
-                            moduleMap.el = div.children[0];
-                            moduleMap.html = html;
-                            return module.load({el: moduleMap.el, data: data}).then(function () {
-                                return moduleMap;
-                            });
-                        }.bind(this));
-                    }.bind(this));
-                }.bind(this), function (e) {
+        moduleMap.el = document.createElement('div');
+        config.data = config.data || fallbackData;
+
+        if (!moduleMap.promise) {
+            moduleMap.promise = this.loadScript(config.script, moduleMap.el, config).then((module) => {
+                moduleMap.module = module;
+                // create html into DOM element and pass it off to load call for
+                // custom mangling before it gets appended to DOM
+                return module.load().then(() => {
+                    return moduleMap;
+                }, (e) => {
                     moduleMap.module.error(e);
                     return moduleMap;
                 });
-        }.bind(this));
+            });
+        }
         return moduleMap.promise;
     }
 
@@ -694,26 +683,18 @@ class Router {
         var map = this._globalModuleMaps[moduleKey] || {},
             config = this.getModuleConfig(moduleKey);
         if (!map.promise) {
-            map.promise = this.loadScript(config.script, {}, Module).then(function (module) {
-                return module.getStyles(config.styles).then(function () {
-                    return module.getTemplate(config.template).then(function (html) {
-                        return module.fetchData(config.data, {cache: true}).then(function (data) {
-                            html = html ? Handlebars.compile(html)(data || {}): '';
-                            // inject modules into page DOM
-                            var div = document.createElement('div');
-                            div.innerHTML = html;
-                            map.el = div.children[0];
-                            // create html into DOM element and pass it off to load call for
-                            // custom mangling before it gets appended to DOM
-                            map.module = module;
-                            return module.load({data: data, el: map.el}).catch(function (e) {
-                                // error loading global module!
-                                map.module.error(e);
-                                throw e;
-                            });
-                        }.bind(this));
-                    }.bind(this));
-                }.bind(this));
+            // inject modules into page DOM
+            var div = document.createElement('div');
+            map.el = div.children[0];
+            // create html into DOM element and pass it off to load call for
+            // custom mangling before it gets appended to DOM
+            map.promise = this.loadScript(config.script, map.el, config).then(function (module) {
+                map.module = module;
+                return module.load().catch(function (e) {
+                    // error loading global module!
+                    map.module.error(e);
+                    throw e;
+                });
             }.bind(this));
         }
         return map.promise;
@@ -735,4 +716,4 @@ class Router {
     }
 }
 
-module.exports = Router;
+export default Router;
