@@ -182,12 +182,14 @@ resolve to the correct place. If you are using browserify, you can do this by us
 your scripts are loaded.
 
 
-## Build
+## Development
 
-You can run a browserified build which will compile the router logic all into one file in the dist/ folder by running the following:
+
+To run tests:
 
 ```
-grunt bt:build
+npm install
+npm test
 ```
 
 
