@@ -35,7 +35,7 @@
     "lodash": "^4.7.0"
   },
   "devDependencies": {
-    "build-tools": "^2.7.3",
+    "build-tools": "^3.0.1",
     "sinon": "^1.16.1"
   },
   "scripts": {
