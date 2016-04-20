@@ -2,7 +2,8 @@
 import Promise from 'promise';
 import Listen from 'listen-js';
 import _ from 'lodash';
-import Module from 'module-js';
+import Module from './module';
+import Page from './page';
 
 /**
  * The function that is triggered the selected dropdown value changes
@@ -37,7 +38,6 @@ class Router {
 
         this._pageMaps = {};
         this._globalModuleMaps = {};
-        this.history = [];
 
         // convert page keys into array to preserve order for later use
         this._pageKeys = _.keys(this.options.pagesConfig);
@@ -101,7 +101,6 @@ class Router {
      * Resets Route Manager.
      */
     reset () {
-        this.history = [];
 
         // destroy all pages
         _.each(this._pageMaps, function (pageMap) {
@@ -208,6 +207,7 @@ class Router {
      * When a route is requested.
      * @param {string} path - The path that is
      * @param {Object} [options] - request options
+     * @param {Object} [options.triggerUrlChange] - Whether to trigger a url change
      * @private
      * @return {Promise}
      */
@@ -215,7 +215,7 @@ class Router {
         var prevPath = this._currentPath;
         if (path !== prevPath) {
             return this._handleRequestedUrl(path, options).then(function (path) {
-                this._currentPreviousPageHidePromise = this.hidePage(prevPath);
+                this._currentPreviousPageHidePromise = this.hidePage(prevPath, path);
                 return this._currentPreviousPageHidePromise.then(function () {
                     return this.loadPage(path)
                         .then(function () {
@@ -253,8 +253,6 @@ class Router {
         if (options.triggerUrlChange) {
             // register new url in history
             windowHistory.pushState({path: path}, document.title, path);
-            // push to internal history for tracking
-            this.history.push(windowHistory.state);
             this._currentPath = path;
             this.dispatchEvent('url:change', {url: path});
         }
@@ -274,6 +272,7 @@ class Router {
      * This method is called every time a route request is made.
      * @param {string} path - The url path that was requested
      * @param {Object} [options] - The request options
+     * @param {Object} [options.triggerUrlChange] - Whether to trigger a url change
      * @returns {Promise} Returns a promise that resolves with a path to go to when done
      * @private
      */
@@ -322,19 +321,33 @@ class Router {
      * @private
      */
     _getRouteMapKeyByPath (path) {
-        var matchingKeys,
-            regex;
 
-        if (!path && typeof path !== 'string') {
+        if (!path || typeof path !== 'string') {
             return null;
         }
+
         path = path.replace(/^\//g, ''); // remove leading slash!
 
-        matchingKeys = this._pageKeys.filter(function (key) {
-            regex = new RegExp(key, 'gi');
+        let matchingKey = _.find(this._pageKeys, (key) => {
+            let regex = new RegExp(key, 'gi');
             return key === path || path.match(regex);
         });
-        return matchingKeys[0];
+
+        let regex = new RegExp(matchingKey, 'gi');
+        let sanitized = path.match(regex);
+        // do not change key if the first value is empty string which could be in cases where
+        // regex expression matching is something similar to "^$" or ".*"
+        if (sanitized && sanitized[0]) {
+            let config = _.extend({}, this.options.pagesConfig[matchingKey]);
+            // update config with new entry
+            if (config.data) {
+                config.data = path.replace(new RegExp(matchingKey, 'gi'), config.data);
+            }
+            matchingKey = sanitized[0];
+            this._pageKeys.push(matchingKey);
+            this.options.pagesConfig[matchingKey] = config;
+        }
+        return matchingKey;
     }
 
     /**
@@ -342,16 +355,18 @@ class Router {
      * @param {string} [scriptUrl] - Url to script
      * @param {HTMLElement} [el] - The element to use
      * @param {Object} [options] - Options to pass to scripts instantiation (if not a singleton of course)
+     * @param {Object} [fallbackClass] - Class to fallback to
      * @returns {*}
      */
-    loadScript (scriptUrl, el, options) {
+    loadScript (scriptUrl, el, options, fallbackClass) {
+        fallbackClass = fallbackClass || Module;
         if (!scriptUrl) {
-            return Promise.resolve(new Module(el, options));
+            return Promise.resolve(new fallbackClass(el, options));
         }
         return this.requireScript(scriptUrl, el, options)
             .then(null, function () {
                 // not found, so fallback to class
-                return Promise.resolve(new Module(el, options));
+                return Promise.resolve(new fallbackClass(el, options));
             });
     }
 
@@ -407,14 +422,7 @@ class Router {
             console.error(e);
             return Promise.reject(e);
         }
-
-        // detect if data url is using captured regex groups
-        // TODO: create a better, safer solution rather than just detecting dollar signs
-        if (pageConfig.data && typeof pageConfig.data === 'string' && pageConfig.data.indexOf('$') !== -1) {
-            pageConfig.data = path.replace(/^\//g, '') //must remove leading slash to compare
-                .replace(new RegExp(pageKey, 'gi'), pageConfig.data);
-        }
-
+        
         if (!this._pageMaps[pageKey]) {
             this._pageMaps[pageKey] = pageMap;
             pageMap.config = pageConfig;
@@ -426,22 +434,24 @@ class Router {
                     disabledClass: 'page-disabled',
                     errorClass: 'page-error'
                 });
-                return this.loadScript(pageConfig.script, pageMap.el, pageConfig).then((page) => {
-                        pageMap.page = page;
-                        pageMap.el.classList.add('page'); // add default page class
-                        // we need default page data available for the page's modules if they do not have already any
-                        return page.fetchData().then((data) => {
-                            pageMap.data = data;
-                            return this.loadPageModules(path).then(() => {
-                                this.options.pagesContainer.appendChild(pageMap.el);
-                                return page.load();
-                            });
+                return this.loadScript(pageConfig.script, pageMap.el, pageConfig, Page).then((page) => {
+                    pageMap.page = page;
+                    pageMap.el.classList.add('page'); // add default page class
+                    // we need default page data available for the page's modules if they do not have already any
+                    return this.loadPageModules(path).then(() => {
+                        this.options.pagesContainer.appendChild(pageMap.el);
+                        return page.load().then(function () {
+                            return pageMap;
                         });
                     });
+                });
             }, () => {
                 // if page loading happens to cause an error, remove
                 // item from page cache to force a hard
                 // reload next time a request is made to this page
+                if (this._pageMaps[pageKey].page) {
+                    this._pageMaps[pageKey].page.destroy();
+                }
                 delete this._pageMaps[pageKey];
             });
         }
@@ -506,8 +516,9 @@ class Router {
      * Hides all global modules assigned to designated path.
      * @returns {*}
      */
-    hideGlobalModules (path) {
+    hideGlobalModules (path, newPath) {
         var pageConfig = this.getPageConfigByPath(path),
+            newPageConfig = this.getPageConfigByPath(newPath),
             promises = [];
 
         pageConfig.modules = pageConfig.modules || [];
@@ -516,7 +527,10 @@ class Router {
             if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                 // page has this global module specified!
                 promises.push(map.promise.then(function () {
-                    return map.module.hide();
+                    // only hide the module if the toPath does not contain it
+                    if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
+                        return map.module.hide();
+                    }
                 }));
             }
         }.bind(this));
@@ -526,17 +540,20 @@ class Router {
 
     /**
      * Hides a page along with its designated modules.
-     * @param {string} path - The path of the page
+     * @param {string} path - The path of the page to hide
+     * @param {string} newPath - The path of the page going to
      * @returns {Promise} Returns promise when page is done hiding.
      */
-    hidePage (path) {
-        var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
+    hidePage (path, newPath) {
+        let pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
+
+
         if (pageMap && pageMap.promise) {
             return pageMap.promise
                 .then(function () {
                     return pageMap.page.hide().then(function () {
                         return this.hidePageModules(path).then(function () {
-                            return this.hideGlobalModules(path);
+                            return this.hideGlobalModules(path, newPath);
                         }.bind(this));
                     }.bind(this));
                 }.bind(this))
@@ -587,7 +604,7 @@ class Router {
             // only handle modules which are not global
             if (!this._globalModuleMaps[moduleKey]) {
                 pageModuleKeys.push(moduleKey); //we must keep track of the order of the modules
-                loadPromise = this.loadPageModule(moduleKey, pageMap.data).then(function (moduleMap) {
+                loadPromise = this.loadPageModule(moduleKey).then(function (moduleMap) {
                     if (!moduleMap.module.loaded) {
                         pageMap.el.appendChild(moduleMap.el);
                     }
@@ -646,16 +663,14 @@ class Router {
     /**
      * Loads a single module for a page.
      * @param {string} moduleKey - The key of which module to load
-     * @param {Object} [fallbackData] - Any fallback data to be used inside the module's template
      */
-    loadPageModule (moduleKey, fallbackData) {
+    loadPageModule (moduleKey) {
         var config = this.getModuleConfig(moduleKey),
             moduleMap = {};
 
         moduleMap = {};
 
         moduleMap.el = document.createElement('div');
-        config.data = config.data || fallbackData;
 
         if (!moduleMap.promise) {
             moduleMap.promise = this.loadScript(config.script, moduleMap.el, config).then((module) => {
@@ -714,5 +729,7 @@ class Router {
         return configs;
     }
 }
+
+export {Page, Module}
 
 export default Router;
