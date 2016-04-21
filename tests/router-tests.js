@@ -512,65 +512,6 @@ describe('Router', function () {
         });
     });
 
-    // TODO: find another way to test the following
-    //it('should attach multiple modules in the same order in which they are specified in routes config', function () {
-    //    // setup
-    //    var pageUrl = 'my/page/url';
-    //    var pagesConfig = {};
-    //    var modulesConfig = {};
-    //    var firstModuleName = 'myFIRSTCustomModule';
-    //    var firstModuleScriptUrl = 'path/to/module/script';
-    //    var firstModuleHtml = "<div>my module content</div>";
-    //    var firstModuleTemplateUrl = 'url/to/my/template';
-    //    var secondModuleName = 'myCustomModule2';
-    //    var secondModuleScriptUrl = 'path/to/module/script';
-    //    var secondModuleHtml = "<div>my second module content</div>";
-    //    var secondModuleTemplateUrl = 'secon/url/to/my/template';
-    //    modulesConfig[firstModuleName] = {
-    //        template: firstModuleTemplateUrl,
-    //        script: firstModuleScriptUrl
-    //    };
-    //    modulesConfig[secondModuleName] = {
-    //        template: secondModuleTemplateUrl,
-    //        script: secondModuleScriptUrl
-    //    };
-    //    var pageScriptUrl = 'path/to/page/script';
-    //    var pageTemplateUrl = 'url/to/my/template';
-    //    pagesConfig[pageUrl] = {
-    //        template: pageTemplateUrl,
-    //        modules: [
-    //            secondModuleName,
-    //            firstModuleName
-    //        ],
-    //        script: pageScriptUrl
-    //    };
-    //    mockPage.getTemplate.returns(Promise.resolve());
-    //    var pagesContainer = document.createElement('div');
-    //    var router = new Router({
-    //        pagesConfig: pagesConfig,
-    //        modulesConfig: modulesConfig,
-    //        pagesContainer: pagesContainer
-    //    });
-    //    router.start();
-    //    requireStub.withArgs(pageScriptUrl).returns(mockPage);
-    //    // set custom module html
-    //    var firstModuleEl = document.createElement('div');
-    //    firstModuleEl.innerHTML = firstModuleHtml;
-    //    var secondModuleEl = document.createElement('div');
-    //    secondModuleEl.innerHTML = secondModuleHtml;
-    //    var mockFirstModule = new Module(firstModuleEl);
-    //    var mockSecondModule = new Module(secondModuleEl);
-    //    requireStub.withArgs(firstModuleScriptUrl).returns(mockFirstModule);
-    //    requireStub.withArgs(secondModuleScriptUrl).returns(mockSecondModule);
-    //    requireStub.returns(mockModule);
-    //    // assume pages el is already created on instantiation
-    //    mockPage.el = document.createElement('div');
-    //    return router.triggerRoute(pageUrl).then(function () {
-    //        assert.equal(pagesContainer.children[0].innerHTML, secondModuleHtml + firstModuleHtml,  'second module html was appended first because it was specified first in routes config');
-    //        router.stop();
-    //    });
-    //});
-
     it('should only load global modules once, even when module is assigned to multiple pages in routes config', function () {
         // setup
         var pageUrl = 'my/page/url';
@@ -1397,72 +1338,6 @@ describe('Router', function () {
             loadPageSpy.restore();
         });
     });
-
-    // it('should call Page load again when triggering a route if previous call produced an error', function (done) {
-    //     // setup
-    //     var pageUrl = 'my/page/url';
-    //     var pagesConfig = {};
-    //     var moduleName = 'customModule';
-    //     var pageScriptUrl = 'path/to/page/script';
-    //     var pageTemplateUrl = 'url/to/my/template';
-    //     pagesConfig[pageUrl] = {
-    //         template: pageTemplateUrl,
-    //         modules: [moduleName],
-    //         script: pageScriptUrl
-    //     };
-    //     var router = new Router({
-    //         pagesConfig: pagesConfig
-    //     });
-    //     router.start();
-    //     requireStub.withArgs(pageScriptUrl).returns(mockPage);
-    //     var errorObj = {my: 'error'};
-    //     mockPage.load.returns(Promise.reject(errorObj));
-    //     var pageLoadCallCount = 0;
-    //     router.triggerRoute(pageUrl).catch(function () {
-    //         // could not load the page
-    //         pageLoadCallCount++;
-    //         mockPage.load.returns(Promise.resolve());
-    //         router.triggerRoute(pageUrl).then(function () {
-    //             pageLoadCallCount++;
-    //             // TODO: this assertion doesnt work because we are already currently on the page
-    //             // and triggerRoute already knows to just immediately return a promise and page.load is never called
-    //             assert.equal(mockPage.load.callCount, pageLoadCallCount);
-    //             router.stop();
-    //             done();
-    //         });
-    //     });
-    // });
-
-    // TODO: fix test below (or evaluate if we even need it anymore)
-    //it('should call Module prototype\'s load() after initial transition has completed on page element', function (done) {
-    //    var pageUrl = 'my/real/url';
-    //    var pageRouteRegex = '^' + pageUrl;
-    //    var pageScriptUrl = 'path/to/my/script.js';
-    //    var pagesConfig = {};
-    //    pagesConfig[pageRouteRegex] = {script: pageScriptUrl};
-    //    var router = new Router({pagesConfig: pagesConfig});
-    //    router.start();
-    //    var loadPageSpy = sinon.spy(router, 'loadPage');
-    //    var mockPage = createPageStub();
-    //    requireStub.withArgs(pageScriptUrl).returns(mockPage);
-    //    mockPage.load.returns(Promise.resolve());
-    //    var p = {};
-    //    var moduleWaitForTransitionStub = sinon.stub(mockPage, 'waitForTransition').returns(new Promise((resolve, reject) => {
-    //        p.resolve = resolve;
-    //        p.reject = reject;
-    //    }));
-    //    router.triggerRoute(pageUrl);
-    //    assert.equal(mockPage.load.callCount, 0, 'modules prototype load method was not yet called because page hasnt been transitioned yet');
-    //    p.resolve();
-    //    // defer tests until after promise resolves and call stack has been completed
-    //    _.defer(() => {
-    //        assert.equal(mockPage.load.callCount, 1, 'after page element transitions, modules prototype load method was called with options passed into load call');
-    //        moduleWaitForTransitionStub.restore();
-    //        router.stop();
-    //        loadPageSpy.restore();
-    //        done();
-    //    });
-    //});
 
     //TODO:  do some tests for pagesContainer option!
 
