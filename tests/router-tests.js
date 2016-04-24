@@ -15,7 +15,7 @@ describe('Router', function () {
         origPushState,
         requireStub;
 
-    var createPageStub = function () {
+    var c = function () {
         var page = sinon.createStubInstance(Module);
         page.getTemplate.returns(Promise.resolve('<div class="page"></div>'));
         page.load.returns(Promise.resolve());
@@ -48,7 +48,7 @@ describe('Router', function () {
         sinon.spy(Listen, 'destroyTarget');
 
         // set up mock page and set defaults
-        mockPage = createPageStub();
+        mockPage = c();
         mockModule = createModuleStub();
 
         requireStub = sinon.stub(window, 'require');
@@ -499,7 +499,7 @@ describe('Router', function () {
         };
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
-        var secondMockPage = createPageStub();
+        var secondMockPage = c();
         requireStub.withArgs(firstPageScriptUrl).returns(mockPage);
         requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
         return router.triggerRoute(firstPageUrl).then(function () {
@@ -700,8 +700,8 @@ describe('Router', function () {
         };
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
-        var firstMockPage = createPageStub();
-        var secondMockPage = createPageStub();
+        var firstMockPage = c();
+        var secondMockPage = c();
         requireStub.withArgs(pageScriptUrl).returns(firstMockPage);
         requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
         var firstPageShowCount = 0;
@@ -730,8 +730,8 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
         var loadPageSpy = sinon.spy(router, 'loadPage');
-        var firstMockPage = createPageStub();
-        var secondMockPage = createPageStub();
+        var firstMockPage = c();
+        var secondMockPage = c();
         requireStub.withArgs(firstPageScriptUrl).returns(firstMockPage);
         requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
         // fail load on second page
@@ -759,7 +759,7 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
         var loadPageSpy = sinon.spy(router, 'loadPage');
-        var mockPage = createPageStub();
+        var mockPage = c();
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         // fail load call
         mockPage.load.returns(Promise.reject());
@@ -1222,9 +1222,9 @@ describe('Router', function () {
             modulesConfig: modulesConfig
         });
         router.start();
-        var firstMockPage = createPageStub();
+        var firstMockPage = c();
         requireStub.withArgs(pageScriptUrl).returns(firstMockPage);
-        var secondMockPage = createPageStub();
+        var secondMockPage = c();
         requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
         return router.triggerRoute(pageUrl).then(function () {
             assert.deepEqual(firstMockPage.load.callCount, 1, 'first matching page was loaded');
@@ -1281,10 +1281,10 @@ describe('Router', function () {
         // need to declare script to ensure requireStub runs
         pagesConfig[pageUrlRegex] = {data: dataUrl, script: 'my/page/js'};
         var router = new Router({pagesConfig: pagesConfig});
-        var firstMockPage = createPageStub();
+        var firstMockPage = c();
         var firstMockPageConstructor = sinon.stub().returns(firstMockPage);
         requireStub.onFirstCall().returns(firstMockPageConstructor);
-        var secondMockPage = createPageStub();
+        var secondMockPage = c();
         var secondMockPageConstructor = sinon.stub().returns(secondMockPage);
         requireStub.onSecondCall().returns(secondMockPageConstructor);
         router.start();
@@ -1307,7 +1307,7 @@ describe('Router', function () {
         var pagesContainer = document.createElement('div');
         var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
         router.start();
-        var mockPage = createPageStub();
+        var mockPage = c();
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         return router.triggerRoute(pageUrl).then(function () {
             assert.ok(pagesContainer.children[0].classList.contains('page'));
@@ -1324,7 +1324,7 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
         var loadPageSpy = sinon.spy(router, 'loadPage');
-        var mockPage = createPageStub();
+        var mockPage = c();
         var pageConstructorStub = sinon.stub().returns(mockPage);
         requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
         assert.equal(pageConstructorStub.callCount, 0);
@@ -1336,6 +1336,108 @@ describe('Router', function () {
             assert.equal(initializeOptions.errorClass, 'page-error');
             router.stop();
             loadPageSpy.restore();
+        });
+    });
+
+    it('should pass requestOptions config option in Router\'s constructor to Page constructor when page is loaded', function () {
+        var pageUrl = 'my/real/url';
+        var pageRouteRegex = '^' + pageUrl;
+        var pageScriptUrl = 'path/to/my/script.js';
+        var pagesConfig = {};
+        pagesConfig[pageRouteRegex] = {script: pageScriptUrl};
+        var testRequestOptions = {my: 'options'};
+        var router = new Router({pagesConfig: pagesConfig, requestOptions: testRequestOptions});
+        router.start();
+        var mockPage = c();
+        var pageConstructorStub = sinon.stub().returns(mockPage);
+        requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
+        assert.equal(pageConstructorStub.callCount, 0);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.deepEqual(pageConstructorStub.args[0][1].requestOptions, testRequestOptions);
+            router.stop();
+        });
+    });
+
+    it('should pass requestOptions option in module config to Module constructor when a module is loaded', function () {
+        var moduleScriptUrl = 'my/custom/module';
+        var pageScriptUrl = 'path/to/my/script.js';
+        var testRequestOptions = {my: 'options'};
+        var modulesConfig = {
+            myModule: {
+                script: moduleScriptUrl,
+                requestOptions: testRequestOptions
+            }
+        };
+        var pagesConfig = {
+            '^my/real/url': {
+                script: pageScriptUrl,
+                modules: ['myModule']
+            }
+        };
+        var router = new Router({pagesConfig: pagesConfig, modulesConfig: modulesConfig});
+        router.start();
+        var mockModule = createModuleStub();
+        var mockConstructorStub = sinon.stub().returns(mockModule);
+        requireStub.withArgs(moduleScriptUrl).returns(mockConstructorStub);
+        assert.equal(mockConstructorStub.callCount, 0);
+        return router.triggerRoute('my/real/url').then(function () {
+            assert.deepEqual(mockConstructorStub.args[0][1].requestOptions, testRequestOptions);
+            router.stop();
+        });
+    });
+
+    it('should pass requestOptions option in page config to Page constructor when page is loaded', function () {
+        var pageScriptUrl = 'path/to/my/script.js';
+        var testRequestOptions = {my: 'options'};
+        var pagesConfig = {
+            '^my/real/url': {
+                script: pageScriptUrl,
+                requestOptions: testRequestOptions
+            }
+        };
+        var router = new Router({pagesConfig: pagesConfig});
+        router.start();
+        var mockPage = c();
+        var pageConstructorStub = sinon.stub().returns(mockPage);
+        requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
+        assert.equal(pageConstructorStub.callCount, 0);
+        return router.triggerRoute('my/real/url').then(function () {
+            assert.deepEqual(pageConstructorStub.args[0][1].requestOptions, testRequestOptions);
+            router.stop();
+        });
+    });
+
+    it('should merge requestOptions option in module config to Module constructor with requestOption in Page level config when a module is loaded', function () {
+        var moduleScriptUrl = 'my/custom/module';
+        var pageScriptUrl = 'path/to/my/script.js';
+        var testRequestOptions = {myModule: 'options'};
+        var modulesConfig = {
+            myModule: {
+                script: moduleScriptUrl,
+                requestOptions: testRequestOptions
+            }
+        };
+        var pagesConfig = {
+            '^my/real/url': {
+                script: pageScriptUrl,
+                modules: ['myModule']
+            }
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig,
+            requestOptions: {r: 'requestOpts'}
+
+        });
+        router.start();
+        var mockModule = createModuleStub();
+        var mockConstructorStub = sinon.stub().returns(mockModule);
+        requireStub.withArgs(moduleScriptUrl).returns(mockConstructorStub);
+        assert.equal(mockConstructorStub.callCount, 0);
+        return router.triggerRoute('my/real/url').then(function () {
+            assert.equal(mockConstructorStub.args[0][1].requestOptions.r, 'requestOpts');
+            assert.equal(mockConstructorStub.args[0][1].requestOptions.myModule, 'options');
+            router.stop();
         });
     });
 

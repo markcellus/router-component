@@ -27,13 +27,15 @@ class Router {
      * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
      * @param {Object} [options.moduleConfig] - An object mapping of all available modules
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
+     * @param {Object} [options.requestOptions] - A set of request options that are globally applied when fetching data for all pages and modules
      */
     constructor (options) {
         this.options = _.extend({
             onRouteRequest: null,
             pagesContainer: document.body,
             pagesConfig: {},
-            modulesConfig: {}
+            modulesConfig: {},
+            requestOptions: null
         }, options);
 
         this._pageMaps = {};
@@ -360,6 +362,8 @@ class Router {
      */
     loadScript (scriptUrl, el, options, fallbackClass) {
         fallbackClass = fallbackClass || Module;
+        options = options || {};
+        options.requestOptions = _.extend({}, this.options.requestOptions, options.requestOptions);
         if (!scriptUrl) {
             return Promise.resolve(new fallbackClass(el, options));
         }
