@@ -1,15 +1,30 @@
 'use strict';
 import Promise from 'promise';
-import Listen from 'listen-js';
 import _ from 'lodash';
-import Module from './module';
-import Page from './page';
+import Module from 'module-js';
 
 /**
- * The function that is triggered the selected dropdown value changes
+ * The function that is triggered before a new route is requested
  * @callback Router~onRouteRequest
- * @param {string} input - The url that was a requested
- * @returns {Promise} Returns a promise that resolves with a path string of the route to go to when done
+ * @param {string} route - The route that was a requested
+ */
+
+/**
+ * The function that is triggered when there is either a module or page error
+ * @callback Router~onError
+ * @param {Error} e - The error event
+ */
+
+/**
+ * The function that is triggered whenever a new route is requested
+ * @callback Router~onRouteChange
+ * @param {string} route - The route that was requested that triggered the change
+ */
+
+/**
+ * The function that is triggered whenever a page successfully loads
+ * @callback Router~onPageLoad
+ * @param {string} route - The route that was a requested
  */
 
 /**
@@ -26,8 +41,11 @@ class Router {
      * @param {Object} [options.pagesConfig] - An object mapping of all pages along with their associated urls
      * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
      * @param {Object} [options.moduleConfig] - An object mapping of all available modules
-     * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
      * @param {Object} [options.requestOptions] - A set of request options that are globally applied when fetching data for all pages and modules
+     * @param {Router~onRouteRequest} [options.onRouteRequest] - Called whenever a route is requested but before it is handled (can be used to intercept requests)
+     * @param {Router~onError} [options.onError] - Called whenever an error is detected with a route request, or module error, or page error
+     * @param {Router~onRouteChange} [options.onRouteChange] - Called whenever there is a new route requested
+     * @param {Router~onPageLoad} [options.onPageLoad] - Called whenever a new page loads successfully
      */
     constructor (options) {
         this.options = _.extend({
@@ -35,7 +53,10 @@ class Router {
             pagesContainer: document.body,
             pagesConfig: {},
             modulesConfig: {},
-            requestOptions: null
+            requestOptions: null,
+            onError: null,
+            onRouteChange: null,
+            onPageLoad: null
         }, options);
 
         this._pageMaps = {};
@@ -44,9 +65,9 @@ class Router {
         // convert page keys into array to preserve order for later use
         this._pageKeys = _.keys(this.options.pagesConfig);
 
-        Listen.createTarget(this);
-
         this._globalModuleMaps = this._buildGlobalModuleMaps();
+        this._links = [];
+        this._linkClickEventListener = this.onClickLink.bind(this);
 
     }
 
@@ -67,7 +88,7 @@ class Router {
         this._currentPath = null;
         this.reset();
         this.unbindPopstateEvent();
-        Listen.destroyTarget(this);
+        this._unbindAllLinks();
     }
 
     /**
@@ -221,14 +242,15 @@ class Router {
                 return this._currentPreviousPageHidePromise.then(function () {
                     return this.loadPage(path)
                         .then(function () {
-                            this.dispatchEvent('page:load');
+                            if (this.options.onPageLoad) {
+                                this.options.onPageLoad.call(this, path);
+                            }
                             return this.showPage(path);
                         }.bind(this), function (e) {
                             console.log('Router Error: Page at ' + path + ' could not be loaded');
-                            if (e.detail) {
-                                console.log(e.detail.stack);
+                            if (this.options.onError) {
+                                this.options.onError.call(this, e);
                             }
-                            this.dispatchEvent('page:error', e);
                             throw e;
                         }.bind(this));
                 }.bind(this));
@@ -256,7 +278,9 @@ class Router {
             // register new url in history
             windowHistory.pushState({path: path}, document.title, path);
             this._currentPath = path;
-            this.dispatchEvent('url:change', {url: path});
+            if (this.options.onRouteChange) {
+                this.options.onRouteChange.call(this, path);
+            }
         }
 
     }
@@ -357,20 +381,23 @@ class Router {
      * @param {string} [scriptUrl] - Url to script
      * @param {HTMLElement} [el] - The element to use
      * @param {Object} [options] - Options to pass to scripts instantiation (if not a singleton of course)
-     * @param {Object} [fallbackClass] - Class to fallback to
      * @returns {*}
      */
-    loadScript (scriptUrl, el, options, fallbackClass) {
-        fallbackClass = fallbackClass || Module;
+    loadScript (scriptUrl, el, options) {
         options = options || {};
         options.requestOptions = _.extend({}, this.options.requestOptions, options.requestOptions);
+        if (this.options.onError && !options.onError) {
+            options.onError = (e) => {
+                this.options.onError.call(this, e)
+            }
+        }
         if (!scriptUrl) {
-            return Promise.resolve(new fallbackClass(el, options));
+            return Promise.resolve(new Module(el, options));
         }
         return this.requireScript(scriptUrl, el, options)
             .then(null, function () {
                 // not found, so fallback to class
-                return Promise.resolve(new fallbackClass(el, options));
+                return Promise.resolve(new Module(el, options));
             });
     }
 
@@ -438,7 +465,7 @@ class Router {
                     disabledClass: 'page-disabled',
                     errorClass: 'page-error'
                 });
-                return this.loadScript(pageConfig.script, pageMap.el, pageConfig, Page).then((page) => {
+                return this.loadScript(pageConfig.script, pageMap.el, pageConfig).then((page) => {
                     pageMap.page = page;
                     pageMap.el.classList.add('page'); // add default page class
                     // we need default page data available for the page's modules if they do not have already any
@@ -509,10 +536,12 @@ class Router {
      */
     showPage (path) {
         var pageKey = this._getRouteMapKeyByPath(path),
-            pageMap = this._pageMaps[pageKey] || {};
+            pageMap = this._pageMaps[pageKey] || {},
+            page = pageMap.page;
         this.showPageModules(path);
-        if (pageMap.page) {
-            return pageMap.page.show();
+        if (page) {
+            this._bindLinks(page.el);
+            return page.show();
         }
     }
 
@@ -533,7 +562,9 @@ class Router {
                 promises.push(map.promise.then(function () {
                     // only hide the module if the toPath does not contain it
                     if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
-                        return map.module.hide();
+                        return map.module.hide().then(() => {
+                            this._unbindLinks(map.module.el);
+                        });
                     }
                 }));
             }
@@ -557,7 +588,9 @@ class Router {
                 .then(function () {
                     return pageMap.page.hide().then(function () {
                         return this.hidePageModules(path).then(function () {
-                            return this.hideGlobalModules(path, newPath);
+                            return this.hideGlobalModules(path, newPath).then(() => {
+                                this._unbindLinks(pageMap.page.el);
+                            });
                         }.bind(this));
                     }.bind(this));
                 }.bind(this))
@@ -708,7 +741,13 @@ class Router {
             // custom mangling before it gets appended to DOM
             map.promise = this.loadScript(config.script, map.el, config).then(function (module) {
                 map.module = module;
-                return module.load().catch(function (e) {
+                return module.load()
+                    .then(() => {
+                        if (module.el) {
+                            this._bindLinks(module.el);
+                        }
+                    })
+                    .catch((e) => {
                     // error loading global module!
                     map.module.error(e);
                     throw e;
@@ -732,8 +771,71 @@ class Router {
         });
         return configs;
     }
-}
 
-export {Page, Module}
+    /**
+     * Checks if a url is an internal link.
+     * @param {string} url - The url to check
+     * @returns {boolean} Returns true if link is an external link
+     */
+    isLinkExternal (url) {
+        var is = url.match(/^(http\:|https\:|www\.)/) && url.indexOf(window.location.hostname) === -1;
+        return is ? true : false;
+    }
+
+    /**
+     * When a link on a page is clicked.
+     * @param e
+     */
+    onClickLink (e) {
+        let el = e.currentTarget;
+        let url = el.getAttribute('href');
+        // The new URL must be of the same origin as the current URL;
+        // otherwise, pushState() will throw an exception
+        if (url && !this.isLinkExternal(el.href)) {
+            e.preventDefault();
+            this.triggerRoute(url);
+        }
+    }
+
+    /**
+     * Sets up click events on all internal links to prevent trigger new page loads.
+     * @private
+     */
+    _bindLinks (containerEl) {
+        let links = containerEl.getElementsByTagName('a');
+        if (links.length) {
+            for (let i = 0; i < links.length; i++) {
+                if (this._links.indexOf(links[i]) === -1) {
+                    links[i].addEventListener('click', this._linkClickEventListener);
+                }
+            }
+        }
+    }
+
+    /**
+     * Removes all click events on internal links.
+     * @private
+     */
+    _unbindLinks (containerEl) {
+        let links = containerEl.getElementsByTagName('a');
+        if (links.length) {
+            for (let i = 0; i < links.length; i++) {
+                if (this._links.indexOf(links[i]) !== -1) {
+                    links[i].removeEventListener('click', this._linkClickEventListener);
+                }
+            }
+        }
+    }
+
+    /**
+     * Unbinds all router links that have been hijacked.
+     * @private
+     */
+    _unbindAllLinks () {
+        this._links.forEach((l) => {
+            l.removeEventListener('click', this._linkClickEventListener);
+        });
+    }
+}
 
 export default Router;

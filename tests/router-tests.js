@@ -4,7 +4,6 @@ import assert from 'assert';
 import Promise from 'promise';
 import Module from 'module-js';
 import _ from 'lodash';
-import Listen from 'listen-js';
 import Router from "./../src/router";
 
 
@@ -15,27 +14,22 @@ describe('Router', function () {
         origPushState,
         requireStub;
 
-    var c = function () {
+    var createPageStub = function () {
         var page = sinon.createStubInstance(Module);
-        page.getTemplate.returns(Promise.resolve('<div class="page"></div>'));
         page.load.returns(Promise.resolve());
         page.hide.returns(Promise.resolve());
         page.show.returns(Promise.resolve());
-        page.getStyles.returns(Promise.resolve());
-        page.fetchData.returns(Promise.resolve());
-        page.waitForTransition.returns(Promise.resolve());
+        page.error.returns(Promise.resolve());
+        page.el = document.createElement('div');
         return page;
     };
     
     var createModuleStub = function () {
         var module = sinon.createStubInstance(Module);
-        module.getTemplate.returns(Promise.resolve());
         module.load.returns(Promise.resolve());
         module.show.returns(Promise.resolve());
         module.hide.returns(Promise.resolve());
-        module.getStyles.returns(Promise.resolve());
-        module.fetchData.returns(Promise.resolve());
-        module.waitForTransition.returns(Promise.resolve());
+        module.error.returns(Promise.resolve());
         return module;
     };
 
@@ -44,11 +38,8 @@ describe('Router', function () {
         origPushState = window.history.pushState;
         window.history.pushState = function () {};
 
-        sinon.spy(Listen, 'createTarget');
-        sinon.spy(Listen, 'destroyTarget');
-
         // set up mock page and set defaults
-        mockPage = c();
+        mockPage = createPageStub();
         mockModule = createModuleStub();
 
         requireStub = sinon.stub(window, 'require');
@@ -58,28 +49,9 @@ describe('Router', function () {
     });
 
     afterEach(function () {
-
-        Listen.createTarget.restore();
-        Listen.destroyTarget.restore();
-
         window.history.pushState = origPushState;
         window.addEventListener.restore();
         requireStub.restore();
-    });
-
-    it('should call Listen.createTarget on initialize to attach all event handling logic', function () {
-        var router = new Router();
-        router.start();
-        assert.deepEqual(Listen.createTarget.args[0][0], router, 'Router instance was passed to Listen.createTarget');
-        router.stop();
-    });
-
-    it('should call Listen.destroyTarget on stop to detach all event handling logic', function () {
-        var router = new Router();
-        router.start({});
-        assert.equal(Listen.destroyTarget.callCount, 0);
-        router.stop();
-        assert.deepEqual(Listen.destroyTarget.args[0][0], router, 'Router instance was passed to Listen.destroyTarget');
     });
 
     it('should return query params from provided url', function () {
@@ -104,28 +76,26 @@ describe('Router', function () {
         router.getWindow.restore();
     });
 
-    it('should fire a url change event when a url is triggered', function () {
-        var router = new Router();
+    it('should fire onRouteChange callback when a url is triggered', function () {
+        var urlChangeSpy = sinon.spy();
+        var router = new Router({onRouteChange: urlChangeSpy});
         router.start({});
         var url = 'my/testable/url';
-        var urlChangeSpy = sinon.spy();
-        router.addEventListener('url:change', urlChangeSpy);
         router.triggerRoute(url);
-        assert.equal(urlChangeSpy.callCount, 1, 'url change spy was called when url is triggered');
-        router.removeEventListener('url:change', urlChangeSpy);
+        assert.equal(urlChangeSpy.args[0][0], url, 'url change spy was called with route when url was triggered');
+        assert.ok(urlChangeSpy.calledOn(router), 'onUrlChange was called with router as the context');
         router.stop();
     });
 
-    it('should reject the triggerRoute() promise when trying to trigger a url that has not been specified in the route config', function () {
+    it('should reject the triggerRoute() promise when trying to trigger a url that has not been specified in the route config', function (done) {
         var router = new Router();
         router.start({});
         var url = 'my/testable/url';
-        return router.triggerRoute(url)
-            .then(function () {
-                throw new Error('error should exist');
-            }, function (err) {
+        router.triggerRoute(url)
+            .catch(function (err) {
                 router.stop();
                 assert.ok(err, 'triggerRoute returns with an error message because no url match in route config');
+                done();
             });
     });
 
@@ -204,19 +174,17 @@ describe('Router', function () {
             });
     });
 
-    it('should fire a page load event when a url is triggered', function () {
-        // setup
+    it('should fire onPageLoad callback option when a url is triggered', function () {
         var pageUrl = 'my/page/load/event/url';
         var pagesConfig = {};
         pagesConfig[pageUrl] = {};
         requireStub.withArgs(pageUrl).returns(mockPage);
-        var router = new Router({pagesConfig: pagesConfig});
-        router.start();
         var pageLoadSpy = sinon.spy();
-        router.addEventListener('page:load', pageLoadSpy);
+        var router = new Router({pagesConfig: pagesConfig, onPageLoad: pageLoadSpy});
+        router.start();
         return router.triggerRoute(pageUrl).then(function () {
-            assert.equal(pageLoadSpy.callCount, 1, 'url change spy was called when url is triggered');
-            router.removeEventListener('page:load', pageLoadSpy);
+            assert.equal(pageLoadSpy.args[0][0], pageUrl);
+            assert.ok(pageLoadSpy.calledOn, router);
             router.stop();
         });
     });
@@ -266,20 +234,6 @@ describe('Router', function () {
         requireStub.withArgs(moduleScriptUrl).returns(moduleInitializeStub);
         return router.triggerRoute(pageUrl).then(function () {
             assert.deepEqual(moduleInitializeStub.args[0][1][moduleOptionKey], moduleOptionVal);
-            router.stop();
-        });
-    });
-
-    it('should fire a page error event when there is no config setup for a requested url', function () {
-        // setup
-        var router = new Router({pagesConfig: {}});
-        var pageUrl = 'my/page/load/event/url';
-        router.start();
-        var pageErrorSpy = sinon.spy();
-        router.addEventListener('page:error', pageErrorSpy);
-        return router.triggerRoute(pageUrl).catch(function () {
-            assert.equal(pageErrorSpy.args[0][0].type, 'page:error', 'correct error was thrown');
-            router.removeEventListener('page:error', pageErrorSpy);
             router.stop();
         });
     });
@@ -499,7 +453,7 @@ describe('Router', function () {
         };
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
-        var secondMockPage = c();
+        var secondMockPage = createPageStub();
         requireStub.withArgs(firstPageScriptUrl).returns(mockPage);
         requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
         return router.triggerRoute(firstPageUrl).then(function () {
@@ -700,8 +654,8 @@ describe('Router', function () {
         };
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
-        var firstMockPage = c();
-        var secondMockPage = c();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
         requireStub.withArgs(pageScriptUrl).returns(firstMockPage);
         requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
         var firstPageShowCount = 0;
@@ -730,8 +684,8 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
         var loadPageSpy = sinon.spy(router, 'loadPage');
-        var firstMockPage = c();
-        var secondMockPage = c();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
         requireStub.withArgs(firstPageScriptUrl).returns(firstMockPage);
         requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
         // fail load on second page
@@ -759,7 +713,7 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
         var loadPageSpy = sinon.spy(router, 'loadPage');
-        var mockPage = c();
+        var mockPage = createPageStub();
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         // fail load call
         mockPage.load.returns(Promise.reject());
@@ -1028,13 +982,13 @@ describe('Router', function () {
         };
         var pageScriptUrl = 'path/to/page/script';
         var pageTemplateUrl = 'url/to/my/template';
-        pagesConfig[pageUrl] = {
+        pagesConfig['^' + pageUrl] = {
             template: pageTemplateUrl,
             modules: [moduleName],
             script: pageScriptUrl
         };
         var noGlobalModulePageUrl = 'no/gm';
-        pagesConfig[noGlobalModulePageUrl] = {
+        pagesConfig['^' + noGlobalModulePageUrl] = {
             template: pageTemplateUrl,
             script: pageScriptUrl
         };
@@ -1046,6 +1000,7 @@ describe('Router', function () {
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         requireStub.withArgs(moduleScriptUrl).returns(mockModule);
         return router.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.hide.callCount, 0);
             return router.triggerRoute(noGlobalModulePageUrl).then(function () {
                 assert.equal(mockModule.hide.callCount, 1);
                 router.stop();
@@ -1131,7 +1086,6 @@ describe('Router', function () {
     });
 
     it('showPage() should call showGlobalModules() with same path', function () {
-        // setup
         var pageUrl = 'my/page/url';
         var pagesConfig = {};
         var modulesConfig = {};
@@ -1222,9 +1176,9 @@ describe('Router', function () {
             modulesConfig: modulesConfig
         });
         router.start();
-        var firstMockPage = c();
+        var firstMockPage = createPageStub();
         requireStub.withArgs(pageScriptUrl).returns(firstMockPage);
-        var secondMockPage = c();
+        var secondMockPage = createPageStub();
         requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
         return router.triggerRoute(pageUrl).then(function () {
             assert.deepEqual(firstMockPage.load.callCount, 1, 'first matching page was loaded');
@@ -1281,10 +1235,10 @@ describe('Router', function () {
         // need to declare script to ensure requireStub runs
         pagesConfig[pageUrlRegex] = {data: dataUrl, script: 'my/page/js'};
         var router = new Router({pagesConfig: pagesConfig});
-        var firstMockPage = c();
+        var firstMockPage = createPageStub();
         var firstMockPageConstructor = sinon.stub().returns(firstMockPage);
         requireStub.onFirstCall().returns(firstMockPageConstructor);
-        var secondMockPage = c();
+        var secondMockPage = createPageStub();
         var secondMockPageConstructor = sinon.stub().returns(secondMockPage);
         requireStub.onSecondCall().returns(secondMockPageConstructor);
         router.start();
@@ -1307,7 +1261,7 @@ describe('Router', function () {
         var pagesContainer = document.createElement('div');
         var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
         router.start();
-        var mockPage = c();
+        var mockPage = createPageStub();
         requireStub.withArgs(pageScriptUrl).returns(mockPage);
         return router.triggerRoute(pageUrl).then(function () {
             assert.ok(pagesContainer.children[0].classList.contains('page'));
@@ -1324,7 +1278,7 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
         var loadPageSpy = sinon.spy(router, 'loadPage');
-        var mockPage = c();
+        var mockPage = createPageStub();
         var pageConstructorStub = sinon.stub().returns(mockPage);
         requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
         assert.equal(pageConstructorStub.callCount, 0);
@@ -1348,7 +1302,7 @@ describe('Router', function () {
         var testRequestOptions = {my: 'options'};
         var router = new Router({pagesConfig: pagesConfig, requestOptions: testRequestOptions});
         router.start();
-        var mockPage = c();
+        var mockPage = createPageStub();
         var pageConstructorStub = sinon.stub().returns(mockPage);
         requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
         assert.equal(pageConstructorStub.callCount, 0);
@@ -1397,7 +1351,7 @@ describe('Router', function () {
         };
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
-        var mockPage = c();
+        var mockPage = createPageStub();
         var pageConstructorStub = sinon.stub().returns(mockPage);
         requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
         assert.equal(pageConstructorStub.callCount, 0);
@@ -1441,6 +1395,54 @@ describe('Router', function () {
         });
     });
 
-    //TODO:  do some tests for pagesContainer option!
+    it('should prevent default on any HTMLAnchorElement inside of the requested page element and pass the HTMLAnchorElement\'s href attribute to triggerRoute call', function () {
+        var pageScriptUrl = 'path/to/my/script.js';
+        var testRequestOptions = {my: 'options'};
+        var pagesConfig = {
+            '^my/real/url': {
+                script: pageScriptUrl,
+                requestOptions: testRequestOptions
+            }
+        };
+        var router = new Router({pagesConfig: pagesConfig});
+        router.start();
+        var link = document.createElement('a');
+        var linkTo = 'the/url/to/load';
+        link.setAttribute('href', linkTo);
+        var mockPage = createPageStub();
+        mockPage.el = document.createElement('div');
+        mockPage.el.appendChild(link);
+        var pageConstructorStub = sinon.stub().returns(mockPage);
+        requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
+        assert.equal(pageConstructorStub.callCount, 0);
+        var triggerRouteSpy = sinon.spy(router, 'triggerRoute');
+        var triggerRouteCallCount = 0;
+        return router.triggerRoute('my/real/url').then(function () {
+            triggerRouteCallCount++;
+            var linkEvent = new Event('click', {
+                'view': window,
+                'bubbles': true,
+                'cancelable': true
+            });
+            link.dispatchEvent(linkEvent);
+            assert.ok(linkEvent.defaultPrevented);
+            assert.equal(triggerRouteSpy.args[triggerRouteCallCount][0], linkTo);
+            router.stop();
+        });
+    });
 
+    it('should trigger the onError callback option when there is no config setup for a requested url', function (done) {
+        var errorSpy = sinon.spy();
+        var router = new Router({onError: errorSpy});
+        router.start();
+        var mockPage = createPageStub();
+        var pageConstructorStub = sinon.stub().returns(mockPage);
+        assert.equal(pageConstructorStub.callCount, 0);
+        router.triggerRoute('my/real/url').catch(function (err) {
+            assert.deepEqual(errorSpy.args[0][0], err);
+            assert.ok(errorSpy.calledOn(router));
+            router.stop();
+            done();
+        });
+    });
 });

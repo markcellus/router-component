@@ -145,6 +145,47 @@ router.triggerRoute('home').then(function () {
 });
 ```
 
+## Modules
+
+Each of the pages and modules loaded by Router is an instance of the Module class
+from the [module-js](https://github.com/mkay581/module-js#module-js) package.
+
+If you would like to have your own custom implementations of Pages or Modules that load upon any given url,
+you will to ensure your custom class implements the same interface as the Module class in
+the [module-js](https://github.com/mkay581/module-js#module-js) package or have your custom class extend it using
+the `extends` keyword. See example below.
+
+```javascript
+var pages = {
+    '^my-page(/)?$': {
+        template: '/path/to/my/template.hbs',
+        script: 'page.js',
+        data: 'url/to/page/data'
+    }
+};
+var router = new Router({
+    pagesConfig: pages
+});
+router.start();
+// trigger the page when the DOM loads
+window.addEventListener('DOMContentLoaded', function () {
+    router.triggerRoute('/my-page');
+});
+
+```
+
+And your page.js would look like this:
+
+```
+//page.js
+class CustomPage extends Module {
+    load () {
+         // my custom loading here
+         return super.load();
+    }
+```
+
+
 ## Important Notes
 
 * Any javascript files that you include in your routes configuration must be "require"-able using either 
@@ -153,22 +194,6 @@ Browserify, RequireJS or any other script loader that exposes a global "require"
  if you do not want your styles to overlap and apply between pages.
 * When a page is loaded, it is cached and will remain hidden in the DOM until you physically remove the
 element in your custom destroy logic.
-
-
-### ES6 Module Scripts
-
-If the `script` path you specify for any given route is an ES6 module, it must `export` a class as the `default` or router will fail.
-Here is a sample ES6 module.
-
-```
-class Person {
-    get age {
-        return 5;
-    }
-}
-
-export default Person;
-```
 
 ## FAQ
 
