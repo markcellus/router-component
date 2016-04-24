@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.1.0.
+* router-js - v3.1.1.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -20830,9 +20830,10 @@ var Module = function () {
      * @param {string} [options.activeClass] - The class that will be applied to the module element when it is shown
      * @param {string} [options.disabledClass] - The class that will be applied to the module element when disabled
      * @param {string} [options.errorClass] - The class that will be applied to the module element when it has a load error
-     * @param {Array|string} options.styles - Array of stylesheet urls or single url
-     * @param {string} options.template - The url to the template to load
-     * @param {Object|string} options.data - The data or url to the module's data
+     * @param {Array|string} [options.styles] - Array of stylesheet urls or single url
+     * @param {string} [options.template] - The url to the template to load
+     * @param {Object|string} [options.data] - The data or url to the module's data
+     * @param {Object} [options.requestOptions] - The request options to use when running the fetch method to get data
      * @param {Module~onLoad} [options.onLoad] - A function that fires when module's load() method is called
      * @param {Module~onShow} [options.onShow] - A function that fires when module is shown
      * @param {Module~onHide} [options.onHide] - A function that fires when module is hidden
@@ -20860,6 +20861,7 @@ var Module = function () {
             styles: [],
             template: "",
             data: null,
+            requestOptions: null,
             onLoad: function onLoad() {},
             onShow: function onShow() {},
             onHide: function onHide() {},
@@ -20906,7 +20908,7 @@ var Module = function () {
                 // load all subModules
                 return _promise2.default.all(_underscore2.default.invoke(views, 'load')).then(function () {
                     return _this.getStyles(_this.options.styles).then(function () {
-                        return _this.fetchData(_this.options.data, { cache: true }).then(function (data) {
+                        return _this.fetchData(_this.options.data, _this.options.requestOptions).then(function (data) {
                             return _this.getTemplate(data).then(function (html) {
                                 // we must respect any prior existing html inside of the el.
                                 _this.el.insertAdjacentHTML('beforeend', html);
@@ -20930,7 +20932,7 @@ var Module = function () {
         /**
          * Makes a request to get the data for the module.
          * @param {string|Object} url - The url to fetch data from or data object
-         * @param [options] - ajax options
+         * @param [options] - fetch options
          * @returns {*}
          */
 
@@ -38219,6 +38221,7 @@ var Router = function () {
      * @param {HTMLElement} [options.pagesContainer] - The element to use for the page container (defaults to document.body)
      * @param {Object} [options.moduleConfig] - An object mapping of all available modules
      * @param {Function} [options.onRouteRequest] - Called whenever a route is requested (can be used to intercept requests)
+     * @param {Object} [options.requestOptions] - A set of request options that are globally applied when fetching data for all pages and modules
      */
 
     function Router(options) {
@@ -38228,7 +38231,8 @@ var Router = function () {
             onRouteRequest: null,
             pagesContainer: document.body,
             pagesConfig: {},
-            modulesConfig: {}
+            modulesConfig: {},
+            requestOptions: null
         }, options);
 
         this._pageMaps = {};
@@ -38613,6 +38617,8 @@ var Router = function () {
         key: 'loadScript',
         value: function loadScript(scriptUrl, el, options, fallbackClass) {
             fallbackClass = fallbackClass || _module2.default;
+            options = options || {};
+            options.requestOptions = _lodash2.default.extend({}, this.options.requestOptions, options.requestOptions);
             if (!scriptUrl) {
                 return _promise2.default.resolve(new fallbackClass(el, options));
             }
