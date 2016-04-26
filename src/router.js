@@ -7,6 +7,7 @@ import Module from 'module-js';
  * The function that is triggered before a new route is requested
  * @callback Router~onRouteRequest
  * @param {string} route - The route that was a requested
+ * @returns {string} Optionally return a different route to which router should redirect
  */
 
 /**
