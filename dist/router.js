@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.2.0.
+* router-js - v3.3.0.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -27590,6 +27590,8 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _promise = require('promise');
@@ -27612,11 +27614,12 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
  * The function that is triggered before a new route is requested
  * @callback Router~onRouteRequest
  * @param {string} route - The route that was a requested
+ * @returns {string} Optionally return a different route to which router should redirect
  */
 
 /**
  * The function that is triggered when there is either a module or page error
- * @callback Router~onError
+ * @callback Router~onRouteError
  * @param {Error} e - The error event
  */
 
@@ -27649,7 +27652,7 @@ var Router = function () {
      * @param {Object} [options.moduleConfig] - An object mapping of all available modules
      * @param {Object} [options.requestOptions] - A set of request options that are globally applied when fetching data for all pages and modules
      * @param {Router~onRouteRequest} [options.onRouteRequest] - Called whenever a route is requested but before it is handled (can be used to intercept requests)
-     * @param {Router~onError} [options.onError] - Called whenever an error is detected with a route request, or module error, or page error
+     * @param {Router~onRouteError} [options.onRouteError] - Called whenever an error is detected with a route request
      * @param {Router~onRouteChange} [options.onRouteChange] - Called whenever there is a new route requested
      * @param {Router~onPageLoad} [options.onPageLoad] - Called whenever a new page loads successfully
      */
@@ -27663,7 +27666,7 @@ var Router = function () {
             pagesConfig: {},
             modulesConfig: {},
             requestOptions: null,
-            onError: null,
+            onRouteError: null,
             onRouteChange: null,
             onPageLoad: null
         }, options);
@@ -27745,35 +27748,45 @@ var Router = function () {
         }
 
         /**
-         * Resets Route Manager.
+         * Resets Route Manager and destroys all previous pages.
          */
 
     }, {
         key: 'reset',
         value: function reset() {
+            var _this = this;
 
-            // destroy all pages
-            _lodash2.default.each(this._pageMaps, function (pageMap) {
-                pageMap.page.destroy();
-                if (this.options.pagesContainer && this.options.pagesContainer.contains(pageMap.el)) {
-                    this.options.pagesContainer.removeChild(pageMap.el);
-                }
-                _lodash2.default.each(pageMap.modules, function (moduleMap) {
-                    moduleMap.module.destroy();
-                });
-            }.bind(this));
-            this._pageMaps = {};
+            var currentMapKey = this._getRouteMapKeyByPath(this._currentPath);
+            var currentPageMap = this._pageMaps[currentMapKey] || {};
+            var currentPageConfig = currentPageMap.config || {};
+            var pagesContainer = this.options.pagesContainer;
 
-            // destroy all global modules
-            _lodash2.default.each(this._globalModuleMaps, function (globalMap) {
-                // conditionally in case a global module config exist but hasnt been loaded
-                if (globalMap.module) {
-                    globalMap.module.hide().then(function () {
-                        globalMap.module.destroy();
-                    });
+            // we should not destroy the current page the user is on
+            _lodash2.default.each(this._pageMaps, function (pageMap, key) {
+                var page = pageMap.page;
+                if (key !== currentMapKey) {
+                    page.destroy();
+                    // we must remove page and child elements that router has added to the DOM.
+                    if (pagesContainer && pagesContainer.contains(page.el)) {
+                        pagesContainer.removeChild(page.el);
+                    }
+                    delete _this._pageMaps[key];
                 }
             });
-            this._globalModuleMaps = this._buildGlobalModuleMaps();
+
+            // TODO: should not destroy global modules that are on the current page
+            // destroy all global modules
+            _lodash2.default.each(this._globalModuleMaps, function (globalMap, key) {
+                // conditionally in case a global module config exist but hasnt been loaded
+                if (!currentPageConfig.modules || currentPageConfig.modules.indexOf(key) === -1) {
+                    if (globalMap.module) {
+                        globalMap.module.hide().then(function () {
+                            globalMap.module.destroy();
+                            delete this._globalModuleMaps[key];
+                        });
+                    }
+                }
+            });
         }
 
         /**
@@ -27888,18 +27901,19 @@ var Router = function () {
                 return this._handleRequestedUrl(path, options).then(function (path) {
                     this._currentPreviousPageHidePromise = this.hidePage(prevPath, path);
                     return this._currentPreviousPageHidePromise.then(function () {
+                        var _this2 = this;
+
                         return this.loadPage(path).then(function () {
                             if (this.options.onPageLoad) {
                                 this.options.onPageLoad.call(this, path);
                             }
                             return this.showPage(path);
-                        }.bind(this), function (e) {
-                            console.log('Router Error: Page at ' + path + ' could not be loaded');
-                            if (this.options.onError) {
-                                this.options.onError.call(this, e);
+                        }.bind(this)).catch(function (e) {
+                            console.warn('Router Error: Page at ' + path + ' could not be loaded');
+                            if (_this2.options.onRouteError) {
+                                _this2.options.onRouteError.call(_this2, e);
                             }
-                            throw e;
-                        }.bind(this));
+                        });
                     }.bind(this));
                 }.bind(this));
             } else {
@@ -28051,21 +28065,22 @@ var Router = function () {
     }, {
         key: 'loadScript',
         value: function loadScript(scriptUrl, el, options) {
-            var _this = this;
+            var _this3 = this;
 
             options = options || {};
             options.requestOptions = _lodash2.default.extend({}, this.options.requestOptions, options.requestOptions);
-            if (this.options.onError && !options.onError) {
-                options.onError = function (e) {
-                    _this.options.onError.call(_this, e);
-                };
-            }
             if (!scriptUrl) {
                 return _promise2.default.resolve(new _moduleJs2.default(el, options));
             }
-            return this.requireScript(scriptUrl, el, options).then(null, function () {
-                // not found, so fallback to class
-                return _promise2.default.resolve(new _moduleJs2.default(el, options));
+            return new _promise2.default(function (resolve) {
+                var contents = null;
+                try {
+                    contents = _this3.requireScript(scriptUrl, el, options);
+                } catch (e) {
+                    // not found, so fallback to class
+                    resolve(new _moduleJs2.default(el, options));
+                }
+                resolve(contents);
             });
         }
 
@@ -28080,30 +28095,28 @@ var Router = function () {
         key: 'requireScript',
         value: function requireScript(scriptUrl, el, options) {
             var contents;
-            return new _promise2.default(function (resolve, reject) {
-                if (!scriptUrl) {
-                    return reject();
-                }
-                try {
-                    contents = require(scriptUrl);
-                } catch (e) {
-                    console.error(e);
-                    reject(e);
-                }
-                options = options || {};
+            if (!scriptUrl) {
+                return reject();
+            }
+            try {
+                contents = require(scriptUrl);
+            } catch (e) {
+                console.error(e);
+                reject(e);
+            }
+            options = options || {};
 
-                // support new es6 module exports (file must export a default)
-                // TODO: is __esModule safe to use?
-                if (contents.__esModule) {
-                    contents = contents.default;
-                }
+            // support new es6 module exports (file must export a default)
+            // TODO: is __esModule safe to use?
+            if (contents.__esModule) {
+                contents = contents.default;
+            }
 
-                // if function, assume it has a constructor and instantiate it
-                if (typeof contents === 'function') {
-                    contents = new contents(el, options);
-                }
-                resolve(contents);
-            }.bind(this));
+            // if function, assume it has a constructor and instantiate it
+            if (typeof contents === 'function') {
+                contents = new contents(el, options);
+            }
+            return contents;
         }
 
         /**
@@ -28115,7 +28128,7 @@ var Router = function () {
     }, {
         key: 'loadPage',
         value: function loadPage(path) {
-            var _this2 = this;
+            var _this4 = this;
 
             var pageKey = this._getRouteMapKeyByPath(path),
                 pageConfig = this.options.pagesConfig[pageKey],
@@ -28133,52 +28146,37 @@ var Router = function () {
                 this._pageMaps[pageKey] = pageMap;
                 pageMap.config = pageConfig;
                 pageMap.promise = this.loadGlobalModules(path).then(function () {
-                    pageMap.el = document.createElement('div');
                     pageConfig = _lodash2.default.extend(pageConfig, {
                         activeClass: 'page-active',
                         loadedClass: 'page-loaded',
                         disabledClass: 'page-disabled',
                         errorClass: 'page-error'
                     });
-                    return _this2.loadScript(pageConfig.script, pageMap.el, pageConfig).then(function (page) {
+                    return _this4.loadScript(pageConfig.script, document.createElement('div'), pageConfig).then(function (page) {
                         pageMap.page = page;
-                        pageMap.el.classList.add('page'); // add default page class
-                        // we need default page data available for the page's modules if they do not have already any
-                        return _this2.loadPageModules(path).then(function () {
-                            _this2.options.pagesContainer.appendChild(pageMap.el);
-                            return page.load().then(function () {
-                                return pageMap;
-                            });
+                        page.el.classList.add('page'); // add default page class
+                        // add page modules as submodules to ensure they load when page's load() call gets called
+                        var pageModuleKeys = _this4.getPageModulesByRoute(path);
+                        pageModuleKeys.forEach(function (key, idx) {
+                            var moduleConfig = _this4.options.modulesConfig[key];
+                            var moduleEl = document.createElement('div');
+                            moduleConfig.requestOptions = _lodash2.default.extend({}, _this4.options.requestOptions, moduleConfig.requestOptions);
+                            page.subModules['mod' + idx] = _this4.requireScript(moduleConfig.script, moduleEl, moduleConfig);
                         });
+                        _this4.options.pagesContainer.appendChild(page.el);
+                        return page.load();
                     });
                 }, function () {
                     // if page loading happens to cause an error, remove
                     // item from page cache to force a hard
                     // reload next time a request is made to this page
-                    if (_this2._pageMaps[pageKey].page) {
-                        _this2._pageMaps[pageKey].page.destroy();
+                    if (_this4._pageMaps[pageKey].page) {
+                        _this4._pageMaps[pageKey].page.destroy();
                     }
-                    delete _this2._pageMaps[pageKey];
+                    delete _this4._pageMaps[pageKey];
                 });
             }
             return this._pageMaps[pageKey].promise;
-        }
-
-        /**
-         * Shows modules assigned to a supplied page path.
-         * @param {string} path - The page url
-         * @returns {Promise} Returns a promise when all modules are done showing
-         */
-
-    }, {
-        key: 'showPageModules',
-        value: function showPageModules(path) {
-            var pageKey = this._getRouteMapKeyByPath(path),
-                pageMap = this._pageMaps[pageKey] || {};
-            _lodash2.default.each(pageMap.modules, function (moduleMap) {
-                moduleMap.module.show();
-            });
-            return this.showGlobalModules(path);
         }
 
         /**
@@ -28218,14 +28216,20 @@ var Router = function () {
     }, {
         key: 'showPage',
         value: function showPage(path) {
-            var pageKey = this._getRouteMapKeyByPath(path),
-                pageMap = this._pageMaps[pageKey] || {},
+            var _this5 = this;
+
+            var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)] || {},
                 page = pageMap.page;
-            this.showPageModules(path);
-            if (page) {
-                this._bindLinks(page.el);
-                return page.show();
+            if (!page) {
+                return _promise2.default.resolve();
             }
+            _lodash2.default.each(page.subModules, function (module) {
+                module.show();
+            });
+            return this.showGlobalModules(path).then(function () {
+                _this5._bindLinks(page.el);
+                return page.show();
+            });
         }
 
         /**
@@ -28246,12 +28250,12 @@ var Router = function () {
                 if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                     // page has this global module specified!
                     promises.push(map.promise.then(function () {
-                        var _this3 = this;
+                        var _this6 = this;
 
                         // only hide the module if the toPath does not contain it
                         if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
                             return map.module.hide().then(function () {
-                                _this3._unbindLinks(map.module.el);
+                                _this6._unbindLinks(map.module.el);
                             });
                         }
                     }));
@@ -28271,65 +28275,53 @@ var Router = function () {
     }, {
         key: 'hidePage',
         value: function hidePage(path, newPath) {
+            var _this7 = this;
+
             var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
 
             if (pageMap && pageMap.promise) {
-                return pageMap.promise.then(function () {
-                    return pageMap.page.hide().then(function () {
-                        return this.hidePageModules(path).then(function () {
-                            var _this4 = this;
-
-                            return this.hideGlobalModules(path, newPath).then(function () {
-                                _this4._unbindLinks(pageMap.page.el);
+                var _ret = function () {
+                    var page = pageMap.page;
+                    return {
+                        v: pageMap.promise.then(function () {
+                            return page.hide().then(function () {
+                                // hide all pages modules
+                                _lodash2.default.each(page.subModules, function (module) {
+                                    module.hide();
+                                });
+                                return _this7.hideGlobalModules(path, newPath).then(function () {
+                                    _this7._unbindLinks(pageMap.page.el);
+                                });
                             });
-                        }.bind(this));
-                    }.bind(this));
-                }.bind(this)).catch(function () {
-                    // if previous page load caused an error,
-                    // lets still ignore and just resolve because by
-                    // this time we're loading a new page
-                    // and no longer care about previous page
-                    return _promise2.default.resolve();
-                });
+                        }).catch(function () {
+                            // if previous page load caused an error,
+                            // lets still ignore and just resolve because by
+                            // this time we're loading a new page
+                            // and no longer care about previous page
+                            return _promise2.default.resolve();
+                        })
+                    };
+                }();
+
+                if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
             } else {
                 return _promise2.default.resolve();
             }
         }
 
         /**
-         * Hides all of a pages modules.
-         * @param {string} path - The page of the page to hide
-         * @return {Promise} Returns a promise when complete
-         */
-
-    }, {
-        key: 'hidePageModules',
-        value: function hidePageModules(path) {
-            var promises = [];
-            var pageKey = this._getRouteMapKeyByPath(path),
-                pageMap = this._pageMaps[pageKey] || {};
-            _lodash2.default.each(pageMap.modules, function (moduleMap) {
-                promises.push(moduleMap.module.hide());
-            });
-            return _promise2.default.all(promises);
-        }
-
-        /**
-         * Loads the modules of a page.
+         * Retrieves the non-global modules assigned to a route.
          * @param {string} path - The path to the page which contains the modules to be loaded
+         * @returns {Array} Returns an array of all keys of the modules that match the route
          */
 
     }, {
-        key: 'loadPageModules',
-        value: function loadPageModules(path) {
+        key: 'getPageModulesByRoute',
+        value: function getPageModulesByRoute(path) {
             var pageKey = this._getRouteMapKeyByPath(path),
                 config = this.getPageConfigByPath(path),
                 pageMap = this._pageMaps[pageKey] || {},
-                promises = [],
-                loadPromise,
-                pageModuleKeys = [],
-                moduleMap;
-
+                pageModuleKeys = [];
             config.modules = config.modules || [];
             pageMap.modules = pageMap.modules || {};
 
@@ -28337,39 +28329,9 @@ var Router = function () {
                 // only handle modules which are not global
                 if (!this._globalModuleMaps[moduleKey]) {
                     pageModuleKeys.push(moduleKey); //we must keep track of the order of the modules
-                    loadPromise = this.loadPageModule(moduleKey).then(function (moduleMap) {
-                        if (!moduleMap.module.loaded) {
-                            pageMap.el.appendChild(moduleMap.el);
-                        }
-                        pageMap.modules[moduleKey] = moduleMap;
-                    });
                 }
-                promises.push(loadPromise);
             }.bind(this));
-
-            return _promise2.default.all(promises).then(function () {
-                // append module elements to DOM
-                // and use document frag for performance, yay!
-                var frag = document.createDocumentFragment();
-                _lodash2.default.each(pageModuleKeys, function (moduleKey) {
-                    moduleMap = pageMap.modules[moduleKey];
-                    if (!moduleMap.el) {
-                        return;
-                    } else if (moduleMap.module.appendEl) {
-                        // use custom appending method if module specifies it,
-                        moduleMap.module.appendEl(moduleMap.el);
-                    } else {
-                        // add to module frag to be appended to page container
-                        frag.appendChild(moduleMap.el);
-                    }
-                });
-
-                if (!pageMap.el) {
-                    return false;
-                } else {
-                    pageMap.el.appendChild(frag);
-                }
-            });
+            return pageModuleKeys;
         }
 
         /**
@@ -28397,37 +28359,6 @@ var Router = function () {
         }
 
         /**
-         * Loads a single module for a page.
-         * @param {string} moduleKey - The key of which module to load
-         */
-
-    }, {
-        key: 'loadPageModule',
-        value: function loadPageModule(moduleKey) {
-            var config = this.getModuleConfig(moduleKey),
-                moduleMap = {};
-
-            moduleMap = {};
-
-            moduleMap.el = document.createElement('div');
-
-            if (!moduleMap.promise) {
-                moduleMap.promise = this.loadScript(config.script, moduleMap.el, config).then(function (module) {
-                    moduleMap.module = module;
-                    // create html into DOM element and pass it off to load call for
-                    // custom mangling before it gets appended to DOM
-                    return module.load().then(function () {
-                        return moduleMap;
-                    }, function (e) {
-                        moduleMap.module.error(e);
-                        return moduleMap;
-                    });
-                });
-            }
-            return moduleMap.promise;
-        }
-
-        /**
          * Loads a global module based on the supplied module key.
          * @param {string} moduleKey - The module key
          * @return {Promise} Returns a promise that resolves when the module is loaded
@@ -28445,12 +28376,12 @@ var Router = function () {
                 // create html into DOM element and pass it off to load call for
                 // custom mangling before it gets appended to DOM
                 map.promise = this.loadScript(config.script, map.el, config).then(function (module) {
-                    var _this5 = this;
+                    var _this8 = this;
 
                     map.module = module;
                     return module.load().then(function () {
                         if (module.el) {
-                            _this5._bindLinks(module.el);
+                            _this8._bindLinks(module.el);
                         }
                     }).catch(function (e) {
                         // error loading global module!
@@ -28524,6 +28455,7 @@ var Router = function () {
                 for (var i = 0; i < links.length; i++) {
                     if (this._links.indexOf(links[i]) === -1) {
                         links[i].addEventListener('click', this._linkClickEventListener);
+                        this._links.push(links[i]);
                     }
                 }
             }
@@ -28540,8 +28472,10 @@ var Router = function () {
             var links = containerEl.getElementsByTagName('a');
             if (links.length) {
                 for (var i = 0; i < links.length; i++) {
-                    if (this._links.indexOf(links[i]) !== -1) {
+                    var index = this._links.indexOf(links[i]);
+                    if (index > -1) {
                         links[i].removeEventListener('click', this._linkClickEventListener);
+                        this._links.splice(index, 1);
                     }
                 }
             }
@@ -28555,10 +28489,10 @@ var Router = function () {
     }, {
         key: '_unbindAllLinks',
         value: function _unbindAllLinks() {
-            var _this6 = this;
+            var _this9 = this;
 
             this._links.forEach(function (l) {
-                l.removeEventListener('click', _this6._linkClickEventListener);
+                l.removeEventListener('click', _this9._linkClickEventListener);
             });
         }
     }]);
