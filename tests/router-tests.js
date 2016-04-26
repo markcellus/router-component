@@ -21,6 +21,7 @@ describe('Router', function () {
         page.show.returns(Promise.resolve());
         page.error.returns(Promise.resolve());
         page.el = document.createElement('div');
+        page.subModules = {};
         return page;
     };
     
@@ -536,8 +537,7 @@ describe('Router', function () {
         });
     });
 
-    it('all modules associated with a page should show() when requesting a url to a page that has the modules designated', function () {
-        // setup
+    it('all modules associated with a page should show() when requesting a route to a page that has the modules designated', function () {
         var pageUrl = 'my/page/url';
         var pagesConfig = {};
         var modulesConfig = {};
@@ -1073,46 +1073,6 @@ describe('Router', function () {
         });
     });
 
-    it('showPage() should call showGlobalModules() with same path', function () {
-        var pageUrl = 'my/page/url';
-        var pagesConfig = {};
-        var modulesConfig = {};
-        var moduleName = 'customModule';
-        var moduleScriptUrl = 'path/to/module/script';
-        var moduleTemplateUrl = 'url/to/my/template';
-        modulesConfig[moduleName] = {
-            template: moduleTemplateUrl,
-            script: moduleScriptUrl,
-            global: true
-        };
-        var pageScriptUrl = 'path/to/page/script';
-        var pageTemplateUrl = 'url/to/my/template';
-        pagesConfig[pageUrl] = {
-            template: pageTemplateUrl,
-            modules: [moduleName],
-            script: pageScriptUrl
-        };
-        var noGlobalModulePageUrl = 'no/gm';
-        pagesConfig[noGlobalModulePageUrl] = {
-            template: pageTemplateUrl,
-            script: pageScriptUrl
-        };
-        var router = new Router({
-            pagesConfig: pagesConfig,
-            modulesConfig: modulesConfig
-        });
-        router.start();
-        requireStub.withArgs(pageScriptUrl).returns(mockPage);
-        // build promise
-        requireStub.returns(mockModule);
-        var showGlobalModulesStub = sinon.stub(router, 'showGlobalModules').returns(Promise.resolve());
-        assert.equal(showGlobalModulesStub.callCount, 0, 'not yet called');
-        router.showPage(pageUrl);
-        assert.equal(showGlobalModulesStub.args[0][0], pageUrl);
-        showGlobalModulesStub.restore();
-        router.stop();
-    });
-
     it('getPageConfigByPath() should return the config of the first matching page if more than one regex match exists', function () {
         // setup
         var pageUrl = 'my/page/url';
@@ -1537,7 +1497,34 @@ describe('Router', function () {
         });
     });
 
-    it('should destroy on all other previous pages when reset() is called', function () {
+    it('should destroy all other previous pages and remove their els from the DOM when reset() is called', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        var secondPageUrl = 'path/to/second/page';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.equal(firstMockPage.destroy.callCount, 0);
+            return router.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(firstMockPage.destroy.callCount, 0);
+                router.reset();
+                assert.equal(pagesContainer.children.length, 1, 'one child left which the current pages el');
+                assert.equal(firstMockPage.destroy.callCount, 1);
+                router.stop();
+            });
+        });
+    });
+
+    it('should load all previous pages a second time after reset() is called', function () {
         var pageUrl = 'my/page/url';
         var pagesConfig = {};
         var firstPageScriptPath = 'path/to/page/script';
@@ -1547,18 +1534,21 @@ describe('Router', function () {
         pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
-        requireStub.withArgs(firstPageScriptPath).returns(mockPage);
-        var firstMockPage = createModuleStub();
-        var secondMockPage = createModuleStub();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
         requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
         requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        var firstPageLoadCallCount = 0;
         return router.triggerRoute(pageUrl).then(function () {
-            assert.equal(firstMockPage.destroy.callCount, 0);
+            firstPageLoadCallCount++;
             return router.triggerRoute(secondPageUrl).then(function () {
-                assert.equal(firstMockPage.destroy.callCount, 0);
+                assert.equal(firstMockPage.load.callCount, firstPageLoadCallCount);
                 router.reset();
-                assert.equal(firstMockPage.destroy.callCount, 1);
-                router.stop();
+                return router.triggerRoute(pageUrl).then(function () {
+                    firstPageLoadCallCount++;
+                    assert.equal(firstMockPage.load.callCount, firstPageLoadCallCount);
+                    router.stop();
+                });
             });
         });
     });
