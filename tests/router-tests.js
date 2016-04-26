@@ -1397,11 +1397,9 @@ describe('Router', function () {
 
     it('should prevent default on any HTMLAnchorElement inside of the requested page element and pass the HTMLAnchorElement\'s href attribute to triggerRoute call', function () {
         var pageScriptUrl = 'path/to/my/script.js';
-        var testRequestOptions = {my: 'options'};
         var pagesConfig = {
             '^my/real/url': {
-                script: pageScriptUrl,
-                requestOptions: testRequestOptions
+                script: pageScriptUrl
             }
         };
         var router = new Router({pagesConfig: pagesConfig});
@@ -1428,6 +1426,43 @@ describe('Router', function () {
             assert.ok(linkEvent.defaultPrevented);
             assert.equal(triggerRouteSpy.args[triggerRouteCallCount][0], linkTo);
             router.stop();
+        });
+    });
+
+    it('should NOT trigger a new route when clicking on page\'s HTMLAnchorElement\'s after another route is triggered', function () {
+        var pageScriptUrl = 'path/to/my/script.js';
+        var pagesConfig = {
+            '^my/real/url': {
+                script: pageScriptUrl
+            },
+            '^my/other/url': {}
+        };
+        var router = new Router({pagesConfig: pagesConfig});
+        router.start();
+        var link = document.createElement('a');
+        link.setAttribute('href', '#'); // prevent url from loading a new page when testing
+        var mockPage = createPageStub();
+        mockPage.el = document.createElement('div');
+        mockPage.el.appendChild(link);
+        var pageConstructorStub = sinon.stub().returns(mockPage);
+        requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
+        assert.equal(pageConstructorStub.callCount, 0);
+        var triggerRouteSpy = sinon.spy(router, 'triggerRoute');
+        var triggerRouteCallCount = 0;
+        return router.triggerRoute('my/real/url').then(function () {
+            triggerRouteCallCount++;
+            return router.triggerRoute('my/other/url').then(function () {
+            triggerRouteCallCount++;
+                var linkEvent = new Event('click', {
+                    'view': window,
+                    'bubbles': true,
+                    'cancelable': true
+                });
+                link.dispatchEvent(linkEvent);
+                assert.ok(!linkEvent.defaultPrevented);
+                assert.equal(triggerRouteSpy.callCount, triggerRouteCallCount);
+                router.stop();
+            });
         });
     });
 
