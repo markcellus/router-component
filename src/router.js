@@ -12,7 +12,7 @@ import Module from 'module-js';
 
 /**
  * The function that is triggered when there is either a module or page error
- * @callback Router~onError
+ * @callback Router~onRouteError
  * @param {Error} e - The error event
  */
 
@@ -44,7 +44,7 @@ class Router {
      * @param {Object} [options.moduleConfig] - An object mapping of all available modules
      * @param {Object} [options.requestOptions] - A set of request options that are globally applied when fetching data for all pages and modules
      * @param {Router~onRouteRequest} [options.onRouteRequest] - Called whenever a route is requested but before it is handled (can be used to intercept requests)
-     * @param {Router~onError} [options.onError] - Called whenever an error is detected with a route request, or module error, or page error
+     * @param {Router~onRouteError} [options.onRouteError] - Called whenever an error is detected with a route request
      * @param {Router~onRouteChange} [options.onRouteChange] - Called whenever there is a new route requested
      * @param {Router~onPageLoad} [options.onPageLoad] - Called whenever a new page loads successfully
      */
@@ -55,7 +55,7 @@ class Router {
             pagesConfig: {},
             modulesConfig: {},
             requestOptions: null,
-            onError: null,
+            onRouteError: null,
             onRouteChange: null,
             onPageLoad: null
         }, options);
@@ -247,13 +247,13 @@ class Router {
                                 this.options.onPageLoad.call(this, path);
                             }
                             return this.showPage(path);
-                        }.bind(this), function (e) {
-                            console.log('Router Error: Page at ' + path + ' could not be loaded');
-                            if (this.options.onError) {
-                                this.options.onError.call(this, e);
+                        }.bind(this))
+                        .catch((e) => {
+                            console.warn('Router Error: Page at ' + path + ' could not be loaded');
+                            if (this.options.onRouteError) {
+                                this.options.onRouteError.call(this, e);
                             }
-                            throw e;
-                        }.bind(this));
+                        });
                 }.bind(this));
             }.bind(this));
         } else {
@@ -387,11 +387,6 @@ class Router {
     loadScript (scriptUrl, el, options) {
         options = options || {};
         options.requestOptions = _.extend({}, this.options.requestOptions, options.requestOptions);
-        if (this.options.onError && !options.onError) {
-            options.onError = (e) => {
-                this.options.onError.call(this, e)
-            }
-        }
         if (!scriptUrl) {
             return Promise.resolve(new Module(el, options));
         }

@@ -87,18 +87,6 @@ describe('Router', function () {
         router.stop();
     });
 
-    it('should reject the triggerRoute() promise when trying to trigger a url that has not been specified in the route config', function (done) {
-        var router = new Router();
-        router.start({});
-        var url = 'my/testable/url';
-        router.triggerRoute(url)
-            .catch(function (err) {
-                router.stop();
-                assert.ok(err, 'triggerRoute returns with an error message because no url match in route config');
-                done();
-            });
-    });
-
     it('should call pushState with correct path when triggering url', function () {
         var url = 'my/testable/url';
         var pagesConfig = {};
@@ -1466,18 +1454,18 @@ describe('Router', function () {
         });
     });
 
-    it('should trigger the onError callback option when there is no config setup for a requested url', function (done) {
+    it('should resolve the triggerRoute promise and call the onRouteError callback option when there is no config setup for a requested route', function () {
         var errorSpy = sinon.spy();
-        var router = new Router({onError: errorSpy});
+        var router = new Router({onRouteError: errorSpy});
         router.start();
         var mockPage = createPageStub();
         var pageConstructorStub = sinon.stub().returns(mockPage);
         assert.equal(pageConstructorStub.callCount, 0);
-        router.triggerRoute('my/real/url').catch(function (err) {
-            assert.deepEqual(errorSpy.args[0][0], err);
+        return router.triggerRoute('my/real/url').then(function () {
+            var assertError = errorSpy.args[0][0];
+            assert.deepEqual(assertError.constructor, Error);
             assert.ok(errorSpy.calledOn(router));
             router.stop();
-            done();
         });
     });
 });
