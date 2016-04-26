@@ -122,32 +122,38 @@ class Router {
     }
 
     /**
-     * Resets Route Manager.
+     * Resets Route Manager and destroys all previous pages.
      */
     reset () {
+        let currentMapKey = this._getRouteMapKeyByPath(this._currentPath);
+        let currentPageMap = this._pageMaps[currentMapKey] || {};
+        let currentPageConfig = currentPageMap.config || {};
 
-        // destroy all pages
-        _.each(this._pageMaps, function (pageMap) {
-            pageMap.page.destroy();
-            if (this.options.pagesContainer && this.options.pagesContainer.contains(pageMap.el)) {
-                this.options.pagesContainer.removeChild(pageMap.el);
-            }
-            _.each(pageMap.modules, function (moduleMap) {
-                moduleMap.module.destroy();
-            });
-        }.bind(this));
-        this._pageMaps = {};
-
-        // destroy all global modules
-        _.each(this._globalModuleMaps, function (globalMap) {
-            // conditionally in case a global module config exist but hasnt been loaded
-            if (globalMap.module) {
-                globalMap.module.hide().then(function () {
-                    globalMap.module.destroy();
+        // we should not destroy the current page the user is on
+        _.each(this._pageMaps, function (pageMap, key) {
+            if (key !== currentMapKey) {
+                pageMap.page.destroy();
+                if (this.options.pagesContainer && this.options.pagesContainer.contains(pageMap.el)) {
+                    this.options.pagesContainer.removeChild(pageMap.el);
+                }
+                _.each(pageMap.modules, function (moduleMap) {
+                    moduleMap.module.destroy();
                 });
             }
+        }.bind(this));
+
+        // TODO: should not destroy global modules that are on the current page
+        // destroy all global modules
+        _.each(this._globalModuleMaps, function (globalMap, key) {
+            // conditionally in case a global module config exist but hasnt been loaded
+            if (!currentPageConfig.modules || currentPageConfig.modules.indexOf(key) === -1) {
+                if (globalMap.module) {
+                    globalMap.module.hide().then(function () {
+                        globalMap.module.destroy();
+                    });
+                }
+            }
         });
-        this._globalModuleMaps = this._buildGlobalModuleMaps();
     }
 
     /**
@@ -449,7 +455,7 @@ class Router {
             console.error(e);
             return Promise.reject(e);
         }
-        
+
         if (!this._pageMaps[pageKey]) {
             this._pageMaps[pageKey] = pageMap;
             pageMap.config = pageConfig;
@@ -744,10 +750,10 @@ class Router {
                         }
                     })
                     .catch((e) => {
-                    // error loading global module!
-                    map.module.error(e);
-                    throw e;
-                });
+                        // error loading global module!
+                        map.module.error(e);
+                        throw e;
+                    });
             }.bind(this));
         }
         return map.promise;
@@ -803,6 +809,7 @@ class Router {
             for (let i = 0; i < links.length; i++) {
                 if (this._links.indexOf(links[i]) === -1) {
                     links[i].addEventListener('click', this._linkClickEventListener);
+                    this._links.push(links[i]);
                 }
             }
         }
@@ -816,8 +823,10 @@ class Router {
         let links = containerEl.getElementsByTagName('a');
         if (links.length) {
             for (let i = 0; i < links.length; i++) {
-                if (this._links.indexOf(links[i]) !== -1) {
+                let index = this._links.indexOf(links[i]);
+                if (index > -1) {
                     links[i].removeEventListener('click', this._linkClickEventListener);
+                    this._links.splice(index, 1);
                 }
             }
         }
