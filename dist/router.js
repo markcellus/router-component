@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.3.0.
+* router-js - v3.3.1.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -21709,6 +21709,267 @@ if (typeof require !== 'undefined' && require.extensions) {
 },{}],40:[function(require,module,exports){
 'use strict';
 
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _promise = require('promise');
+
+var _promise2 = _interopRequireDefault(_promise);
+
+var _lodash = require('lodash');
+
+var _lodash2 = _interopRequireDefault(_lodash);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * Makes sure that a path is converted to an array.
+ * @param paths
+ * @returns {*}
+ */
+var ensurePathArray = function ensurePathArray(paths) {
+    if (!paths) {
+        paths = [];
+    } else if (typeof paths === 'string') {
+        paths = [paths];
+    }
+    return paths;
+};
+
+/**
+ The Resource Manager.
+ @class ResourceManager
+ @description Represents a manager that loads any CSS and Javascript Resources on the fly.
+ */
+
+var ResourceManager = function () {
+
+    /**
+     * Upon initialization.
+     * @memberOf ResourceManager
+     */
+
+    function ResourceManager() {
+        _classCallCheck(this, ResourceManager);
+
+        this._head = document.getElementsByTagName('head')[0];
+        this._cssPaths = {};
+        this._scriptMaps = {};
+        this._dataPromises = {};
+    }
+
+    /**
+     * Loads a javascript file.
+     * @param {string|Array} paths - The path to the view's js file
+     * @memberOf ResourceManager
+     * @return {Promise} Returns a promise that resolves when all scripts have been loaded
+     */
+
+
+    _createClass(ResourceManager, [{
+        key: 'loadScript',
+        value: function loadScript(paths) {
+            var script,
+                map,
+                loadPromises = [];
+            paths = ensurePathArray(paths);
+            paths.forEach(function (path) {
+                map = this._scriptMaps[path] = this._scriptMaps[path] || {};
+                if (!map.promise) {
+                    map.path = path;
+                    map.promise = new _promise2.default(function (resolve) {
+                        script = this.createScriptElement();
+                        script.setAttribute('type', 'text/javascript');
+                        script.src = path;
+                        script.addEventListener('load', resolve);
+                        this._head.appendChild(script);
+                    }.bind(this));
+                }
+                loadPromises.push(map.promise);
+            }.bind(this));
+            return _promise2.default.all(loadPromises);
+        }
+
+        /**
+         * Removes a script that has the specified path from the head of the document.
+         * @param {string|Array} paths - The paths of the scripts to unload
+         * @memberOf ResourceManager
+         */
+
+    }, {
+        key: 'unloadScript',
+        value: function unloadScript(paths) {
+            var file;
+            return new _promise2.default(function (resolve) {
+                paths = ensurePathArray(paths);
+                paths.forEach(function (path) {
+                    file = this._head.querySelectorAll('script[src="' + path + '"]')[0];
+                    if (file) {
+                        this._head.removeChild(file);
+                        delete this._scriptMaps[path];
+                    }
+                }.bind(this));
+                resolve();
+            }.bind(this));
+        }
+
+        /**
+         * Creates a new script element.
+         * @returns {HTMLElement}
+         */
+
+    }, {
+        key: 'createScriptElement',
+        value: function createScriptElement() {
+            return document.createElement('script');
+        }
+
+        /**
+         * Makes a request to get data and caches it.
+         * @param {string} url - The url to fetch data from
+         * @param [reqOptions] - options to be passed to fetch call
+         * @returns {*}
+         */
+
+    }, {
+        key: 'fetchData',
+        value: function fetchData(url) {
+            var _this = this;
+
+            var reqOptions = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+            // TODO: keeping track of cache (objId) below can better be done using WeakMaps
+            var objId = reqOptions ? JSON.stringify(reqOptions) : '',
+                cacheId = url + objId;
+
+            reqOptions.cache = reqOptions.cache === undefined ? true : reqOptions.cache;
+
+            if (!url) {
+                return _promise2.default.resolve();
+            }
+            if (!this._dataPromises[cacheId] || !reqOptions.cache) {
+                this._dataPromises[cacheId] = fetch(url, reqOptions).then(function (resp) {
+                    // convert response to json
+                    if (resp.status === 401) {
+                        throw new Error("Unauthorized");
+                    }
+                    if (resp.bodyUsed) {
+                        return resp.json();
+                    }
+                }).catch(function (e) {
+                    // if failure, remove cache so that subsequent
+                    // requests will trigger new ajax call
+                    _this._dataPromises[cacheId] = null;
+                    throw e;
+                });
+            }
+            return this._dataPromises[cacheId];
+        }
+
+        /**
+         * Loads css files.
+         * @param {Array|String} paths - An array of css paths files to load
+         * @memberOf ResourceManager
+         * @return {Promise}
+         */
+
+    }, {
+        key: 'loadCss',
+        value: function loadCss(paths) {
+            return new _promise2.default(function (resolve) {
+                paths = ensurePathArray(paths);
+                paths.forEach(function (path) {
+                    // TODO: figure out a way to find out when css is guaranteed to be loaded,
+                    // and make this return a truely asynchronous promise
+                    if (!this._cssPaths[path]) {
+                        var el = document.createElement('link');
+                        el.setAttribute('rel', 'stylesheet');
+                        el.setAttribute('href', path);
+                        this._head.appendChild(el);
+                        this._cssPaths[path] = el;
+                    }
+                }.bind(this));
+                resolve();
+            }.bind(this));
+        }
+
+        /**
+         * Unloads css paths.
+         * @param {string|Array} paths - The css paths to unload
+         * @memberOf ResourceManager
+         * @return {Promise}
+         */
+
+    }, {
+        key: 'unloadCss',
+        value: function unloadCss(paths) {
+            var el;
+            return new _promise2.default(function (resolve) {
+                paths = ensurePathArray(paths);
+                paths.forEach(function (path) {
+                    el = this._cssPaths[path];
+                    if (el) {
+                        this._head.removeChild(el);
+                        this._cssPaths[path] = null;
+                    }
+                }.bind(this));
+                resolve();
+            }.bind(this));
+        }
+
+        /**
+         * Parses a template into a DOM element, then returns element back to you.
+         * @param {string} path - The path to the template
+         * @param {HTMLElement} [el] - The element to attach template to
+         * @returns {Promise} Returns a promise that resolves with contents of template file
+         */
+
+    }, {
+        key: 'loadTemplate',
+        value: function loadTemplate(path, el) {
+            if (path) {
+                return fetch(path).then(function (resp) {
+                    return resp.text().then(function (contents) {
+                        if (el) {
+                            el.innerHTML = contents;
+                            contents = el;
+                        }
+                        return contents;
+                    });
+                });
+            } else {
+                // no path was supplied
+                return _promise2.default.resolve();
+            }
+        }
+
+        /**
+         * Removes all cached resources.
+         * @memberOf ResourceManager
+         */
+
+    }, {
+        key: 'flush',
+        value: function flush() {
+            this.unloadCss(Object.getOwnPropertyNames(this._cssPaths));
+            this._cssPaths = {};
+            _lodash2.default.each(this._scriptMaps, function (map) {
+                this.unloadScript(map.path);
+            }.bind(this));
+            this._scriptMaps = {};
+            this._dataPromises = {};
+        }
+    }]);
+
+    return ResourceManager;
+}();
+
+module.exports = new ResourceManager();
+
+},{"lodash":39,"promise":42}],41:[function(require,module,exports){
+'use strict';
+
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
@@ -21951,7 +22212,8 @@ var Module = function () {
                     });
                 }).catch(function (e) {
                     _this.error(e);
-                    return e;
+                    // throw error to reject promise
+                    throw e;
                 });
             } else {
                 return _promise2.default.resolve();
@@ -22021,17 +22283,12 @@ var Module = function () {
     }, {
         key: 'error',
         value: function error(err) {
-            var e = err || new Error(),
-                msg = e.message || '';
+            var e = err || new Error();
 
             this.el.classList.add(this.options.errorClass);
 
             this.error = true;
             this.loaded = false;
-
-            if (e.stack) {
-                console.log(e.stack);
-            }
 
             this.options.onError(e);
             return this.waitForTransition().then(function () {
@@ -22269,12 +22526,12 @@ var Module = function () {
 
 exports.default = Module;
 
-},{"handlebars":38,"handlebars-helper-slugify":7,"promise":41,"resource-manager-js":49,"underscore":61}],41:[function(require,module,exports){
+},{"handlebars":38,"handlebars-helper-slugify":7,"promise":42,"resource-manager-js":40,"underscore":61}],42:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib')
 
-},{"./lib":46}],42:[function(require,module,exports){
+},{"./lib":47}],43:[function(require,module,exports){
 'use strict';
 
 var asap = require('asap/raw');
@@ -22489,7 +22746,7 @@ function doResolve(fn, promise) {
   }
 }
 
-},{"asap/raw":6}],43:[function(require,module,exports){
+},{"asap/raw":6}],44:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -22504,7 +22761,7 @@ Promise.prototype.done = function (onFulfilled, onRejected) {
   });
 };
 
-},{"./core.js":42}],44:[function(require,module,exports){
+},{"./core.js":43}],45:[function(require,module,exports){
 'use strict';
 
 //This file contains the ES6 extensions to the core Promises/A+ API
@@ -22613,7 +22870,7 @@ Promise.prototype['catch'] = function (onRejected) {
   return this.then(null, onRejected);
 };
 
-},{"./core.js":42}],45:[function(require,module,exports){
+},{"./core.js":43}],46:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -22631,7 +22888,7 @@ Promise.prototype['finally'] = function (f) {
   });
 };
 
-},{"./core.js":42}],46:[function(require,module,exports){
+},{"./core.js":43}],47:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./core.js');
@@ -22641,7 +22898,7 @@ require('./es6-extensions.js');
 require('./node-extensions.js');
 require('./synchronous.js');
 
-},{"./core.js":42,"./done.js":43,"./es6-extensions.js":44,"./finally.js":45,"./node-extensions.js":47,"./synchronous.js":48}],47:[function(require,module,exports){
+},{"./core.js":43,"./done.js":44,"./es6-extensions.js":45,"./finally.js":46,"./node-extensions.js":48,"./synchronous.js":49}],48:[function(require,module,exports){
 'use strict';
 
 // This file contains then/promise specific extensions that are only useful
@@ -22773,7 +23030,7 @@ Promise.prototype.nodeify = function (callback, ctx) {
   });
 }
 
-},{"./core.js":42,"asap":5}],48:[function(require,module,exports){
+},{"./core.js":43,"asap":5}],49:[function(require,module,exports){
 'use strict';
 
 var Promise = require('./core.js');
@@ -22837,264 +23094,7 @@ Promise.disableSynchronous = function() {
   Promise.prototype.getState = undefined;
 };
 
-},{"./core.js":42}],49:[function(require,module,exports){
-'use strict';
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _promise = require('promise');
-
-var _promise2 = _interopRequireDefault(_promise);
-
-var _lodash = require('lodash');
-
-var _lodash2 = _interopRequireDefault(_lodash);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-/**
- * Makes sure that a path is converted to an array.
- * @param paths
- * @returns {*}
- */
-var ensurePathArray = function ensurePathArray(paths) {
-    if (!paths) {
-        paths = [];
-    } else if (typeof paths === 'string') {
-        paths = [paths];
-    }
-    return paths;
-};
-
-/**
- The Resource Manager.
- @class ResourceManager
- @description Represents a manager that loads any CSS and Javascript Resources on the fly.
- */
-
-var ResourceManager = function () {
-
-    /**
-     * Upon initialization.
-     * @memberOf ResourceManager
-     */
-
-    function ResourceManager() {
-        _classCallCheck(this, ResourceManager);
-
-        this._head = document.getElementsByTagName('head')[0];
-        this._cssPaths = {};
-        this._scriptMaps = {};
-        this._dataPromises = {};
-    }
-
-    /**
-     * Loads a javascript file.
-     * @param {string|Array} paths - The path to the view's js file
-     * @memberOf ResourceManager
-     * @return {Promise} Returns a promise that resolves when all scripts have been loaded
-     */
-
-
-    _createClass(ResourceManager, [{
-        key: 'loadScript',
-        value: function loadScript(paths) {
-            var script,
-                map,
-                loadPromises = [];
-            paths = ensurePathArray(paths);
-            paths.forEach(function (path) {
-                map = this._scriptMaps[path] = this._scriptMaps[path] || {};
-                if (!map.promise) {
-                    map.path = path;
-                    map.promise = new _promise2.default(function (resolve) {
-                        script = this.createScriptElement();
-                        script.setAttribute('type', 'text/javascript');
-                        script.src = path;
-                        script.addEventListener('load', resolve);
-                        this._head.appendChild(script);
-                    }.bind(this));
-                }
-                loadPromises.push(map.promise);
-            }.bind(this));
-            return _promise2.default.all(loadPromises);
-        }
-
-        /**
-         * Removes a script that has the specified path from the head of the document.
-         * @param {string|Array} paths - The paths of the scripts to unload
-         * @memberOf ResourceManager
-         */
-
-    }, {
-        key: 'unloadScript',
-        value: function unloadScript(paths) {
-            var file;
-            return new _promise2.default(function (resolve) {
-                paths = ensurePathArray(paths);
-                paths.forEach(function (path) {
-                    file = this._head.querySelectorAll('script[src="' + path + '"]')[0];
-                    if (file) {
-                        this._head.removeChild(file);
-                        delete this._scriptMaps[path];
-                    }
-                }.bind(this));
-                resolve();
-            }.bind(this));
-        }
-
-        /**
-         * Creates a new script element.
-         * @returns {HTMLElement}
-         */
-
-    }, {
-        key: 'createScriptElement',
-        value: function createScriptElement() {
-            return document.createElement('script');
-        }
-
-        /**
-         * Makes a request to get data and caches it.
-         * @param {string} url - The url to fetch data from
-         * @param [reqOptions] - options to be passed to fetch call
-         * @returns {*}
-         */
-
-    }, {
-        key: 'fetchData',
-        value: function fetchData(url, reqOptions) {
-            var _this = this;
-
-            // TODO: keeping track of cache (objId) below can better be done using WeakMaps
-            var objId = reqOptions ? JSON.stringify(reqOptions) : '',
-                cacheId = url + objId;
-
-            reqOptions = reqOptions || {};
-
-            if (!url) {
-                return _promise2.default.resolve();
-            }
-            if (!this._dataPromises[cacheId]) {
-                this._dataPromises[cacheId] = fetch(url, reqOptions).then(function (resp) {
-                    // convert response to json
-                    if (resp.status === 401) {
-                        throw new Error("Unauthorized");
-                    }
-                    return resp.json();
-                }).catch(function (e) {
-                    // if failure, remove cache so that subsequent
-                    // requests will trigger new ajax call
-                    _this._dataPromises[cacheId] = null;
-                    throw e;
-                });
-            }
-            return this._dataPromises[cacheId];
-        }
-
-        /**
-         * Loads css files.
-         * @param {Array|String} paths - An array of css paths files to load
-         * @memberOf ResourceManager
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'loadCss',
-        value: function loadCss(paths) {
-            return new _promise2.default(function (resolve) {
-                paths = ensurePathArray(paths);
-                paths.forEach(function (path) {
-                    // TODO: figure out a way to find out when css is guaranteed to be loaded,
-                    // and make this return a truely asynchronous promise
-                    if (!this._cssPaths[path]) {
-                        var el = document.createElement('link');
-                        el.setAttribute('rel', 'stylesheet');
-                        el.setAttribute('href', path);
-                        this._head.appendChild(el);
-                        this._cssPaths[path] = el;
-                    }
-                }.bind(this));
-                resolve();
-            }.bind(this));
-        }
-
-        /**
-         * Unloads css paths.
-         * @param {string|Array} paths - The css paths to unload
-         * @memberOf ResourceManager
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'unloadCss',
-        value: function unloadCss(paths) {
-            var el;
-            return new _promise2.default(function (resolve) {
-                paths = ensurePathArray(paths);
-                paths.forEach(function (path) {
-                    el = this._cssPaths[path];
-                    if (el) {
-                        this._head.removeChild(el);
-                        this._cssPaths[path] = null;
-                    }
-                }.bind(this));
-                resolve();
-            }.bind(this));
-        }
-
-        /**
-         * Parses a template into a DOM element, then returns element back to you.
-         * @param {string} path - The path to the template
-         * @param {HTMLElement} [el] - The element to attach template to
-         * @returns {Promise} Returns a promise that resolves with contents of template file
-         */
-
-    }, {
-        key: 'loadTemplate',
-        value: function loadTemplate(path, el) {
-            if (path) {
-                return fetch(path).then(function (resp) {
-                    return resp.text().then(function (contents) {
-                        if (el) {
-                            el.innerHTML = contents;
-                            contents = el;
-                        }
-                        return contents;
-                    });
-                });
-            } else {
-                // no path was supplied
-                return _promise2.default.resolve();
-            }
-        }
-
-        /**
-         * Removes all cached resources.
-         * @memberOf ResourceManager
-         */
-
-    }, {
-        key: 'flush',
-        value: function flush() {
-            this.unloadCss(Object.getOwnPropertyNames(this._cssPaths));
-            this._cssPaths = {};
-            _lodash2.default.each(this._scriptMaps, function (map) {
-                this.unloadScript(map.path);
-            }.bind(this));
-            this._scriptMaps = {};
-            this._dataPromises = {};
-        }
-    }]);
-
-    return ResourceManager;
-}();
-
-module.exports = new ResourceManager();
-
-},{"lodash":39,"promise":41}],50:[function(require,module,exports){
+},{"./core.js":43}],50:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -27896,26 +27896,32 @@ var Router = function () {
     }, {
         key: '_onRouteRequest',
         value: function _onRouteRequest(path, options) {
+            var _this2 = this;
+
             var prevPath = this._currentPath;
             if (path !== prevPath) {
                 return this._handleRequestedUrl(path, options).then(function (path) {
-                    this._currentPreviousPageHidePromise = this.hidePage(prevPath, path);
-                    return this._currentPreviousPageHidePromise.then(function () {
-                        var _this2 = this;
+                    _this2._currentPreviousPageHidePromise = _this2.hidePage(prevPath, path);
+                    return _this2._currentPreviousPageHidePromise.then(function () {
+                        return _this2.loadGlobalModules(path).then(function () {
+                            return _this2.loadPage(path).then(function () {
+                                var _this3 = this;
 
-                        return this.loadPage(path).then(function () {
-                            if (this.options.onPageLoad) {
-                                this.options.onPageLoad.call(this, path);
-                            }
-                            return this.showPage(path);
-                        }.bind(this)).catch(function (e) {
-                            console.warn('Router Error: Page at ' + path + ' could not be loaded');
-                            if (_this2.options.onRouteError) {
-                                _this2.options.onRouteError.call(_this2, e);
-                            }
+                                if (this.options.onPageLoad) {
+                                    this.options.onPageLoad.call(this, path);
+                                }
+                                return this.showPage(path).then(function () {
+                                    return _this3.showGlobalModules(path);
+                                });
+                            }.bind(_this2)).catch(function (e) {
+                                console.warn('Router Error: Page at ' + path + ' could not be loaded');
+                                if (_this2.options.onRouteError) {
+                                    _this2.options.onRouteError.call(_this2, e);
+                                }
+                            });
                         });
-                    }.bind(this));
-                }.bind(this));
+                    });
+                });
             } else {
                 // already at url!
                 return _promise2.default.resolve();
@@ -28055,7 +28061,7 @@ var Router = function () {
         }
 
         /**
-         * Loads the script for a module and falls back to internal Module class if not found.
+         * Requires the script for a module and falls back to internal Module class if not found.
          * @param {string} [scriptUrl] - Url to script
          * @param {HTMLElement} [el] - The element to use
          * @param {Object} [options] - Options to pass to scripts instantiation (if not a singleton of course)
@@ -28065,48 +28071,22 @@ var Router = function () {
     }, {
         key: 'loadScript',
         value: function loadScript(scriptUrl, el, options) {
-            var _this3 = this;
-
+            var contents = null;
             options = options || {};
             options.requestOptions = _lodash2.default.extend({}, this.options.requestOptions, options.requestOptions);
-            if (!scriptUrl) {
-                return _promise2.default.resolve(new _moduleJs2.default(el, options));
-            }
-            return new _promise2.default(function (resolve) {
-                var contents = null;
-                try {
-                    contents = _this3.requireScript(scriptUrl, el, options);
-                } catch (e) {
-                    // not found, so fallback to class
-                    resolve(new _moduleJs2.default(el, options));
-                }
-                resolve(contents);
-            });
-        }
 
-        /**
-         * Require()s a script and instantiates it if a non-singleton.
-         * @param scriptUrl - Url to script
-         * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
-         * @returns {*} Returns the script contents if found (usually a singleton or class) or rejects if not found
-         */
-
-    }, {
-        key: 'requireScript',
-        value: function requireScript(scriptUrl, el, options) {
-            var contents;
             if (!scriptUrl) {
-                return reject();
+                return new _moduleJs2.default(el, options);
             }
             try {
                 contents = require(scriptUrl);
             } catch (e) {
-                console.error(e);
-                reject(e);
+                // not found, so fallback to class
+                contents = new _moduleJs2.default(el, options);
             }
-            options = options || {};
 
-            // support new es6 module exports (file must export a default)
+            // support new es6 module exports
+            // if module exports a default, use that
             // TODO: is __esModule safe to use?
             if (contents.__esModule) {
                 contents = contents.default;
@@ -28121,62 +28101,63 @@ var Router = function () {
 
         /**
          * Loads a page.
-         * @param {string} path - The url of the page to load
-         * @returns {*}
+         * @param {string} route - The url of the page to load
+         * @returns {Promise} Returns a promise representing the load call
          */
 
     }, {
         key: 'loadPage',
-        value: function loadPage(path) {
+        value: function loadPage(route) {
             var _this4 = this;
 
-            var pageKey = this._getRouteMapKeyByPath(path),
-                pageConfig = this.options.pagesConfig[pageKey],
-                pageMap = {},
-                e;
+            var pageKey = this._getRouteMapKeyByPath(route);
+            var pageConfig = this.options.pagesConfig[pageKey];
+            var pageMap = this._pageMaps[pageKey] || {};
 
             if (!pageConfig) {
                 // no page configured!
-                e = new Error('Router Error: No routes configuration for ' + this.getRelativeUrl());
+                var e = new Error('Router Error: No routes configuration for ' + this.getRelativeUrl());
                 console.error(e);
                 return _promise2.default.reject(e);
             }
 
-            if (!this._pageMaps[pageKey]) {
-                this._pageMaps[pageKey] = pageMap;
+            // instantiate and cache page instance if doesnt already exist
+            if (!pageMap.page) {
                 pageMap.config = pageConfig;
-                pageMap.promise = this.loadGlobalModules(path).then(function () {
-                    pageConfig = _lodash2.default.extend(pageConfig, {
-                        activeClass: 'page-active',
-                        loadedClass: 'page-loaded',
-                        disabledClass: 'page-disabled',
-                        errorClass: 'page-error'
-                    });
-                    return _this4.loadScript(pageConfig.script, document.createElement('div'), pageConfig).then(function (page) {
-                        pageMap.page = page;
-                        page.el.classList.add('page'); // add default page class
-                        // add page modules as submodules to ensure they load when page's load() call gets called
-                        var pageModuleKeys = _this4.getPageModulesByRoute(path);
-                        pageModuleKeys.forEach(function (key, idx) {
-                            var moduleConfig = _this4.options.modulesConfig[key];
-                            var moduleEl = document.createElement('div');
-                            moduleConfig.requestOptions = _lodash2.default.extend({}, _this4.options.requestOptions, moduleConfig.requestOptions);
-                            page.subModules['mod' + idx] = _this4.requireScript(moduleConfig.script, moduleEl, moduleConfig);
-                        });
-                        _this4.options.pagesContainer.appendChild(page.el);
-                        return page.load();
-                    });
-                }, function () {
-                    // if page loading happens to cause an error, remove
-                    // item from page cache to force a hard
-                    // reload next time a request is made to this page
-                    if (_this4._pageMaps[pageKey].page) {
-                        _this4._pageMaps[pageKey].page.destroy();
-                    }
-                    delete _this4._pageMaps[pageKey];
+                pageConfig = _lodash2.default.extend(pageConfig, {
+                    activeClass: 'page-active',
+                    loadedClass: 'page-loaded',
+                    disabledClass: 'page-disabled',
+                    errorClass: 'page-error'
                 });
+                try {
+                    pageMap.page = this.loadScript(pageConfig.script, document.createElement('div'), pageConfig);
+                } catch (e) {
+                    throw e;
+                }
+                pageMap.page.el.classList.add('page'); // add default page class
+                // add page modules as submodules to ensure they load when page's load() call gets called
+                var pageModuleKeys = this.getPageModulesByRoute(route);
+                pageModuleKeys.forEach(function (key, idx) {
+                    var moduleConfig = _this4.options.modulesConfig[key];
+                    var moduleEl = document.createElement('div');
+                    pageMap.page.subModules['mod' + idx] = _this4.loadScript(moduleConfig.script, moduleEl, moduleConfig);
+                });
+                this.options.pagesContainer.appendChild(pageMap.page.el);
+                this._pageMaps[pageKey] = pageMap;
             }
-            return this._pageMaps[pageKey].promise;
+
+            if (!pageMap.promise) {
+                pageMap.promise = pageMap.page.load();
+            }
+            return pageMap.promise.catch(function (err) {
+                // if page loading happens to cause an error, remove
+                // item from page cache to force a hard
+                // reload next time a request is made to this page
+                delete pageMap.promise;
+                // throw error to reject promise
+                throw err;
+            });
         }
 
         /**
@@ -28208,28 +28189,24 @@ var Router = function () {
         }
 
         /**
-         * Shows the page and its designated modules of the supplied url path.
-         * @param {string} path - The url path of the page to show
+         * Shows a page and its sub modules.
+         * @param {string} route - The route url of the page to show
          * @returns {*}
          */
 
     }, {
         key: 'showPage',
-        value: function showPage(path) {
-            var _this5 = this;
-
-            var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)] || {},
-                page = pageMap.page;
+        value: function showPage(route) {
+            var pageMap = this._pageMaps[this._getRouteMapKeyByPath(route)];
+            var page = pageMap.page;
             if (!page) {
                 return _promise2.default.resolve();
             }
             _lodash2.default.each(page.subModules, function (module) {
                 module.show();
             });
-            return this.showGlobalModules(path).then(function () {
-                _this5._bindLinks(page.el);
-                return page.show();
-            });
+            this._bindLinks(page.el);
+            return page.show();
         }
 
         /**
@@ -28250,12 +28227,12 @@ var Router = function () {
                 if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                     // page has this global module specified!
                     promises.push(map.promise.then(function () {
-                        var _this6 = this;
+                        var _this5 = this;
 
                         // only hide the module if the toPath does not contain it
                         if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
                             return map.module.hide().then(function () {
-                                _this6._unbindLinks(map.module.el);
+                                _this5._unbindLinks(map.module.el);
                             });
                         }
                     }));
@@ -28275,7 +28252,7 @@ var Router = function () {
     }, {
         key: 'hidePage',
         value: function hidePage(path, newPath) {
-            var _this7 = this;
+            var _this6 = this;
 
             var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
 
@@ -28289,8 +28266,8 @@ var Router = function () {
                                 _lodash2.default.each(page.subModules, function (module) {
                                     module.hide();
                                 });
-                                return _this7.hideGlobalModules(path, newPath).then(function () {
-                                    _this7._unbindLinks(pageMap.page.el);
+                                return _this6.hideGlobalModules(path, newPath).then(function () {
+                                    _this6._unbindLinks(pageMap.page.el);
                                 });
                             });
                         }).catch(function () {
@@ -28367,6 +28344,8 @@ var Router = function () {
     }, {
         key: 'loadGlobalModule',
         value: function loadGlobalModule(moduleKey) {
+            var _this7 = this;
+
             var map = this._globalModuleMaps[moduleKey] || {},
                 config = this.getModuleConfig(moduleKey);
             if (!map.promise) {
@@ -28375,20 +28354,19 @@ var Router = function () {
                 map.el = div.children[0];
                 // create html into DOM element and pass it off to load call for
                 // custom mangling before it gets appended to DOM
-                map.promise = this.loadScript(config.script, map.el, config).then(function (module) {
-                    var _this8 = this;
-
-                    map.module = module;
-                    return module.load().then(function () {
-                        if (module.el) {
-                            _this8._bindLinks(module.el);
+                map.module = this.loadScript(config.script, map.el, config);
+                map.promise = new _promise2.default(function (resolve) {
+                    map.module.load().then(function () {
+                        if (map.module.el) {
+                            _this7._bindLinks(map.module.el);
                         }
+                        resolve();
                     }).catch(function (e) {
-                        // error loading global module!
+                        // error loading global module but still resolve
                         map.module.error(e);
-                        throw e;
+                        resolve();
                     });
-                }.bind(this));
+                });
             }
             return map.promise;
         }
@@ -28489,10 +28467,10 @@ var Router = function () {
     }, {
         key: '_unbindAllLinks',
         value: function _unbindAllLinks() {
-            var _this9 = this;
+            var _this8 = this;
 
             this._links.forEach(function (l) {
-                l.removeEventListener('click', _this9._linkClickEventListener);
+                l.removeEventListener('click', _this8._linkClickEventListener);
             });
         }
     }]);
@@ -28502,5 +28480,5 @@ var Router = function () {
 
 exports.default = Router;
 
-},{"lodash":39,"module-js":40,"promise":41}]},{},[62])(62)
+},{"lodash":39,"module-js":41,"promise":42}]},{},[62])(62)
 });
