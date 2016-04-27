@@ -1558,6 +1558,9 @@ describe('Router', function () {
         router.start();
         var pageConstructorStub = sinon.stub().returns(mockPage);
         var syntaxError = new Error('SyntaxError');
+        // make stack an empty string so doesnt trigger any
+        // inadvertent behavior or reaction from test runner
+        syntaxError.stack = '';
         pageConstructorStub.throws(syntaxError);
         requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
         return router.triggerRoute(pageUrl).then(function () {
