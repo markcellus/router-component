@@ -246,24 +246,28 @@ class Router {
     _onRouteRequest (path, options) {
         var prevPath = this._currentPath;
         if (path !== prevPath) {
-            return this._handleRequestedUrl(path, options).then(function (path) {
+            return this._handleRequestedUrl(path, options).then((path) => {
                 this._currentPreviousPageHidePromise = this.hidePage(prevPath, path);
-                return this._currentPreviousPageHidePromise.then(function () {
-                    return this.loadPage(path)
-                        .then(function () {
-                            if (this.options.onPageLoad) {
-                                this.options.onPageLoad.call(this, path);
-                            }
-                            return this.showPage(path);
-                        }.bind(this))
-                        .catch((e) => {
-                            console.warn('Router Error: Page at ' + path + ' could not be loaded');
-                            if (this.options.onRouteError) {
-                                this.options.onRouteError.call(this, e);
-                            }
-                        });
-                }.bind(this));
-            }.bind(this));
+                return this._currentPreviousPageHidePromise.then(() => {
+                    return this.loadGlobalModules(path).then(() => {
+                        return this.loadPage(path)
+                            .then(function () {
+                                if (this.options.onPageLoad) {
+                                    this.options.onPageLoad.call(this, path);
+                                }
+                                return this.showPage(path).then(() => {
+                                    return this.showGlobalModules(path);
+                                });
+                            }.bind(this))
+                            .catch((e) => {
+                                console.warn('Router Error: Page at ' + path + ' could not be loaded');
+                                if (this.options.onRouteError) {
+                                    this.options.onRouteError.call(this, e);
+                                }
+                            });
+                    });
+                });
+            });
         } else {
             // already at url!
             return Promise.resolve();
@@ -386,50 +390,29 @@ class Router {
     }
 
     /**
-     * Loads the script for a module and falls back to internal Module class if not found.
+     * Requires the script for a module and falls back to internal Module class if not found.
      * @param {string} [scriptUrl] - Url to script
      * @param {HTMLElement} [el] - The element to use
      * @param {Object} [options] - Options to pass to scripts instantiation (if not a singleton of course)
      * @returns {*}
      */
     loadScript (scriptUrl, el, options) {
+        let contents = null;
         options = options || {};
         options.requestOptions = _.extend({}, this.options.requestOptions, options.requestOptions);
-        if (!scriptUrl) {
-            return Promise.resolve(new Module(el, options));
-        }
-        return new Promise((resolve) => {
-            let contents = null;
-            try {
-                contents = this.requireScript(scriptUrl, el, options);
-            } catch (e) {
-                // not found, so fallback to class
-                resolve(new Module(el, options));
-            }
-            resolve(contents);
-        });
-    }
 
-    /**
-     * Require()s a script and instantiates it if a non-singleton.
-     * @param scriptUrl - Url to script
-     * @param [options] - Options to pass to scripts instantiation (if not a singleton of course)
-     * @returns {*} Returns the script contents if found (usually a singleton or class) or rejects if not found
-     */
-    requireScript (scriptUrl, el, options) {
-        var contents;
         if (!scriptUrl) {
-            return reject();
+            return new Module(el, options);
         }
         try {
             contents = require(scriptUrl);
         } catch (e) {
-            console.error(e);
-            reject(e);
+            // not found, so fallback to class
+            contents = new Module(el, options);
         }
-        options = options || {};
 
-        // support new es6 module exports (file must export a default)
+        // support new es6 module exports
+        // if module exports a default, use that
         // TODO: is __esModule safe to use?
         if (contents.__esModule) {
             contents = contents.default;
@@ -440,62 +423,62 @@ class Router {
             contents = new contents(el, options);
         }
         return contents;
-
     }
 
     /**
      * Loads a page.
-     * @param {string} path - The url of the page to load
-     * @returns {*}
+     * @param {string} route - The url of the page to load
+     * @returns {Promise} Returns a promise representing the load call
      */
-    loadPage (path) {
-        var pageKey = this._getRouteMapKeyByPath(path),
-            pageConfig = this.options.pagesConfig[pageKey],
-            pageMap = {},
-            e;
+    loadPage (route) {
+        let pageKey = this._getRouteMapKeyByPath(route);
+        let pageConfig = this.options.pagesConfig[pageKey];
+        let pageMap = this._pageMaps[pageKey] || {};
 
         if (!pageConfig) {
             // no page configured!
-            e = new Error('Router Error: No routes configuration for ' + this.getRelativeUrl());
+            let e = new Error('Router Error: No routes configuration for ' + this.getRelativeUrl());
             console.error(e);
             return Promise.reject(e);
         }
 
-        if (!this._pageMaps[pageKey]) {
-            this._pageMaps[pageKey] = pageMap;
+        // instantiate and cache page instance if doesnt already exist
+        if (!pageMap.page) {
             pageMap.config = pageConfig;
-            pageMap.promise = this.loadGlobalModules(path).then(() => {
-                pageConfig = _.extend(pageConfig, {
-                    activeClass: 'page-active',
-                    loadedClass: 'page-loaded',
-                    disabledClass: 'page-disabled',
-                    errorClass: 'page-error'
-                });
-                return this.loadScript(pageConfig.script, document.createElement('div'), pageConfig).then((page) => {
-                    pageMap.page = page;
-                    page.el.classList.add('page'); // add default page class
-                    // add page modules as submodules to ensure they load when page's load() call gets called
-                    let pageModuleKeys = this.getPageModulesByRoute(path);
-                    pageModuleKeys.forEach((key, idx) => {
-                        let moduleConfig = this.options.modulesConfig[key];
-                        let moduleEl = document.createElement('div');
-                        moduleConfig.requestOptions = _.extend({}, this.options.requestOptions, moduleConfig.requestOptions);
-                        page.subModules['mod' + idx] = this.requireScript(moduleConfig.script, moduleEl, moduleConfig);
-                    });
-                    this.options.pagesContainer.appendChild(page.el);
-                    return page.load();
-                });
-            }, () => {
-                // if page loading happens to cause an error, remove
-                // item from page cache to force a hard
-                // reload next time a request is made to this page
-                if (this._pageMaps[pageKey].page) {
-                    this._pageMaps[pageKey].page.destroy();
-                }
-                delete this._pageMaps[pageKey];
+            pageConfig = _.extend(pageConfig, {
+                activeClass: 'page-active',
+                loadedClass: 'page-loaded',
+                disabledClass: 'page-disabled',
+                errorClass: 'page-error'
             });
+            try {
+                pageMap.page = this.loadScript(pageConfig.script, document.createElement('div'), pageConfig);
+            } catch (e) {
+                throw e;
+            }
+            pageMap.page.el.classList.add('page'); // add default page class
+            // add page modules as submodules to ensure they load when page's load() call gets called
+            let pageModuleKeys = this.getPageModulesByRoute(route);
+            pageModuleKeys.forEach((key, idx) => {
+                let moduleConfig = this.options.modulesConfig[key];
+                let moduleEl = document.createElement('div');
+                pageMap.page.subModules['mod' + idx] = this.loadScript(moduleConfig.script, moduleEl, moduleConfig);
+            });
+            this.options.pagesContainer.appendChild(pageMap.page.el);
+            this._pageMaps[pageKey] = pageMap;
         }
-        return this._pageMaps[pageKey].promise;
+
+        if (!pageMap.promise) {
+            pageMap.promise = pageMap.page.load();
+        }
+        return pageMap.promise.catch((err) => {
+            // if page loading happens to cause an error, remove
+            // item from page cache to force a hard
+            // reload next time a request is made to this page
+            delete pageMap.promise;
+            // throw error to reject promise
+            throw err;
+        });
 
     }
 
@@ -525,23 +508,21 @@ class Router {
     }
 
     /**
-     * Shows the page and its designated modules of the supplied url path.
-     * @param {string} path - The url path of the page to show
+     * Shows a page and its sub modules.
+     * @param {string} route - The route url of the page to show
      * @returns {*}
      */
-    showPage (path) {
-        var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)] || {},
-            page = pageMap.page;
+    showPage (route) {
+        let pageMap = this._pageMaps[this._getRouteMapKeyByPath(route)];
+        let page = pageMap.page;
         if (!page) {
             return Promise.resolve();
         }
         _.each(page.subModules, function (module) {
             module.show();
         });
-        return this.showGlobalModules(path).then(() => {
-            this._bindLinks(page.el);
-            return page.show();
-        });
+        this._bindLinks(page.el);
+        return page.show();
     }
 
     /**
@@ -665,20 +646,21 @@ class Router {
             map.el = div.children[0];
             // create html into DOM element and pass it off to load call for
             // custom mangling before it gets appended to DOM
-            map.promise = this.loadScript(config.script, map.el, config).then(function (module) {
-                map.module = module;
-                return module.load()
+            map.module = this.loadScript(config.script, map.el, config);
+            map.promise = new Promise((resolve) => {
+                map.module.load()
                     .then(() => {
-                        if (module.el) {
-                            this._bindLinks(module.el);
+                        if (map.module.el) {
+                            this._bindLinks(map.module.el);
                         }
+                        resolve();
                     })
                     .catch((e) => {
-                        // error loading global module!
+                        // error loading global module but still resolve
                         map.module.error(e);
-                        throw e;
+                        resolve();
                     });
-            }.bind(this));
+            });
         }
         return map.promise;
     }
