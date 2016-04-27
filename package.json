@@ -30,7 +30,7 @@
   "main": "src/router.js",
   "dependencies": {
     "lodash": "^4.7.0",
-    "module-js": "^5.5.2",
+    "module-js": "^5.5.3",
     "promise": "^7.1.1"
   },
   "devDependencies": {
