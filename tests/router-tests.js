@@ -1548,4 +1548,22 @@ describe('Router', function () {
         });
     });
 
+    it('should trigger onRouteError callback option if the page script that loaded produces a syntax error', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var pageScriptUrl = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: pageScriptUrl};
+        var onErrorSpy = sinon.spy();
+        var router = new Router({pagesConfig: pagesConfig, onRouteError: onErrorSpy});
+        router.start();
+        var pageConstructorStub = sinon.stub().returns(mockPage);
+        var syntaxError = new Error('SyntaxError');
+        pageConstructorStub.throws(syntaxError);
+        requireStub.withArgs(pageScriptUrl).returns(pageConstructorStub);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.deepEqual(onErrorSpy.args[0][0], syntaxError);
+            router.stop();
+        });
+    });
+
 });
