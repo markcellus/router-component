@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.3.3.
+* router-js - v3.3.4.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -28135,7 +28135,10 @@ var Router = function () {
                 try {
                     pageMap.page = this.loadScript(pageConfig.script, document.createElement('div'), pageConfig);
                 } catch (e) {
-                    throw e;
+                    if (e.stack) {
+                        console.log(e.stack);
+                    }
+                    return _promise2.default.reject(e);
                 }
                 pageMap.page.el.classList.add('page'); // add default page class
                 // add page modules as submodules to ensure they load when page's load() call gets called
