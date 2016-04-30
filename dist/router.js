@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.3.5.
+* router-js - v3.4.0.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -27782,8 +27782,13 @@ var Router = function () {
                 // conditionally in case a global module config exist but hasnt been loaded
                 if (!currentPageConfig.modules || currentPageConfig.modules.indexOf(key) === -1) {
                     if (globalMap.module) {
+                        globalMap.module.hide = globalMap.module.hide || function () {
+                            return _promise2.default.resolve();
+                        };
                         globalMap.module.hide().then(function () {
-                            globalMap.module.destroy();
+                            if (globalMap.module.destroy) {
+                                globalMap.module.destroy();
+                            }
                             delete this._globalModuleMaps[key];
                         });
                     }
@@ -28185,7 +28190,9 @@ var Router = function () {
                     // we dont want to show modules before previous page hides them
                     // wait until previous page is done hiding
                     promises.push(this._currentPreviousPageHidePromise.then(function () {
-                        return map.module.show();
+                        if (map.module.show) {
+                            return map.module.show();
+                        }
                     }));
                 }
             }.bind(this));
@@ -28208,9 +28215,11 @@ var Router = function () {
                 return _promise2.default.resolve();
             }
             _lodash2.default.each(page.subModules, function (module) {
-                module.show();
+                if (module.show) {
+                    module.show();
+                }
             });
-            this._bindLinks(page.el);
+            this.bindLinks(page.el);
             return page.show();
         }
 
@@ -28229,16 +28238,17 @@ var Router = function () {
             pageConfig.modules = pageConfig.modules || [];
 
             _lodash2.default.each(this._globalModuleMaps, function (map, moduleKey) {
+                var _this5 = this;
+
                 if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                     // page has this global module specified!
                     promises.push(map.promise.then(function () {
-                        var _this5 = this;
-
                         // only hide the module if the toPath does not contain it
                         if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
-                            return map.module.hide().then(function () {
-                                _this5._unbindLinks(map.module.el);
-                            });
+                            _this5.unbindLinks(map.module.el);
+                            if (map.module.hide) {
+                                return map.module.hide();
+                            }
                         }
                     }));
                 }
@@ -28269,10 +28279,12 @@ var Router = function () {
                             return page.hide().then(function () {
                                 // hide all pages modules
                                 _lodash2.default.each(page.subModules, function (module) {
-                                    module.hide();
+                                    if (module.hide) {
+                                        module.hide();
+                                    }
                                 });
                                 return _this6.hideGlobalModules(path, newPath).then(function () {
-                                    _this6._unbindLinks(pageMap.page.el);
+                                    _this6.unbindLinks(pageMap.page.el);
                                 });
                             });
                         }).catch(function () {
@@ -28361,16 +28373,20 @@ var Router = function () {
                 // custom mangling before it gets appended to DOM
                 map.module = this.loadScript(config.script, map.el, config);
                 map.promise = new _promise2.default(function (resolve) {
-                    map.module.load().then(function () {
-                        if (map.module.el) {
-                            _this7._bindLinks(map.module.el);
-                        }
+                    if (!map.module.load) {
                         resolve();
-                    }).catch(function (e) {
-                        // error loading global module but still resolve
-                        map.module.error(e);
-                        resolve();
-                    });
+                    } else {
+                        map.module.load().then(function () {
+                            if (map.module.el) {
+                                _this7.bindLinks(map.module.el);
+                            }
+                            resolve();
+                        }).catch(function (e) {
+                            // error loading global module but still resolve
+                            map.module.error(e);
+                            resolve();
+                        });
+                    }
                 });
             }
             return map.promise;
@@ -28427,12 +28443,11 @@ var Router = function () {
 
         /**
          * Sets up click events on all internal links to prevent trigger new page loads.
-         * @private
          */
 
     }, {
-        key: '_bindLinks',
-        value: function _bindLinks(containerEl) {
+        key: 'bindLinks',
+        value: function bindLinks(containerEl) {
             var links = containerEl.getElementsByTagName('a');
             if (links.length) {
                 for (var i = 0; i < links.length; i++) {
@@ -28446,12 +28461,11 @@ var Router = function () {
 
         /**
          * Removes all click events on internal links.
-         * @private
          */
 
     }, {
-        key: '_unbindLinks',
-        value: function _unbindLinks(containerEl) {
+        key: 'unbindLinks',
+        value: function unbindLinks(containerEl) {
             var links = containerEl.getElementsByTagName('a');
             if (links.length) {
                 for (var i = 0; i < links.length; i++) {
