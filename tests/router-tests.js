@@ -1,9 +1,9 @@
 'use strict';
-import sinon from 'sinon';
-import assert from 'assert';
-import Promise from 'promise';
-import Module from 'module-js';
-import _ from 'lodash';
+import sinon from "sinon";
+import assert from "assert";
+import Promise from "promise";
+import Module from "module-js";
+import _ from "lodash";
 import Router from "./../src/router";
 
 
@@ -24,13 +24,14 @@ describe('Router', function () {
         page.subModules = {};
         return page;
     };
-    
+
     var createModuleStub = function () {
         var module = sinon.createStubInstance(Module);
         module.load.returns(Promise.resolve());
         module.show.returns(Promise.resolve());
         module.hide.returns(Promise.resolve());
         module.error.returns(Promise.resolve());
+        module.el = document.createElement('div');
         return module;
     };
 
@@ -1566,6 +1567,88 @@ describe('Router', function () {
         return router.triggerRoute(pageUrl).then(function () {
             assert.deepEqual(onErrorSpy.args[0][0], syntaxError);
             router.stop();
+        });
+    });
+
+    it('should NOT trigger a route error if there are existing subModules on a page that do not implement the Module interface', function () {
+        var moduleScriptUrl = 'my/custom/module';
+        var pageScriptUrl = 'path/to/my/script.js';
+        var routerErrorSpy = sinon.spy();
+        var router = new Router({
+            pagesConfig: {
+                '^my/real/url': {script: pageScriptUrl, modules: ['myModule']}
+            },
+            modulesConfig: {
+                myModule: {script: moduleScriptUrl}
+            },
+            onRouteError: routerErrorSpy
+        });
+        router.start();
+        var mockModule = function() {};
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        var mockPage = createPageStub();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        return router.triggerRoute('my/real/url').then(function () {
+            assert.equal(routerErrorSpy.callCount, 0);
+            router.stop();
+        });
+    });
+
+    it('should NOT trigger a route error when hiding a page if there are existing subModules on it that do not implement the Module interface', function () {
+        var moduleScriptUrl = 'my/custom/module';
+        var firstPageScriptPath = 'path/to/my/script.js';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        var routerErrorSpy = sinon.spy();
+        var router = new Router({
+            pagesConfig: {
+                '^page/with/module': {script: firstPageScriptPath, modules: ['myModule']},
+                '^page/without/module': {script: secondPageScriptPath}
+            },
+            modulesConfig: {
+                myModule: {script: moduleScriptUrl}
+            },
+            onRouteError: routerErrorSpy
+        });
+        router.start();
+        requireStub.withArgs(firstPageScriptPath).returns(createPageStub());
+        requireStub.withArgs(secondPageScriptPath).returns(createPageStub());
+        var mockModule = function() {};
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute('page/with/module').then(function () {
+            // trigger another page without the module to ensure its hide() method gets called
+            return router.triggerRoute('page/without/module').then(function () {
+                assert.equal(routerErrorSpy.callCount, 0);
+                router.stop();
+            });
+        });
+    });
+
+    it('should NOT trigger a route error when showing and hiding global modules that do not implement the Module interface', function () {
+        var moduleScriptUrl = 'my/custom/module';
+        var firstPageScriptPath = 'path/to/my/script.js';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        var routerErrorSpy = sinon.spy();
+        var router = new Router({
+            pagesConfig: {
+                '^page/with/module': {script: firstPageScriptPath, modules: ['myModule']},
+                '^page/without/module': {script: secondPageScriptPath}
+            },
+            modulesConfig: {
+                myModule: {script: moduleScriptUrl, global: true}
+            },
+            onRouteError: routerErrorSpy
+        });
+        router.start();
+        requireStub.withArgs(firstPageScriptPath).returns(createPageStub());
+        requireStub.withArgs(secondPageScriptPath).returns(createPageStub());
+        var mockModule = function() {};
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute('page/with/module').then(function () {
+            // trigger another page without the module to ensure its hide() method gets called
+            return router.triggerRoute('page/without/module').then(function () {
+                assert.equal(routerErrorSpy.callCount, 0);
+                router.stop();
+            });
         });
     });
 

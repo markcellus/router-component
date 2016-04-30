@@ -149,8 +149,13 @@ class Router {
             // conditionally in case a global module config exist but hasnt been loaded
             if (!currentPageConfig.modules || currentPageConfig.modules.indexOf(key) === -1) {
                 if (globalMap.module) {
+                    globalMap.module.hide = globalMap.module.hide || function () {
+                            return Promise.resolve();
+                        };
                     globalMap.module.hide().then(function () {
-                        globalMap.module.destroy();
+                        if (globalMap.module.destroy) {
+                            globalMap.module.destroy();
+                        }
                         delete this._globalModuleMaps[key];
                     });
                 }
@@ -502,7 +507,9 @@ class Router {
                 // we dont want to show modules before previous page hides them
                 // wait until previous page is done hiding
                 promises.push(this._currentPreviousPageHidePromise.then(function () {
-                    return map.module.show();
+                    if (map.module.show) {
+                        return map.module.show();
+                    }
                 }));
             }
         }.bind(this));
@@ -522,7 +529,9 @@ class Router {
             return Promise.resolve();
         }
         _.each(page.subModules, function (module) {
-            module.show();
+            if (module.show) {
+                module.show();
+            }
         });
         this.bindLinks(page.el);
         return page.show();
@@ -546,7 +555,9 @@ class Router {
                     // only hide the module if the toPath does not contain it
                     if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
                         this.unbindLinks(map.module.el);
-                        return map.module.hide();
+                        if (map.module.hide) {
+                            return map.module.hide()
+                        }
                     }
                 }));
             }
@@ -572,7 +583,9 @@ class Router {
                     return page.hide().then(() => {
                         // hide all pages modules
                         _.each(page.subModules, function (module) {
-                            module.hide();
+                            if (module.hide) {
+                                module.hide();
+                            }
                         });
                         return this.hideGlobalModules(path, newPath).then(() => {
                             this.unbindLinks(pageMap.page.el);
@@ -650,18 +663,22 @@ class Router {
             // custom mangling before it gets appended to DOM
             map.module = this.loadScript(config.script, map.el, config);
             map.promise = new Promise((resolve) => {
-                map.module.load()
-                    .then(() => {
-                        if (map.module.el) {
-                            this.bindLinks(map.module.el);
-                        }
-                        resolve();
-                    })
-                    .catch((e) => {
-                        // error loading global module but still resolve
-                        map.module.error(e);
-                        resolve();
-                    });
+                if (!map.module.load) {
+                    resolve();
+                } else {
+                    map.module.load()
+                        .then(() => {
+                            if (map.module.el) {
+                                this.bindLinks(map.module.el);
+                            }
+                            resolve();
+                        })
+                        .catch((e) => {
+                            // error loading global module but still resolve
+                            map.module.error(e);
+                            resolve();
+                        });
+                }
             });
         }
         return map.promise;
