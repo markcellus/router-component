@@ -524,7 +524,7 @@ class Router {
         _.each(page.subModules, function (module) {
             module.show();
         });
-        this._bindLinks(page.el);
+        this.bindLinks(page.el);
         return page.show();
     }
 
@@ -542,12 +542,11 @@ class Router {
         _.each(this._globalModuleMaps, function (map, moduleKey) {
             if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                 // page has this global module specified!
-                promises.push(map.promise.then(function () {
+                promises.push(map.promise.then(() => {
                     // only hide the module if the toPath does not contain it
                     if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
-                        return map.module.hide().then(() => {
-                            this._unbindLinks(map.module.el);
-                        });
+                        this.unbindLinks(map.module.el);
+                        return map.module.hide();
                     }
                 }));
             }
@@ -576,7 +575,7 @@ class Router {
                             module.hide();
                         });
                         return this.hideGlobalModules(path, newPath).then(() => {
-                            this._unbindLinks(pageMap.page.el);
+                            this.unbindLinks(pageMap.page.el);
                         });
                     });
                 })
@@ -654,7 +653,7 @@ class Router {
                 map.module.load()
                     .then(() => {
                         if (map.module.el) {
-                            this._bindLinks(map.module.el);
+                            this.bindLinks(map.module.el);
                         }
                         resolve();
                     })
@@ -710,9 +709,8 @@ class Router {
 
     /**
      * Sets up click events on all internal links to prevent trigger new page loads.
-     * @private
      */
-    _bindLinks (containerEl) {
+    bindLinks (containerEl) {
         let links = containerEl.getElementsByTagName('a');
         if (links.length) {
             for (let i = 0; i < links.length; i++) {
@@ -726,9 +724,8 @@ class Router {
 
     /**
      * Removes all click events on internal links.
-     * @private
      */
-    _unbindLinks (containerEl) {
+    unbindLinks (containerEl) {
         let links = containerEl.getElementsByTagName('a');
         if (links.length) {
             for (let i = 0; i < links.length; i++) {
