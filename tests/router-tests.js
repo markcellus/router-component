@@ -8,7 +8,6 @@ import Router from "./../src/router";
 
 
 describe('Router', function () {
-    'use strict';
     var mockPage,
         mockModule,
         origPushState,
@@ -1485,6 +1484,73 @@ describe('Router', function () {
                 assert.equal(pagesContainer.children.length, 1, 'one child left which the current pages el');
                 assert.equal(firstMockPage.destroy.callCount, 1);
                 router.stop();
+            });
+        });
+    });
+
+    it('should destroy all other global modules when reset() is called if the page on which it was called does not have any designated', function () {
+        var pageUrl = 'my/page/url';
+        var globalModuleScriptPath = 'my/global/module';
+        var modulesConfig = {
+            globalModule: {script: globalModuleScriptPath, global: true}
+        };
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath, modules: ['globalModule']};
+        var secondPageUrl = 'path/to/second/page';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, modulesConfig: modulesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        var globalModule = createModuleStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        requireStub.withArgs(globalModuleScriptPath).returns(globalModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            return router.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(globalModule.destroy.callCount, 0);
+                router.reset();
+                assert.equal(globalModule.destroy.callCount, 1);
+                router.stop();
+            });
+        });
+    });
+
+    it('should load global modules again after they\'ve been destroyed due to a previous reset() being called', function () {
+        var pageUrl = 'my/page/url';
+        var globalModuleScriptPath = 'my/global/module';
+        var modulesConfig = {
+            globalModule: {script: globalModuleScriptPath, global: true}
+        };
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath, modules: ['globalModule']};
+        var secondPageUrl = 'path/to/second/page';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, modulesConfig: modulesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        var globalModule = createModuleStub();
+        requireStub.withArgs(globalModuleScriptPath).returns(globalModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            return router.triggerRoute(secondPageUrl).then(function () {
+                assert.equal(globalModule.load.callCount, 1);
+                router.reset();
+                var secondGlobalModuleInstance = createModuleStub();
+                requireStub.withArgs(globalModuleScriptPath).returns(secondGlobalModuleInstance);
+                return router.triggerRoute(pageUrl).then(function () {
+                    assert.equal(globalModule.load.callCount, 1);
+                    assert.equal(secondGlobalModuleInstance.load.callCount, 1);
+                    router.stop();
+                });
             });
         });
     });

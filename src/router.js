@@ -145,19 +145,17 @@ class Router {
 
         // TODO: should not destroy global modules that are on the current page
         // destroy all global modules
-        _.each(this._globalModuleMaps, function (globalMap, key) {
+        _.each(this._globalModuleMaps, (globalMap, key) => {
             // conditionally in case a global module config exist but hasnt been loaded
             if (!currentPageConfig.modules || currentPageConfig.modules.indexOf(key) === -1) {
                 if (globalMap.module) {
                     globalMap.module.hide = globalMap.module.hide || function () {
                             return Promise.resolve();
                         };
-                    globalMap.module.hide().then(function () {
-                        if (globalMap.module.destroy) {
-                            globalMap.module.destroy();
-                        }
-                        delete this._globalModuleMaps[key];
-                    });
+                    if (globalMap.module.destroy) {
+                        globalMap.module.destroy();
+                    }
+                    this._globalModuleMaps[key].promise = null;
                 }
             }
         });
