@@ -955,7 +955,7 @@ describe('Router', function () {
         });
     });
 
-    it('hideGlobalModules() should call hide on a global module on a previous page if the new page does not have it', function () {
+    it('should call hide on a global module on a previous page if the new page does not have it', function () {
         var pageUrl = 'my/page/url';
         var pagesConfig = {};
         var modulesConfig = {};
@@ -988,6 +988,7 @@ describe('Router', function () {
         requireStub.withArgs(moduleScriptUrl).returns(mockModule);
         return router.triggerRoute(pageUrl).then(function () {
             assert.equal(mockModule.hide.callCount, 0);
+            mockModule.active = true;
             return router.triggerRoute(noGlobalModulePageUrl).then(function () {
                 assert.equal(mockModule.hide.callCount, 1);
                 router.stop();
@@ -1035,8 +1036,90 @@ describe('Router', function () {
         });
     });
 
+    it('should call hide on a global module on a previous page if the new page does not have it but has other global modules specified', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        modulesConfig[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        pagesConfig['^' + pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var noGlobalModulePageUrl = 'no/gm';
+        pagesConfig['^' + noGlobalModulePageUrl] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl,
+            modules: []
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.hide.callCount, 0);
+            mockModule.active = true;
+            return router.triggerRoute(noGlobalModulePageUrl).then(function () {
+                assert.equal(mockModule.hide.callCount, 1);
+                router.stop();
+            });
+        });
+    });
+
+    it('should NOT call hide on a global module on a previous page if the new page does not have it and it is not active', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        modulesConfig[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        pagesConfig['^' + pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var noGlobalModulePageUrl = 'no/gm';
+        pagesConfig['^' + noGlobalModulePageUrl] = {
+            template: pageTemplateUrl,
+            script: pageScriptUrl
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.hide.callCount, 0);
+            mockModule.active = false;
+            return router.triggerRoute(noGlobalModulePageUrl).then(function () {
+                assert.equal(mockModule.hide.callCount, 0);
+                router.stop();
+            });
+        });
+    });
+
     it('getPageConfigByPath() should return the config of the first matching page if more than one regex match exists', function () {
-        // setup
         var pageUrl = 'my/page/url';
         var firstPageUrlRegex = pageUrl + '';
         var secondPageUrlRegex = pageUrl + '/?'; // optional slash

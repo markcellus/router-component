@@ -537,22 +537,19 @@ class Router {
      * @returns {*}
      */
     hideGlobalModules (path, newPath) {
-        var pageConfig = this.getPageConfigByPath(path),
+        var prevPageConfig = this.getPageConfigByPath(path),
             newPageConfig = this.getPageConfigByPath(newPath),
             promises = [];
 
-        pageConfig.modules = pageConfig.modules || [];
+        prevPageConfig.modules = prevPageConfig.modules || [];
 
         _.each(this._globalModuleMaps, function (map, moduleKey) {
-            if (pageConfig.modules.indexOf(moduleKey) !== -1) {
-                // page has this global module specified!
+            if (map.module.active && !newPageConfig.modules || newPageConfig.modules.indexOf(moduleKey) === -1) {
+                // only hide the module if the toPath does not contain it
                 promises.push(map.promise.then(() => {
-                    // only hide the module if the toPath does not contain it
-                    if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
-                        this.unbindLinks(map.module.el);
-                        if (map.module.hide) {
-                            return map.module.hide()
-                        }
+                    this.unbindLinks(map.module.el);
+                    if (map.module.hide) {
+                        return map.module.hide()
                     }
                 }));
             }
