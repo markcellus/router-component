@@ -1461,6 +1461,94 @@ describe('Router', function () {
         });
     });
 
+    it('should prevent default of nested global module HTMLAnchorElements and trigger a new route when on a route that has the global module assigned', function () {
+        var pageScriptUrl = 'path/to/my/script.js';
+        var globalModuleScriptPath = 'path/to/global/module.js';
+        var modulesConfig = {
+            myCustomModule: {
+                script: globalModuleScriptPath,
+                global: true
+            }
+        };
+        var pagesConfig = {
+            '^my/real/url': {
+                script: pageScriptUrl,
+                modules: ['myCustomModule']
+            },
+            '^my/other/url': {}
+        };
+        var router = new Router({pagesConfig: pagesConfig, modulesConfig: modulesConfig});
+        router.start();
+        var link = document.createElement('a');
+        link.setAttribute('href', '#'); // prevent url from loading a new page when testing
+        var mockPage = createPageStub();
+        var mockGlobalModule = createModuleStub();
+        mockGlobalModule.el = document.createElement('div');
+        mockGlobalModule.el.appendChild(link);
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(globalModuleScriptPath).returns(mockGlobalModule);
+        var triggerRouteSpy = sinon.spy(router, 'triggerRoute');
+        var triggerRouteCallCount = 0;
+        return router.triggerRoute('my/real/url').then(function () {
+            triggerRouteCallCount++;
+            var linkEvent = new Event('click', {
+                'view': window,
+                'bubbles': true,
+                'cancelable': true
+            });
+            link.dispatchEvent(linkEvent);
+            triggerRouteCallCount++;
+            assert.ok(linkEvent.defaultPrevented);
+            assert.equal(triggerRouteSpy.callCount, triggerRouteCallCount);
+            router.stop();
+        });
+    });
+
+    it('should NOT prevent default of nested global module HTMLAnchorElements nor trigger a new route when on a route of which does not have the global module assigned', function () {
+        var pageScriptUrl = 'path/to/my/script.js';
+        var globalModuleScriptPath = 'path/to/global/module.js';
+        var modulesConfig = {
+            myCustomModule: {
+                script: globalModuleScriptPath,
+                global: true
+            }
+        };
+        var pagesConfig = {
+            '^my/real/url': {
+                script: pageScriptUrl,
+                modules: ['myCustomModule']
+            },
+            '^my/other/url': {}
+        };
+        var router = new Router({pagesConfig: pagesConfig, modulesConfig: modulesConfig});
+        router.start();
+        var link = document.createElement('a');
+        link.setAttribute('href', '#'); // prevent url from loading a new page when testing
+        var mockPage = createPageStub();
+        var mockGlobalModule = createModuleStub();
+        mockGlobalModule.el = document.createElement('div');
+        mockGlobalModule.el.appendChild(link);
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(globalModuleScriptPath).returns(mockGlobalModule);
+        var triggerRouteSpy = sinon.spy(router, 'triggerRoute');
+        var triggerRouteCallCount = 0;
+        return router.triggerRoute('my/real/url').then(function () {
+            triggerRouteCallCount++;
+            return router.triggerRoute('my/other/url').then(function () {
+                triggerRouteCallCount++;
+                var linkEvent = new Event('click', {
+                    'view': window,
+                    'bubbles': true,
+                    'cancelable': true
+                });
+                link.dispatchEvent(linkEvent);
+                assert.ok(!linkEvent.defaultPrevented);
+                assert.equal(triggerRouteSpy.callCount, triggerRouteCallCount);
+                router.stop();
+            });
+        });
+    });
+
     it('should resolve the triggerRoute promise and call the onRouteError callback option when there is no config setup for a requested route', function () {
         var errorSpy = sinon.spy();
         var router = new Router({onRouteError: errorSpy});

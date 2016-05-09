@@ -501,7 +501,10 @@ class Router {
                 // if there are matching global modules,
                 // we dont want to show modules before previous page hides them
                 // wait until previous page is done hiding
-                promises.push(this._currentPreviousPageHidePromise.then(function () {
+                promises.push(this._currentPreviousPageHidePromise.then(() => {
+                    if (map.module.el) {
+                        this.bindLinks(map.module.el);
+                    }
                     if (map.module.show) {
                         return map.module.show();
                     }
@@ -544,10 +547,12 @@ class Router {
         prevPageConfig.modules = prevPageConfig.modules || [];
 
         _.each(this._globalModuleMaps, function (map, moduleKey) {
+            if (map.module.el) {
+                this.unbindLinks(map.module.el);
+            }
             if (map.module.active && !newPageConfig.modules || newPageConfig.modules.indexOf(moduleKey) === -1) {
                 // only hide the module if the toPath does not contain it
                 promises.push(map.promise.then(() => {
-                    this.unbindLinks(map.module.el);
                     if (map.module.hide) {
                         return map.module.hide()
                     }
@@ -660,9 +665,6 @@ class Router {
                 } else {
                     map.module.load()
                         .then(() => {
-                            if (map.module.el) {
-                                this.bindLinks(map.module.el);
-                            }
                             resolve();
                         })
                         .catch((e) => {
