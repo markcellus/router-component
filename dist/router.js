@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.4.1.
+* router-js - v3.4.2.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -27933,9 +27933,6 @@ var Router = function () {
                 // conditionally in case a global module config exist but hasnt been loaded
                 if (!currentPageConfig.modules || currentPageConfig.modules.indexOf(key) === -1) {
                     if (globalMap.module) {
-                        globalMap.module.hide = globalMap.module.hide || function () {
-                            return _promise2.default.resolve();
-                        };
                         if (globalMap.module.destroy) {
                             globalMap.module.destroy();
                         }
@@ -28334,11 +28331,16 @@ var Router = function () {
             pageConfig.modules = pageConfig.modules || [];
 
             _lodash2.default.each(this._globalModuleMaps, function (map, moduleKey) {
+                var _this5 = this;
+
                 if (pageConfig.modules.indexOf(moduleKey) !== -1) {
                     // if there are matching global modules,
                     // we dont want to show modules before previous page hides them
                     // wait until previous page is done hiding
                     promises.push(this._currentPreviousPageHidePromise.then(function () {
+                        if (map.module.el) {
+                            _this5.bindLinks(map.module.el);
+                        }
                         if (map.module.show) {
                             return map.module.show();
                         }
@@ -28380,24 +28382,21 @@ var Router = function () {
     }, {
         key: 'hideGlobalModules',
         value: function hideGlobalModules(path, newPath) {
-            var pageConfig = this.getPageConfigByPath(path),
+            var prevPageConfig = this.getPageConfigByPath(path),
                 newPageConfig = this.getPageConfigByPath(newPath),
                 promises = [];
 
-            pageConfig.modules = pageConfig.modules || [];
+            prevPageConfig.modules = prevPageConfig.modules || [];
 
             _lodash2.default.each(this._globalModuleMaps, function (map, moduleKey) {
-                var _this5 = this;
-
-                if (pageConfig.modules.indexOf(moduleKey) !== -1) {
-                    // page has this global module specified!
+                if (map.module.el) {
+                    this.unbindLinks(map.module.el);
+                }
+                if (map.module.active && !newPageConfig.modules || newPageConfig.modules.indexOf(moduleKey) === -1) {
+                    // only hide the module if the toPath does not contain it
                     promises.push(map.promise.then(function () {
-                        // only hide the module if the toPath does not contain it
-                        if (!newPageConfig.modules || !newPageConfig.modules.contains(moduleKey)) {
-                            _this5.unbindLinks(map.module.el);
-                            if (map.module.hide) {
-                                return map.module.hide();
-                            }
+                        if (map.module.hide) {
+                            return map.module.hide();
                         }
                     }));
                 }
@@ -28510,8 +28509,6 @@ var Router = function () {
     }, {
         key: 'loadGlobalModule',
         value: function loadGlobalModule(moduleKey) {
-            var _this7 = this;
-
             var map = this._globalModuleMaps[moduleKey] || {},
                 config = this.getModuleConfig(moduleKey);
             if (!map.promise) {
@@ -28526,9 +28523,6 @@ var Router = function () {
                         resolve();
                     } else {
                         map.module.load().then(function () {
-                            if (map.module.el) {
-                                _this7.bindLinks(map.module.el);
-                            }
                             resolve();
                         }).catch(function (e) {
                             // error loading global module but still resolve
@@ -28635,10 +28629,10 @@ var Router = function () {
     }, {
         key: '_unbindAllLinks',
         value: function _unbindAllLinks() {
-            var _this8 = this;
+            var _this7 = this;
 
             this._links.forEach(function (l) {
-                l.removeEventListener('click', _this8._linkClickEventListener);
+                l.removeEventListener('click', _this7._linkClickEventListener);
             });
         }
     }]);
