@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.4.2.
+* router-js - v3.5.0.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -22155,7 +22155,7 @@ var Module = function () {
 
             this.el.classList.add(this.options.errorClass);
 
-            this.error = true;
+            this.errored = true;
             this.loaded = false;
 
             this.options.onError(e);
@@ -22399,6 +22399,9 @@ var Module = function () {
             this.subModules = {};
             this.active = false;
             this.loaded = false;
+            this.errored = false;
+
+            this.el.classList.remove(this.options.loadedClass);
 
             this._resetElementInitialState();
 
@@ -23117,9 +23120,7 @@ var ResourceManager = function () {
 
             var reqOptions = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
-            // TODO: keeping track of cache (objId) below can better be done using WeakMaps
-            var objId = reqOptions ? JSON.stringify(reqOptions) : '',
-                cacheId = url + objId;
+            var cacheId = url + JSON.stringify(reqOptions);
 
             reqOptions.cache = reqOptions.cache === undefined ? true : reqOptions.cache;
 
