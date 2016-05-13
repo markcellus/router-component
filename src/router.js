@@ -57,7 +57,9 @@ class Router {
             requestOptions: null,
             onRouteError: null,
             onRouteChange: null,
-            onPageLoad: null
+            onPageLoad: null,
+            moduleClass: Module,
+            pageClass: Module
         }, options);
 
         this._pageMaps = {};
@@ -383,21 +385,22 @@ class Router {
      * @param {string} [scriptUrl] - Url to script
      * @param {HTMLElement} [el] - The element to use
      * @param {Object} [options] - Options to pass to scripts instantiation (if not a singleton of course)
+     * @param {Module} [Class] - The class to fallback to when instantia
      * @returns {*}
      */
-    loadScript (scriptUrl, el, options) {
+    loadScript (scriptUrl, el, options, Class = this.options.moduleClass) {
         let contents = null;
         options = options || {};
         options.requestOptions = _.extend({}, this.options.requestOptions, options.requestOptions);
 
         if (!scriptUrl) {
-            return new Module(el, options);
+            return new this.options.moduleClass(el, options);
         }
         try {
             contents = require(scriptUrl);
         } catch (e) {
             // not found, so fallback to class
-            contents = new Module(el, options);
+            contents = new Class(el, options);
         }
 
         // support new es6 module exports
@@ -441,7 +444,7 @@ class Router {
                 errorClass: 'page-error'
             });
             try {
-                pageMap.page = this.loadScript(pageConfig.script, document.createElement('div'), pageConfig);
+                pageMap.page = this.loadScript(pageConfig.script, document.createElement('div'), pageConfig, this.options.pageClass);
             } catch (e) {
                 if (e.stack) {
                     console.log(e.stack);
