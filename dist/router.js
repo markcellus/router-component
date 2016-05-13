@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.5.0.
+* router-js - v3.5.1.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -27913,32 +27913,19 @@ var Router = function () {
             var currentMapKey = this._getRouteMapKeyByPath(this._currentPath);
             var currentPageMap = this._pageMaps[currentMapKey] || {};
             var currentPageConfig = currentPageMap.config || {};
-            var pagesContainer = this.options.pagesContainer;
 
-            // we should not destroy the current page the user is on
+            // destroy all pages except for the one the user is currently on
             _lodash2.default.each(this._pageMaps, function (pageMap, key) {
-                var page = pageMap.page;
                 if (key !== currentMapKey) {
-                    page.destroy();
-                    // we must remove page and child elements that router has added to the DOM.
-                    if (pagesContainer && pagesContainer.contains(page.el)) {
-                        pagesContainer.removeChild(page.el);
-                    }
-                    delete _this._pageMaps[key];
+                    _this.resetPage(key);
                 }
             });
 
-            // TODO: should not destroy global modules that are on the current page
-            // destroy all global modules
+            // destroy all global modules except for ones that are on the current page
             _lodash2.default.each(this._globalModuleMaps, function (globalMap, key) {
                 // conditionally in case a global module config exist but hasnt been loaded
                 if (!currentPageConfig.modules || currentPageConfig.modules.indexOf(key) === -1) {
-                    if (globalMap.module) {
-                        if (globalMap.module.destroy) {
-                            globalMap.module.destroy();
-                        }
-                        _this._globalModuleMaps[key].promise = null;
-                    }
+                    _this.resetGlobalModule(key);
                 }
             });
         }
@@ -28186,7 +28173,7 @@ var Router = function () {
         key: '_getRouteMapKeyByPath',
         value: function _getRouteMapKeyByPath(path) {
 
-            if (!path || typeof path !== 'string') {
+            if (!path || typeof path !== 'string' || !this.options.pagesConfig) {
                 return null;
             }
 
@@ -28208,8 +28195,10 @@ var Router = function () {
                     config.data = path.replace(new RegExp(matchingKey, 'gi'), config.data);
                 }
                 matchingKey = sanitized[0];
-                this._pageKeys.push(matchingKey);
-                this.options.pagesConfig[matchingKey] = config;
+                if (this._pageKeys.indexOf(matchingKey) === -1) {
+                    this._pageKeys.push(matchingKey);
+                    this.options.pagesConfig[matchingKey] = config;
+                }
             }
             return matchingKey;
         }
@@ -28419,7 +28408,6 @@ var Router = function () {
             var _this6 = this;
 
             var pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
-
             if (pageMap && pageMap.promise) {
                 var _ret = function () {
                     var page = pageMap.page;
@@ -28586,6 +28574,53 @@ var Router = function () {
         }
 
         /**
+         * Destroys the page instance located at the supplied paths.
+         * @param {String|Array} routes - The paths of which page instances to destroy
+         */
+
+    }, {
+        key: 'resetPage',
+        value: function resetPage(routes) {
+            var _this7 = this;
+
+            routes = routes.constructor === Array ? routes : [routes];
+            routes.forEach(function (path) {
+                var mapKey = _this7._getRouteMapKeyByPath(path);
+                var pageMap = _this7._pageMaps[mapKey];
+                if (pageMap) {
+                    pageMap.page.destroy();
+                    // we must remove page and child elements that router has added to the DOM.
+                    if (_this7.options.pagesContainer && _this7.options.pagesContainer.contains(pageMap.page.el)) {
+                        _this7.options.pagesContainer.removeChild(pageMap.page.el);
+                    }
+                    delete _this7._pageMaps[mapKey];
+                }
+            });
+        }
+
+        /**
+         * Destroys a global module by the supplied key(s).
+         * @param {String|Array} keys - The global key(s)
+         */
+
+    }, {
+        key: 'resetGlobalModule',
+        value: function resetGlobalModule(keys) {
+            var _this8 = this;
+
+            keys = keys.constructor === Array ? keys : [keys];
+            keys.forEach(function (key) {
+                var globalMap = _this8._globalModuleMaps[key];
+                if (globalMap && globalMap.module) {
+                    if (globalMap.module.destroy) {
+                        globalMap.module.destroy();
+                    }
+                    _this8._globalModuleMaps[key].promise = null;
+                }
+            });
+        }
+
+        /**
          * Sets up click events on all internal links to prevent trigger new page loads.
          */
 
@@ -28630,10 +28665,10 @@ var Router = function () {
     }, {
         key: '_unbindAllLinks',
         value: function _unbindAllLinks() {
-            var _this7 = this;
+            var _this9 = this;
 
             this._links.forEach(function (l) {
-                l.removeEventListener('click', _this7._linkClickEventListener);
+                l.removeEventListener('click', _this9._linkClickEventListener);
             });
         }
     }]);
