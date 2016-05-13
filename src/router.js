@@ -128,32 +128,19 @@ class Router {
         let currentMapKey = this._getRouteMapKeyByPath(this._currentPath);
         let currentPageMap = this._pageMaps[currentMapKey] || {};
         let currentPageConfig = currentPageMap.config || {};
-        let pagesContainer = this.options.pagesContainer;
 
-        // we should not destroy the current page the user is on
+        // destroy all pages except for the one the user is currently on
         _.each(this._pageMaps, (pageMap, key) => {
-            let page = pageMap.page;
             if (key !== currentMapKey) {
-                page.destroy();
-                // we must remove page and child elements that router has added to the DOM.
-                if (pagesContainer && pagesContainer.contains(page.el)) {
-                    pagesContainer.removeChild(page.el);
-                }
-                delete this._pageMaps[key];
+                this.resetPage(key);
             }
         });
 
-        // TODO: should not destroy global modules that are on the current page
-        // destroy all global modules
+        // destroy all global modules except for ones that are on the current page
         _.each(this._globalModuleMaps, (globalMap, key) => {
             // conditionally in case a global module config exist but hasnt been loaded
             if (!currentPageConfig.modules || currentPageConfig.modules.indexOf(key) === -1) {
-                if (globalMap.module) {
-                    if (globalMap.module.destroy) {
-                        globalMap.module.destroy();
-                    }
-                    this._globalModuleMaps[key].promise = null;
-                }
+                this.resetGlobalModule(key);
             }
         });
     }
@@ -361,7 +348,7 @@ class Router {
      */
     _getRouteMapKeyByPath (path) {
 
-        if (!path || typeof path !== 'string') {
+        if (!path || typeof path !== 'string' || !this.options.pagesConfig) {
             return null;
         }
 
@@ -573,8 +560,6 @@ class Router {
      */
     hidePage (path, newPath) {
         let pageMap = this._pageMaps[this._getRouteMapKeyByPath(path)];
-
-
         if (pageMap && pageMap.promise) {
             let page = pageMap.page;
             return pageMap.promise
@@ -718,6 +703,43 @@ class Router {
             e.preventDefault();
             this.triggerRoute(url);
         }
+    }
+
+    /**
+     * Destroys the page instance located at the supplied paths.
+     * @param {String|Array} routes - The paths of which page instances to destroy
+     */
+    resetPage (routes) {
+        routes = routes.constructor === Array ? routes : [routes];
+        routes.forEach(path => {
+            let mapKey = this._getRouteMapKeyByPath(path);
+            let pageMap = this._pageMaps[mapKey];
+            if (pageMap) {
+                pageMap.page.destroy();
+                // we must remove page and child elements that router has added to the DOM.
+                if (this.options.pagesContainer && this.options.pagesContainer.contains(pageMap.page.el)) {
+                    this.options.pagesContainer.removeChild(pageMap.page.el);
+                }
+                delete this._pageMaps[mapKey];
+            }
+        });
+    }
+
+    /**
+     * Destroys a global module by the supplied key(s).
+     * @param {String|Array} keys - The global key(s)
+     */
+    resetGlobalModule (keys) {
+        keys = keys.constructor === Array ? keys : [keys];
+        keys.forEach((key) => {
+            let globalMap = this._globalModuleMaps[key];
+            if (globalMap && globalMap.module) {
+                if (globalMap.module.destroy) {
+                    globalMap.module.destroy();
+                }
+                this._globalModuleMaps[key].promise = null;
+            }
+        });
     }
 
     /**

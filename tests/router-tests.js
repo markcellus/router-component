@@ -1889,4 +1889,140 @@ describe('Router', function () {
         });
     });
 
+    it('should destroy global module if its key is passed to resetGlobalModule()', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        modulesConfig[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        pagesConfig[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.destroy.callCount, 0);
+            router.resetGlobalModule(moduleName);
+            assert.equal(mockModule.destroy.callCount, 1);
+            router.stop();
+        });
+    });
+
+    it('should destroy global module if an array with its key is passed to resetGlobalModule()', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        modulesConfig[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        pagesConfig[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockModule.destroy.callCount, 0);
+            router.resetGlobalModule([moduleName]);
+            assert.equal(mockModule.destroy.callCount, 1);
+            router.stop();
+        });
+    });
+
+    it('should destroy a page if resetPage() is passed the page\'s path', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        modulesConfig[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        pagesConfig[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockPage.destroy.callCount, 0);
+            router.resetPage(pageUrl);
+            assert.equal(mockPage.destroy.callCount, 1);
+            router.stop();
+        });
+    });
+
+    it('should destroy a page if resetPage() is passed an array containing the page\'s path', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        modulesConfig[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            global: true
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        pagesConfig[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.equal(mockPage.destroy.callCount, 0);
+            router.resetPage([pageUrl]);
+            assert.equal(mockPage.destroy.callCount, 1);
+            router.stop();
+        });
+    });
+
 });
