@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.5.1.
+* router-js - v3.5.2.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -22098,10 +22098,15 @@ var Module = function () {
     }, {
         key: 'fetchData',
         value: function fetchData(url, options) {
+            var _this2 = this;
+
             if (typeof url !== 'string') {
                 return _promise2.default.resolve(url);
             }
-            return _resourceManagerJs2.default.fetchData(url, options);
+            return _resourceManagerJs2.default.fetchData(url, options).then(function (data) {
+                _this2.data = data;
+                return data;
+            });
         }
 
         /**
@@ -22292,14 +22297,14 @@ var Module = function () {
     }, {
         key: 'waitForTransition',
         value: function waitForTransition() {
-            var _this2 = this;
+            var _this3 = this;
 
             var duration = this.getTransitionDuration();
             return new _promise2.default(function (resolve) {
                 if (duration > 0) {
-                    setTimeout(resolve.bind(_this2, _this2.el), duration);
+                    setTimeout(resolve.bind(_this3, _this3.el), duration);
                 } else {
-                    resolve(_this2.el);
+                    resolve(_this3.el);
                 }
             });
         }
@@ -22351,18 +22356,19 @@ var Module = function () {
         /**
          * Gets the closest ancestor element that has a css class.
          * @param {string} className - The class name that the ancestor must have to match
+         * @param {Element} startTarget - The element the method should start from
          */
 
     }, {
         key: 'getClosestAncestorElementByClassName',
-        value: function getClosestAncestorElementByClassName(className) {
+        value: function getClosestAncestorElementByClassName(className, startTarget) {
             var result = null;
             traverseEachParent(function (parent) {
                 if (parent.classList.contains(className)) {
                     result = parent;
                     return false;
                 }
-            }, this.el.parentNode || this.el);
+            }, startTarget || this.el.parentNode || this.el);
             return result;
         }
 
@@ -22387,7 +22393,7 @@ var Module = function () {
     }, {
         key: 'destroy',
         value: function destroy() {
-            var _this3 = this;
+            var _this4 = this;
 
             var subModules = this.subModules;
 
@@ -22406,8 +22412,8 @@ var Module = function () {
             this._resetElementInitialState();
 
             this._elChildren.forEach(function (el) {
-                if (_this3.el.contains(el)) {
-                    _this3.el.removeChild(el);
+                if (_this4.el.contains(el)) {
+                    _this4.el.removeChild(el);
                 }
             });
             this._elChildren = [];
