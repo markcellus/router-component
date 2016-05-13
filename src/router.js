@@ -383,8 +383,10 @@ class Router {
                 config.data = path.replace(new RegExp(matchingKey, 'gi'), config.data);
             }
             matchingKey = sanitized[0];
-            this._pageKeys.push(matchingKey);
-            this.options.pagesConfig[matchingKey] = config;
+            if (this._pageKeys.indexOf(matchingKey) === -1) {
+                this._pageKeys.push(matchingKey);
+                this.options.pagesConfig[matchingKey] = config;
+            }
         }
         return matchingKey;
     }
