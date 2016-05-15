@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.6.1.
+* router-js - v3.6.2.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -28217,12 +28217,7 @@ var Router = function () {
             if (!scriptUrl) {
                 return new this.options.moduleClass(el, options);
             }
-            try {
-                contents = require(scriptUrl);
-            } catch (e) {
-                // not found, so fallback to class
-                contents = new Class(el, options);
-            }
+            contents = require(scriptUrl);
 
             // support new es6 module exports
             // if module exports a default, use that
