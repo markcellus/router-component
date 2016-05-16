@@ -29,6 +29,7 @@
   "license": "MIT",
   "main": "src/router.js",
   "dependencies": {
+    "async-promises": "^0.1.2",
     "lodash": "^4.7.0",
     "module-js": "^5.8.3",
     "promise": "^7.1.1"

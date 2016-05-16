@@ -447,19 +447,30 @@ class Router {
                 return Promise.reject(e);
             }
             pageMap.page.el.classList.add('page'); // add default page class
-            // add page modules as submodules to ensure they load when page's load() call gets called
             let pageModuleKeys = this.getPageModulesByRoute(route);
+            pageMap.modules = {};
             pageModuleKeys.forEach((key, idx) => {
                 let moduleConfig = this.options.modulesConfig[key];
                 let moduleEl = document.createElement('div');
-                pageMap.page.subModules['mod' + idx] = this.loadScript(moduleConfig.script, moduleEl, moduleConfig);
+                pageMap.modules['mod' + idx] = this.loadScript(moduleConfig.script, moduleEl, moduleConfig);
             });
             this.options.pagesContainer.appendChild(pageMap.page.el);
             this._pageMaps[pageKey] = pageMap;
         }
 
         if (!pageMap.promise) {
-            pageMap.promise = pageMap.page.load();
+            let moduleLoadPromises = [];
+            for (var key in pageMap.modules) {
+                if (pageMap.modules.hasOwnProperty(key) && pageMap.modules[key]) {
+                    let module = pageMap.modules[key];
+                    if (module.load) {
+                        moduleLoadPromises.push(module.load());
+                    }
+                }
+            }
+            pageMap.promise = Promise.all(moduleLoadPromises).then(() => {
+                return pageMap.page.load();
+            });
         }
         return pageMap.promise.catch((err) => {
             // if page loading happens to cause an error, remove
@@ -513,7 +524,7 @@ class Router {
         if (!page) {
             return Promise.resolve();
         }
-        _.each(page.subModules, function (module) {
+        _.each(pageMap.modules, function (module) {
             if (module.show) {
                 module.show();
             }
@@ -564,9 +575,9 @@ class Router {
                 .then(() => {
                     return page.hide().then(() => {
                         // hide all pages modules
-                        _.each(page.subModules, function (module) {
+                        _.each(pageMap.modules, function (module) {
                             if (module.hide) {
-                                module.hide();
+                                module.hide();      ``
                             }
                         });
                         return this.hideGlobalModules(path, newPath).then(() => {
@@ -714,6 +725,14 @@ class Router {
             let pageMap = this._pageMaps[mapKey];
             if (pageMap) {
                 pageMap.page.destroy();
+
+                // destroy all page's modules
+                for (var key in pageMap.modules) {
+                    if (pageMap.modules.hasOwnProperty(key) && pageMap.modules[key]) {
+                        pageMap.modules[key].destroy();
+                    }
+                }
+
                 // we must remove page and child elements that router has added to the DOM.
                 if (this.options.pagesContainer && this.options.pagesContainer.contains(pageMap.page.el)) {
                     this.options.pagesContainer.removeChild(pageMap.page.el);

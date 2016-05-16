@@ -20,7 +20,6 @@ describe('Router', function () {
         page.show.returns(Promise.resolve());
         page.error.returns(Promise.resolve());
         page.el = document.createElement('div');
-        page.subModules = {};
         return page;
     };
 
@@ -137,7 +136,6 @@ describe('Router', function () {
     });
 
     it('should resolve module load and NOT attempt to require its script when there is no script specified for the module in the route config', function () {
-        // setup
         var pageUrl = 'my/index/with/no/script/url';
         var pagesConfig = {};
         var modulesConfig = {};
