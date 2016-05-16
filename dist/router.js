@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.6.2.
+* router-js - v3.7.0.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -28273,19 +28273,30 @@ var Router = function () {
                     return _promise2.default.reject(e);
                 }
                 pageMap.page.el.classList.add('page'); // add default page class
-                // add page modules as submodules to ensure they load when page's load() call gets called
                 var pageModuleKeys = this.getPageModulesByRoute(route);
+                pageMap.modules = {};
                 pageModuleKeys.forEach(function (key, idx) {
                     var moduleConfig = _this4.options.modulesConfig[key];
                     var moduleEl = document.createElement('div');
-                    pageMap.page.subModules['mod' + idx] = _this4.loadScript(moduleConfig.script, moduleEl, moduleConfig);
+                    pageMap.modules['mod' + idx] = _this4.loadScript(moduleConfig.script, moduleEl, moduleConfig);
                 });
                 this.options.pagesContainer.appendChild(pageMap.page.el);
                 this._pageMaps[pageKey] = pageMap;
             }
 
             if (!pageMap.promise) {
-                pageMap.promise = pageMap.page.load();
+                var moduleLoadPromises = [];
+                for (var key in pageMap.modules) {
+                    if (pageMap.modules.hasOwnProperty(key) && pageMap.modules[key]) {
+                        var module = pageMap.modules[key];
+                        if (module.load) {
+                            moduleLoadPromises.push(module.load());
+                        }
+                    }
+                }
+                pageMap.promise = _promise2.default.all(moduleLoadPromises).then(function () {
+                    return pageMap.page.load();
+                });
             }
             return pageMap.promise.catch(function (err) {
                 // if page loading happens to cause an error, remove
@@ -28346,7 +28357,7 @@ var Router = function () {
             if (!page) {
                 return _promise2.default.resolve();
             }
-            _lodash2.default.each(page.subModules, function (module) {
+            _lodash2.default.each(pageMap.modules, function (module) {
                 if (module.show) {
                     module.show();
                 }
@@ -28406,9 +28417,9 @@ var Router = function () {
                         v: pageMap.promise.then(function () {
                             return page.hide().then(function () {
                                 // hide all pages modules
-                                _lodash2.default.each(page.subModules, function (module) {
+                                _lodash2.default.each(pageMap.modules, function (module) {
                                     if (module.hide) {
-                                        module.hide();
+                                        module.hide();'';
                                     }
                                 });
                                 return _this6.hideGlobalModules(path, newPath).then(function () {
@@ -28580,6 +28591,14 @@ var Router = function () {
                 var pageMap = _this7._pageMaps[mapKey];
                 if (pageMap) {
                     pageMap.page.destroy();
+
+                    // destroy all page's modules
+                    for (var key in pageMap.modules) {
+                        if (pageMap.modules.hasOwnProperty(key) && pageMap.modules[key]) {
+                            pageMap.modules[key].destroy();
+                        }
+                    }
+
                     // we must remove page and child elements that router has added to the DOM.
                     if (_this7.options.pagesContainer && _this7.options.pagesContainer.contains(pageMap.page.el)) {
                         _this7.options.pagesContainer.removeChild(pageMap.page.el);
