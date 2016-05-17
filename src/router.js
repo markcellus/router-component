@@ -279,11 +279,11 @@ class Router {
         if (options.triggerUrlChange) {
             // register new url in history
             windowHistory.pushState({path: path}, document.title, path);
-            this._currentPath = path;
             if (this.options.onRouteChange) {
                 this.options.onRouteChange.call(this, path);
             }
         }
+        this._currentPath = path;
 
     }
 

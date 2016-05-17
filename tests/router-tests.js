@@ -2023,4 +2023,30 @@ describe('Router', function () {
         });
     });
 
+    it('should call the page\'s hide method when it is navigated away from although it has been triggered with triggerUrlChange set to false', function () {
+        var firstPageScriptPath = 'path/to/my/script.js';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        var routerErrorSpy = sinon.spy();
+        var router = new Router({
+            pagesConfig: {
+                '^page/1': {script: firstPageScriptPath},
+                '^page/2': {script: secondPageScriptPath}
+            },
+            onRouteError: routerErrorSpy
+        });
+        router.start();
+        var firstPage = createPageStub();
+        var secondPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondPage);
+        assert.equal(firstPage.hide.callCount, 0);
+        return router.triggerRoute('page/1', {triggerUrlChange: false}).then(function () {
+            assert.equal(firstPage.hide.callCount, 0);
+            return router.triggerRoute('page/2').then(function () {
+                assert.equal(firstPage.hide.callCount, 1);
+                router.stop();
+            });
+        });
+    });
+
 });
