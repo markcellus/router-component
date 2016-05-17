@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.7.0.
+* router-js - v3.7.1.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -21831,6 +21831,1205 @@ if (typeof require !== 'undefined' && require.extensions) {
 },{}],40:[function(require,module,exports){
 'use strict';
 
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _promise = require('promise');
+
+var _promise2 = _interopRequireDefault(_promise);
+
+var _underscore = require('underscore');
+
+var _underscore2 = _interopRequireDefault(_underscore);
+
+var _resourceManagerJs = require('resource-manager-js');
+
+var _resourceManagerJs2 = _interopRequireDefault(_resourceManagerJs);
+
+var _handlebars = require('handlebars');
+
+var _handlebars2 = _interopRequireDefault(_handlebars);
+
+var _handlebarsHelperSlugify = require('handlebars-helper-slugify');
+
+var _handlebarsHelperSlugify2 = _interopRequireDefault(_handlebarsHelperSlugify);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * Takes a value and separates the number and unit into a key/value map.
+ * @param v - The value
+ * @returns {{num: Number, unit: string}} Returns the map
+ * @private
+ */
+var getCssPropUnitMap = function getCssPropUnitMap(v) {
+    v.trim();
+    var num = v.match('[0-9\.]+'),
+        unit = 'ms';
+
+    num = num ? num[0] : '';
+    if (num) {
+        unit = v.split(num)[1];
+        num = Number(num);
+    }
+    return {
+        num: num,
+        unit: unit
+    };
+};
+
+/**
+ * Converts a css timing unit value into milliseconds.
+ * @param {string} val - The value string
+ * @returns {string} Returns the timing unit value in milliseconds
+ */
+var convertCssTimeValueToMilliseconds = function convertCssTimeValueToMilliseconds(val) {
+    var number = getCssPropUnitMap(val).num,
+        unit = val.replace(number, '');
+    if (unit === 's') {
+        val = number * 1000;
+    } else {
+        val = number;
+    }
+    return val + 'ms';
+};
+
+/**
+ * Takes a css property name and returns the javascript version of it.
+ * @param {string} cssProp - The css property
+ * @returns {string} Returns the javascript version
+ * @private
+ */
+var getJsPropName = function getJsPropName(cssProp) {
+    // convert to camelCase
+    return cssProp.replace(/-([a-z])/g, function (letter) {
+        return letter[1].toUpperCase();
+    });
+};
+
+/**
+ * Bubbles up each parent node of the element, triggering the callback on each element until traversal
+ * either runs out of parent nodes, reaches the document element, or if callback returns a falsy value
+ * @param {Function} callback - A callback that fires which gets passed the current element
+ * @param {HTMLElement} [startEl] - The element where traversal will begin (including the passed element), defaults to current el
+ */
+var traverseEachParent = function traverseEachParent(callback, startEl) {
+    var parentNode = startEl;
+    var predicate = null;
+    // check if the node has classname property, if not, we know we're at the #document element
+    while (parentNode && typeof parentNode.className === 'string') {
+        predicate = callback(parentNode);
+        if (predicate !== undefined && !predicate) {
+            break;
+        }
+        parentNode = parentNode.parentNode;
+    }
+};
+
+/**
+ * A function that fires when the module's load() method is called
+ * @callback Module~onLoad
+ * @return {*} May return a promise when done
+ */
+
+/**
+ * A function that fires when the module's show() method is called
+ * which can be overridden by subclass custom implementations.
+ * @callback Module~onShow
+ * @return {*} May return a promise when done
+ */
+
+/**
+ * A function that fires when the module's hide() method is called
+ * which can be overridden by subclass custom implementations.
+ * @callback Module~onHide
+ */
+
+/**
+ * A function that fires when the module's enable() method is called
+ * @callback Module~onEnable
+ */
+
+/**
+ * A function that fires when the module's disable() method is called
+ * @callback Module~onDisable
+ */
+
+/**
+ * A function that fires when the error() method is called
+ * @callback Module~onError
+ * @param {Object} [e] - The error object that was triggered
+ */
+
+/**
+ * @class Module
+ * @description Base class that represents all modules of an App.
+ */
+
+var Module = function () {
+
+    /**
+     * Initialization.
+     * @param {HTMLElement} el - The module element
+     * @param {Object} [options] - An object of options
+     * @param {string} [options.loadedClass] - The class that will be applied to the module element when it is loaded
+     * @param {string} [options.activeClass] - The class that will be applied to the module element when it is shown
+     * @param {string} [options.disabledClass] - The class that will be applied to the module element when disabled
+     * @param {string} [options.errorClass] - The class that will be applied to the module element when it has a load error
+     * @param {Array|string} [options.styles] - Array of stylesheet urls or single url
+     * @param {string|HTMLTemplateElement|HTMLElement} [options.template] - The template to load (can be url to html or handlebars file or html template, just an element, or an html string)
+     * @param {Object|string} [options.data] - The data or url to the module's data
+     * @param {Object} [options.requestOptions] - The request options to use when running the fetch method to get data
+     * @param {Module~onLoad} [options.onLoad] - A function that fires when module's load() method is called
+     * @param {Module~onShow} [options.onShow] - A function that fires when module is shown
+     * @param {Module~onHide} [options.onHide] - A function that fires when module is hidden
+     * @param {Module~onEnable} [options.onEnable] - A function that fires when module is enabled
+     * @param {Module~onDisable} [options.onDisable] - A function that fires when module is disabled
+     * @param {Module~onError} [options.onError] - A function that fires when module goes into error state
+     */
+
+    function Module(el, options) {
+        _classCallCheck(this, Module);
+
+        options = options || {};
+
+        if (!el) {
+            console.error("Module error: No element was passed to constructor");
+        }
+
+        this.el = el;
+
+        var defaultOptions = {
+            loadedClass: 'module-loaded',
+            activeClass: 'module-active',
+            disabledClass: 'module-disabled',
+            errorClass: 'module-error',
+            styles: [],
+            template: "",
+            data: null,
+            requestOptions: null,
+            onLoad: function onLoad() {},
+            onShow: function onShow() {},
+            onHide: function onHide() {},
+            onEnable: function onEnable() {},
+            onDisable: function onDisable() {},
+            onError: function onError() {}
+        };
+
+        // we are adding default options to passed custom options
+        // to ensure all expected options exist when instantiating sub classes
+        for (var name in defaultOptions) {
+            if (defaultOptions.hasOwnProperty(name)) {
+                if (!options[name]) {
+                    options[name] = defaultOptions[name];
+                }
+            }
+        }
+
+        this.options = options;
+
+        this._handleElementInitialState();
+
+        // setup helpers
+        _handlebars2.default.registerHelper('slugify', _handlebarsHelperSlugify2.default);
+
+        this.subModules = {};
+        this.active = false;
+        this.loaded = false;
+        this._elChildren = [];
+    }
+
+    /**
+     * Loads the module's styles, template, and data and applies loaded css classes and state.
+     * @return {Promise}
+     */
+
+
+    _createClass(Module, [{
+        key: 'load',
+        value: function load() {
+            var _this = this;
+
+            var views = _underscore2.default.values(this.subModules);
+            if (!this.loaded) {
+                // load all subModules
+                return _promise2.default.all(_underscore2.default.invoke(views, 'load')).then(function () {
+                    return _this.getStyles(_this.options.styles).then(function () {
+                        return _this.fetchData(_this.options.data, _this.options.requestOptions).then(function (data) {
+                            return _this.getTemplate(data).then(function (nodes) {
+                                nodes = nodes || [];
+                                var frag = document.createDocumentFragment();
+                                // hold reference to children to remove them later
+                                while (nodes.length) {
+                                    // order matters here so we always start from the first node
+                                    var node = nodes[0];
+                                    _this._elChildren.push(node);
+                                    // appending child changes length of nodes array
+                                    frag.appendChild(node);
+                                }
+                                _this.el.appendChild(frag);
+                                _this.loaded = true;
+                                if (_this.el) {
+                                    _this.el.classList.add(_this.options.loadedClass);
+                                }
+                                _this.options.onLoad();
+                            });
+                        });
+                    });
+                }).catch(function (e) {
+                    _this.error(e);
+                    // throw error to reject promise
+                    throw e;
+                });
+            } else {
+                return _promise2.default.resolve();
+            }
+        }
+
+        /**
+         * Makes a request to get the data for the module.
+         * @param {string|Object} url - The url to fetch data from or data object
+         * @param [options] - fetch options
+         * @returns {*}
+         */
+
+    }, {
+        key: 'fetchData',
+        value: function fetchData(url, options) {
+            if (typeof url !== 'string') {
+                return _promise2.default.resolve(url);
+            }
+            return _resourceManagerJs2.default.fetchData(url, options);
+        }
+
+        /**
+         * Gets the css files for the module.
+         * @param cssUrl
+         * @return {Promise}
+         */
+
+    }, {
+        key: 'getStyles',
+        value: function getStyles(cssUrl) {
+            return _resourceManagerJs2.default.loadCss(cssUrl);
+        }
+
+        /**
+         * Gets the html template for the module.
+         * @param {Object} [data] - The data to inject (if template is a handlebar file)
+         * @returns {Promise} Returns a document fragment containing the contents of the template with the data injected
+         */
+
+    }, {
+        key: 'getTemplate',
+        value: function getTemplate(data) {
+            var _this2 = this;
+
+            var template = this.options.template || '';
+
+            if (!template) {
+                return _promise2.default.resolve();
+            }
+
+            var isHandlebarFile = function isHandlebarFile(filePath) {
+                if (filePath) {
+                    var frags = filePath.split('.');
+                    var ext = frags[frags.length - 1];
+                    return ext === 'hbs';
+                }
+            };
+
+            if (this._isHTMLTemplate(template)) {
+                // template element
+                // TODO: update to accommodate situations where the user wants to adoptNode instead of cloning it
+                var tpl = document.importNode(template.content, true);
+                return _promise2.default.resolve(tpl.childNodes);
+            } else if (template instanceof HTMLElement) {
+                // already an html element
+                var frag = document.createDocumentFragment();
+                frag.appendChild(template);
+                return _promise2.default.resolve(frag.childNodes);
+            } else {
+                // html or handlebar file
+                return _resourceManagerJs2.default.loadTemplate(template).then(function (html) {
+                    html = html || '';
+                    if (html && isHandlebarFile(template)) {
+                        // handle bar file
+                        html = _handlebars2.default.compile(html)(data || {});
+                    }
+                    return _this2.getTemplateContent(html);
+                });
+            }
+        }
+
+        /**
+         * Checks if the provided template argument is indeed an html template element.
+         * This is mainly for testing purposes where phantom is not aware of HTMLTemplateElement
+         * @param template
+         * @returns {boolean}
+         * @private
+         */
+
+    }, {
+        key: '_isHTMLTemplate',
+        value: function _isHTMLTemplate(template) {
+            return template instanceof HTMLTemplateElement;
+        }
+
+        /**
+         * Triggers a load error on the module.
+         * @param {Object} [err] - The error object to trigger
+         * @return {Promise} Returns a promise when erroring operation is complete
+         */
+
+    }, {
+        key: 'error',
+        value: function error(err) {
+            var e = err || new Error();
+
+            this.el.classList.add(this.options.errorClass);
+
+            this.errored = true;
+            this.loaded = false;
+
+            this.options.onError(e);
+            return this.waitForTransition().then(function () {
+                return e;
+            });
+        }
+
+        /**
+         * Enables the module.
+         * @return {Promise}
+         */
+
+    }, {
+        key: 'enable',
+        value: function enable() {
+            var el = this.el;
+            if (el) {
+                el.classList.remove(this.options.disabledClass);
+            }
+            this.disabled = false;
+            this.options.onEnable();
+            return this.waitForTransition();
+        }
+
+        /**
+         * Disables the module.
+         * @return {Promise}
+         */
+
+    }, {
+        key: 'disable',
+        value: function disable() {
+            var el = this.el;
+            if (el) {
+                el.classList.add(this.options.disabledClass);
+            }
+            this.disabled = true;
+
+            this.options.onDisable();
+            return this.waitForTransition();
+        }
+
+        /**
+         * Shows the module.
+         * @return {Promise}
+         */
+
+    }, {
+        key: 'show',
+        value: function show() {
+            var el = this.el;
+            if (el) {
+                el.classList.add(this.options.activeClass);
+            }
+            this.active = true;
+            this.options.onShow();
+            return this.waitForTransition();
+        }
+
+        /**
+         * Hides the module.
+         * @return {Promise}
+         */
+
+    }, {
+        key: 'hide',
+        value: function hide() {
+            var el = this.el;
+            if (el) {
+                el.classList.remove(this.options.activeClass);
+            }
+            this.active = false;
+            this.options.onHide();
+            return this.waitForTransition();
+        }
+
+        /**
+         * Sets up element internally by evaluating its initial state.
+         * @private
+         */
+
+    }, {
+        key: '_handleElementInitialState',
+        value: function _handleElementInitialState() {
+            var el = this.el;
+            if (!el) {
+                return;
+            }
+            if (el.classList.contains(this.options.disabledClass)) {
+                this._origDisabled = true;
+                this.disable();
+            }
+
+            if (el.classList.contains(this.options.errorClass)) {
+                this._origError = true;
+                this.error(new Error());
+            }
+        }
+
+        /**
+         * Restores the elements classes back to the way they were before instantiation.
+         * @private
+         */
+
+    }, {
+        key: '_resetElementInitialState',
+        value: function _resetElementInitialState() {
+            var options = this.options,
+                disabledClass = options.disabledClass,
+                errorClass = options.errorClass;
+
+            if (!this.el) {
+                return;
+            }
+            if (this._origDisabled) {
+                this.el.classList.add(disabledClass);
+            } else {
+                this.el.classList.remove(disabledClass);
+            }
+
+            if (!this._origError) {
+                this.el.classList.remove(errorClass);
+            } else {
+                this.el.classList.add(errorClass);
+            }
+        }
+
+        /**
+         * Builds a transition promise that waits to resolve until the module el's CSS transition is completed (if applicable).
+         * @returns {Promise} Returns a promise that resolves when the element has finished animating
+         */
+
+    }, {
+        key: 'waitForTransition',
+        value: function waitForTransition() {
+            var _this3 = this;
+
+            var duration = this.getTransitionDuration();
+            return new _promise2.default(function (resolve) {
+                if (duration > 0) {
+                    setTimeout(resolve.bind(_this3, _this3.el), duration);
+                } else {
+                    resolve(_this3.el);
+                }
+            });
+        }
+
+        /**
+         * Gets the time is takes for the element to transition to its show state.
+         * @returns {Number} Returns the total CSS transition time in milliseconds
+         */
+
+    }, {
+        key: 'getTransitionDuration',
+        value: function getTransitionDuration() {
+            var delayProp = this.getCssComputedProperty('transition-delay') || '0ms',
+                durationProp = this.getCssComputedProperty('transition-duration') || '0ms',
+                times = Array.isArray(durationProp) ? durationProp : [durationProp],
+                delay = Array.isArray(delayProp) ? delayProp : [delayProp],
+                highest = 0,
+                map;
+
+            times.push.apply(times, delay); // account for delay
+
+            // calculate highest number of time
+            times.forEach(function (value) {
+                value.split(',').forEach(function (v) {
+                    v = convertCssTimeValueToMilliseconds(v);
+                    map = getCssPropUnitMap(v);
+                    if (map.num > highest) {
+                        highest = map.num;
+                    }
+                });
+            });
+
+            return highest;
+        }
+
+        /**
+         * Gets the computed property of the element.
+         * @param {string} prop - The name of the property to get
+         * @returns {string} Returns the value of the property
+         */
+
+    }, {
+        key: 'getCssComputedProperty',
+        value: function getCssComputedProperty(prop) {
+            var style = window.getComputedStyle(this.el);
+            return style.getPropertyValue(prop) || this.el.style[getJsPropName(prop)];
+        }
+
+        /**
+         * Gets the closest ancestor element that has a css class.
+         * @param {string} className - The class name that the ancestor must have to match
+         * @param {Element} startTarget - The element the method should start from
+         */
+
+    }, {
+        key: 'getClosestAncestorElementByClassName',
+        value: function getClosestAncestorElementByClassName(className, startTarget) {
+            var result = null;
+            traverseEachParent(function (parent) {
+                if (parent.classList.contains(className)) {
+                    result = parent;
+                    return false;
+                }
+            }, startTarget || this.el.parentNode || this.el);
+            return result;
+        }
+
+        /**
+         * Returns the content nodes of the passed html.
+         * @param {String} html
+         * @returns {HTMLCollection|Array|NodeList}
+         */
+
+    }, {
+        key: 'getTemplateContent',
+        value: function getTemplateContent(html) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            return tempDiv.childNodes;
+        }
+
+        /**
+         * Destroys all nested views and cleans up.
+         */
+
+    }, {
+        key: 'destroy',
+        value: function destroy() {
+            var _this4 = this;
+
+            var subModules = this.subModules;
+
+            for (var key in subModules) {
+                if (subModules.hasOwnProperty(key) && subModules[key]) {
+                    subModules[key].destroy();
+                }
+            }
+            this.subModules = {};
+            this.active = false;
+            this.loaded = false;
+            this.errored = false;
+
+            this.el.classList.remove(this.options.loadedClass);
+
+            this._resetElementInitialState();
+
+            this._elChildren.forEach(function (el) {
+                if (_this4.el.contains(el)) {
+                    _this4.el.removeChild(el);
+                }
+            });
+            this._elChildren = [];
+        }
+    }]);
+
+    return Module;
+}();
+
+exports.default = Module;
+
+},{"handlebars":38,"handlebars-helper-slugify":7,"promise":41,"resource-manager-js":49,"underscore":61}],41:[function(require,module,exports){
+'use strict';
+
+module.exports = require('./lib')
+
+},{"./lib":46}],42:[function(require,module,exports){
+'use strict';
+
+var asap = require('asap/raw');
+
+function noop() {}
+
+// States:
+//
+// 0 - pending
+// 1 - fulfilled with _value
+// 2 - rejected with _value
+// 3 - adopted the state of another promise, _value
+//
+// once the state is no longer pending (0) it is immutable
+
+// All `_` prefixed properties will be reduced to `_{random number}`
+// at build time to obfuscate them and discourage their use.
+// We don't use symbols or Object.defineProperty to fully hide them
+// because the performance isn't good enough.
+
+
+// to avoid using try/catch inside critical functions, we
+// extract them to here.
+var LAST_ERROR = null;
+var IS_ERROR = {};
+function getThen(obj) {
+  try {
+    return obj.then;
+  } catch (ex) {
+    LAST_ERROR = ex;
+    return IS_ERROR;
+  }
+}
+
+function tryCallOne(fn, a) {
+  try {
+    return fn(a);
+  } catch (ex) {
+    LAST_ERROR = ex;
+    return IS_ERROR;
+  }
+}
+function tryCallTwo(fn, a, b) {
+  try {
+    fn(a, b);
+  } catch (ex) {
+    LAST_ERROR = ex;
+    return IS_ERROR;
+  }
+}
+
+module.exports = Promise;
+
+function Promise(fn) {
+  if (typeof this !== 'object') {
+    throw new TypeError('Promises must be constructed via new');
+  }
+  if (typeof fn !== 'function') {
+    throw new TypeError('not a function');
+  }
+  this._45 = 0;
+  this._81 = 0;
+  this._65 = null;
+  this._54 = null;
+  if (fn === noop) return;
+  doResolve(fn, this);
+}
+Promise._10 = null;
+Promise._97 = null;
+Promise._61 = noop;
+
+Promise.prototype.then = function(onFulfilled, onRejected) {
+  if (this.constructor !== Promise) {
+    return safeThen(this, onFulfilled, onRejected);
+  }
+  var res = new Promise(noop);
+  handle(this, new Handler(onFulfilled, onRejected, res));
+  return res;
+};
+
+function safeThen(self, onFulfilled, onRejected) {
+  return new self.constructor(function (resolve, reject) {
+    var res = new Promise(noop);
+    res.then(resolve, reject);
+    handle(self, new Handler(onFulfilled, onRejected, res));
+  });
+};
+function handle(self, deferred) {
+  while (self._81 === 3) {
+    self = self._65;
+  }
+  if (Promise._10) {
+    Promise._10(self);
+  }
+  if (self._81 === 0) {
+    if (self._45 === 0) {
+      self._45 = 1;
+      self._54 = deferred;
+      return;
+    }
+    if (self._45 === 1) {
+      self._45 = 2;
+      self._54 = [self._54, deferred];
+      return;
+    }
+    self._54.push(deferred);
+    return;
+  }
+  handleResolved(self, deferred);
+}
+
+function handleResolved(self, deferred) {
+  asap(function() {
+    var cb = self._81 === 1 ? deferred.onFulfilled : deferred.onRejected;
+    if (cb === null) {
+      if (self._81 === 1) {
+        resolve(deferred.promise, self._65);
+      } else {
+        reject(deferred.promise, self._65);
+      }
+      return;
+    }
+    var ret = tryCallOne(cb, self._65);
+    if (ret === IS_ERROR) {
+      reject(deferred.promise, LAST_ERROR);
+    } else {
+      resolve(deferred.promise, ret);
+    }
+  });
+}
+function resolve(self, newValue) {
+  // Promise Resolution Procedure: https://github.com/promises-aplus/promises-spec#the-promise-resolution-procedure
+  if (newValue === self) {
+    return reject(
+      self,
+      new TypeError('A promise cannot be resolved with itself.')
+    );
+  }
+  if (
+    newValue &&
+    (typeof newValue === 'object' || typeof newValue === 'function')
+  ) {
+    var then = getThen(newValue);
+    if (then === IS_ERROR) {
+      return reject(self, LAST_ERROR);
+    }
+    if (
+      then === self.then &&
+      newValue instanceof Promise
+    ) {
+      self._81 = 3;
+      self._65 = newValue;
+      finale(self);
+      return;
+    } else if (typeof then === 'function') {
+      doResolve(then.bind(newValue), self);
+      return;
+    }
+  }
+  self._81 = 1;
+  self._65 = newValue;
+  finale(self);
+}
+
+function reject(self, newValue) {
+  self._81 = 2;
+  self._65 = newValue;
+  if (Promise._97) {
+    Promise._97(self, newValue);
+  }
+  finale(self);
+}
+function finale(self) {
+  if (self._45 === 1) {
+    handle(self, self._54);
+    self._54 = null;
+  }
+  if (self._45 === 2) {
+    for (var i = 0; i < self._54.length; i++) {
+      handle(self, self._54[i]);
+    }
+    self._54 = null;
+  }
+}
+
+function Handler(onFulfilled, onRejected, promise){
+  this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null;
+  this.onRejected = typeof onRejected === 'function' ? onRejected : null;
+  this.promise = promise;
+}
+
+/**
+ * Take a potentially misbehaving resolver function and make sure
+ * onFulfilled and onRejected are only called once.
+ *
+ * Makes no guarantees about asynchrony.
+ */
+function doResolve(fn, promise) {
+  var done = false;
+  var res = tryCallTwo(fn, function (value) {
+    if (done) return;
+    done = true;
+    resolve(promise, value);
+  }, function (reason) {
+    if (done) return;
+    done = true;
+    reject(promise, reason);
+  })
+  if (!done && res === IS_ERROR) {
+    done = true;
+    reject(promise, LAST_ERROR);
+  }
+}
+
+},{"asap/raw":6}],43:[function(require,module,exports){
+'use strict';
+
+var Promise = require('./core.js');
+
+module.exports = Promise;
+Promise.prototype.done = function (onFulfilled, onRejected) {
+  var self = arguments.length ? this.then.apply(this, arguments) : this;
+  self.then(null, function (err) {
+    setTimeout(function () {
+      throw err;
+    }, 0);
+  });
+};
+
+},{"./core.js":42}],44:[function(require,module,exports){
+'use strict';
+
+//This file contains the ES6 extensions to the core Promises/A+ API
+
+var Promise = require('./core.js');
+
+module.exports = Promise;
+
+/* Static Functions */
+
+var TRUE = valuePromise(true);
+var FALSE = valuePromise(false);
+var NULL = valuePromise(null);
+var UNDEFINED = valuePromise(undefined);
+var ZERO = valuePromise(0);
+var EMPTYSTRING = valuePromise('');
+
+function valuePromise(value) {
+  var p = new Promise(Promise._61);
+  p._81 = 1;
+  p._65 = value;
+  return p;
+}
+Promise.resolve = function (value) {
+  if (value instanceof Promise) return value;
+
+  if (value === null) return NULL;
+  if (value === undefined) return UNDEFINED;
+  if (value === true) return TRUE;
+  if (value === false) return FALSE;
+  if (value === 0) return ZERO;
+  if (value === '') return EMPTYSTRING;
+
+  if (typeof value === 'object' || typeof value === 'function') {
+    try {
+      var then = value.then;
+      if (typeof then === 'function') {
+        return new Promise(then.bind(value));
+      }
+    } catch (ex) {
+      return new Promise(function (resolve, reject) {
+        reject(ex);
+      });
+    }
+  }
+  return valuePromise(value);
+};
+
+Promise.all = function (arr) {
+  var args = Array.prototype.slice.call(arr);
+
+  return new Promise(function (resolve, reject) {
+    if (args.length === 0) return resolve([]);
+    var remaining = args.length;
+    function res(i, val) {
+      if (val && (typeof val === 'object' || typeof val === 'function')) {
+        if (val instanceof Promise && val.then === Promise.prototype.then) {
+          while (val._81 === 3) {
+            val = val._65;
+          }
+          if (val._81 === 1) return res(i, val._65);
+          if (val._81 === 2) reject(val._65);
+          val.then(function (val) {
+            res(i, val);
+          }, reject);
+          return;
+        } else {
+          var then = val.then;
+          if (typeof then === 'function') {
+            var p = new Promise(then.bind(val));
+            p.then(function (val) {
+              res(i, val);
+            }, reject);
+            return;
+          }
+        }
+      }
+      args[i] = val;
+      if (--remaining === 0) {
+        resolve(args);
+      }
+    }
+    for (var i = 0; i < args.length; i++) {
+      res(i, args[i]);
+    }
+  });
+};
+
+Promise.reject = function (value) {
+  return new Promise(function (resolve, reject) {
+    reject(value);
+  });
+};
+
+Promise.race = function (values) {
+  return new Promise(function (resolve, reject) {
+    values.forEach(function(value){
+      Promise.resolve(value).then(resolve, reject);
+    });
+  });
+};
+
+/* Prototype Methods */
+
+Promise.prototype['catch'] = function (onRejected) {
+  return this.then(null, onRejected);
+};
+
+},{"./core.js":42}],45:[function(require,module,exports){
+'use strict';
+
+var Promise = require('./core.js');
+
+module.exports = Promise;
+Promise.prototype['finally'] = function (f) {
+  return this.then(function (value) {
+    return Promise.resolve(f()).then(function () {
+      return value;
+    });
+  }, function (err) {
+    return Promise.resolve(f()).then(function () {
+      throw err;
+    });
+  });
+};
+
+},{"./core.js":42}],46:[function(require,module,exports){
+'use strict';
+
+module.exports = require('./core.js');
+require('./done.js');
+require('./finally.js');
+require('./es6-extensions.js');
+require('./node-extensions.js');
+require('./synchronous.js');
+
+},{"./core.js":42,"./done.js":43,"./es6-extensions.js":44,"./finally.js":45,"./node-extensions.js":47,"./synchronous.js":48}],47:[function(require,module,exports){
+'use strict';
+
+// This file contains then/promise specific extensions that are only useful
+// for node.js interop
+
+var Promise = require('./core.js');
+var asap = require('asap');
+
+module.exports = Promise;
+
+/* Static Functions */
+
+Promise.denodeify = function (fn, argumentCount) {
+  if (
+    typeof argumentCount === 'number' && argumentCount !== Infinity
+  ) {
+    return denodeifyWithCount(fn, argumentCount);
+  } else {
+    return denodeifyWithoutCount(fn);
+  }
+}
+
+var callbackFn = (
+  'function (err, res) {' +
+  'if (err) { rj(err); } else { rs(res); }' +
+  '}'
+);
+function denodeifyWithCount(fn, argumentCount) {
+  var args = [];
+  for (var i = 0; i < argumentCount; i++) {
+    args.push('a' + i);
+  }
+  var body = [
+    'return function (' + args.join(',') + ') {',
+    'var self = this;',
+    'return new Promise(function (rs, rj) {',
+    'var res = fn.call(',
+    ['self'].concat(args).concat([callbackFn]).join(','),
+    ');',
+    'if (res &&',
+    '(typeof res === "object" || typeof res === "function") &&',
+    'typeof res.then === "function"',
+    ') {rs(res);}',
+    '});',
+    '};'
+  ].join('');
+  return Function(['Promise', 'fn'], body)(Promise, fn);
+}
+function denodeifyWithoutCount(fn) {
+  var fnLength = Math.max(fn.length - 1, 3);
+  var args = [];
+  for (var i = 0; i < fnLength; i++) {
+    args.push('a' + i);
+  }
+  var body = [
+    'return function (' + args.join(',') + ') {',
+    'var self = this;',
+    'var args;',
+    'var argLength = arguments.length;',
+    'if (arguments.length > ' + fnLength + ') {',
+    'args = new Array(arguments.length + 1);',
+    'for (var i = 0; i < arguments.length; i++) {',
+    'args[i] = arguments[i];',
+    '}',
+    '}',
+    'return new Promise(function (rs, rj) {',
+    'var cb = ' + callbackFn + ';',
+    'var res;',
+    'switch (argLength) {',
+    args.concat(['extra']).map(function (_, index) {
+      return (
+        'case ' + (index) + ':' +
+        'res = fn.call(' + ['self'].concat(args.slice(0, index)).concat('cb').join(',') + ');' +
+        'break;'
+      );
+    }).join(''),
+    'default:',
+    'args[argLength] = cb;',
+    'res = fn.apply(self, args);',
+    '}',
+    
+    'if (res &&',
+    '(typeof res === "object" || typeof res === "function") &&',
+    'typeof res.then === "function"',
+    ') {rs(res);}',
+    '});',
+    '};'
+  ].join('');
+
+  return Function(
+    ['Promise', 'fn'],
+    body
+  )(Promise, fn);
+}
+
+Promise.nodeify = function (fn) {
+  return function () {
+    var args = Array.prototype.slice.call(arguments);
+    var callback =
+      typeof args[args.length - 1] === 'function' ? args.pop() : null;
+    var ctx = this;
+    try {
+      return fn.apply(this, arguments).nodeify(callback, ctx);
+    } catch (ex) {
+      if (callback === null || typeof callback == 'undefined') {
+        return new Promise(function (resolve, reject) {
+          reject(ex);
+        });
+      } else {
+        asap(function () {
+          callback.call(ctx, ex);
+        })
+      }
+    }
+  }
+}
+
+Promise.prototype.nodeify = function (callback, ctx) {
+  if (typeof callback != 'function') return this;
+
+  this.then(function (value) {
+    asap(function () {
+      callback.call(ctx, null, value);
+    });
+  }, function (err) {
+    asap(function () {
+      callback.call(ctx, err);
+    });
+  });
+}
+
+},{"./core.js":42,"asap":5}],48:[function(require,module,exports){
+'use strict';
+
+var Promise = require('./core.js');
+
+module.exports = Promise;
+Promise.enableSynchronous = function () {
+  Promise.prototype.isPending = function() {
+    return this.getState() == 0;
+  };
+
+  Promise.prototype.isFulfilled = function() {
+    return this.getState() == 1;
+  };
+
+  Promise.prototype.isRejected = function() {
+    return this.getState() == 2;
+  };
+
+  Promise.prototype.getValue = function () {
+    if (this._81 === 3) {
+      return this._65.getValue();
+    }
+
+    if (!this.isFulfilled()) {
+      throw new Error('Cannot get a value of an unfulfilled promise.');
+    }
+
+    return this._65;
+  };
+
+  Promise.prototype.getReason = function () {
+    if (this._81 === 3) {
+      return this._65.getReason();
+    }
+
+    if (!this.isRejected()) {
+      throw new Error('Cannot get a rejection reason of a non-rejected promise.');
+    }
+
+    return this._65;
+  };
+
+  Promise.prototype.getState = function () {
+    if (this._81 === 3) {
+      return this._65.getState();
+    }
+    if (this._81 === -1 || this._81 === -2) {
+      return 0;
+    }
+
+    return this._81;
+  };
+};
+
+Promise.disableSynchronous = function() {
+  Promise.prototype.isPending = undefined;
+  Promise.prototype.isFulfilled = undefined;
+  Promise.prototype.isRejected = undefined;
+  Promise.prototype.getValue = undefined;
+  Promise.prototype.getReason = undefined;
+  Promise.prototype.getState = undefined;
+};
+
+},{"./core.js":42}],49:[function(require,module,exports){
+'use strict';
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 var _promise = require('promise');
@@ -22079,1167 +23278,7 @@ var ResourceManager = function () {
 
 module.exports = new ResourceManager();
 
-},{"lodash":39,"promise":42}],41:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _promise = require('promise');
-
-var _promise2 = _interopRequireDefault(_promise);
-
-var _underscore = require('underscore');
-
-var _underscore2 = _interopRequireDefault(_underscore);
-
-var _resourceManagerJs = require('resource-manager-js');
-
-var _resourceManagerJs2 = _interopRequireDefault(_resourceManagerJs);
-
-var _handlebars = require('handlebars');
-
-var _handlebars2 = _interopRequireDefault(_handlebars);
-
-var _handlebarsHelperSlugify = require('handlebars-helper-slugify');
-
-var _handlebarsHelperSlugify2 = _interopRequireDefault(_handlebarsHelperSlugify);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-/**
- * Takes a value and separates the number and unit into a key/value map.
- * @param v - The value
- * @returns {{num: Number, unit: string}} Returns the map
- * @private
- */
-var getCssPropUnitMap = function getCssPropUnitMap(v) {
-    v.trim();
-    var num = v.match('[0-9\.]+'),
-        unit = 'ms';
-
-    num = num ? num[0] : '';
-    if (num) {
-        unit = v.split(num)[1];
-        num = Number(num);
-    }
-    return {
-        num: num,
-        unit: unit
-    };
-};
-
-/**
- * Converts a css timing unit value into milliseconds.
- * @param {string} val - The value string
- * @returns {string} Returns the timing unit value in milliseconds
- */
-var convertCssTimeValueToMilliseconds = function convertCssTimeValueToMilliseconds(val) {
-    var number = getCssPropUnitMap(val).num,
-        unit = val.replace(number, '');
-    if (unit === 's') {
-        val = number * 1000;
-    } else {
-        val = number;
-    }
-    return val + 'ms';
-};
-
-/**
- * Takes a css property name and returns the javascript version of it.
- * @param {string} cssProp - The css property
- * @returns {string} Returns the javascript version
- * @private
- */
-var getJsPropName = function getJsPropName(cssProp) {
-    // convert to camelCase
-    return cssProp.replace(/-([a-z])/g, function (letter) {
-        return letter[1].toUpperCase();
-    });
-};
-
-/**
- * Bubbles up each parent node of the element, triggering the callback on each element until traversal
- * either runs out of parent nodes, reaches the document element, or if callback returns a falsy value
- * @param {Function} callback - A callback that fires which gets passed the current element
- * @param {HTMLElement} [startEl] - The element where traversal will begin (including the passed element), defaults to current el
- */
-var traverseEachParent = function traverseEachParent(callback, startEl) {
-    var parentNode = startEl;
-    var predicate = null;
-    // check if the node has classname property, if not, we know we're at the #document element
-    while (parentNode && typeof parentNode.className === 'string') {
-        predicate = callback(parentNode);
-        if (predicate !== undefined && !predicate) {
-            break;
-        }
-        parentNode = parentNode.parentNode;
-    }
-};
-
-/**
- * A function that fires when the module's load() method is called
- * @callback Module~onLoad
- * @return {*} May return a promise when done
- */
-
-/**
- * A function that fires when the module's show() method is called
- * which can be overridden by subclass custom implementations.
- * @callback Module~onShow
- * @return {*} May return a promise when done
- */
-
-/**
- * A function that fires when the module's hide() method is called
- * which can be overridden by subclass custom implementations.
- * @callback Module~onHide
- */
-
-/**
- * A function that fires when the module's enable() method is called
- * @callback Module~onEnable
- */
-
-/**
- * A function that fires when the module's disable() method is called
- * @callback Module~onDisable
- */
-
-/**
- * A function that fires when the error() method is called
- * @callback Module~onError
- * @param {Object} [e] - The error object that was triggered
- */
-
-/**
- * @class Module
- * @description Base class that represents all modules of an App.
- */
-
-var Module = function () {
-
-    /**
-     * Initialization.
-     * @param {HTMLElement} el - The module element
-     * @param {Object} [options] - An object of options
-     * @param {string} [options.loadedClass] - The class that will be applied to the module element when it is loaded
-     * @param {string} [options.activeClass] - The class that will be applied to the module element when it is shown
-     * @param {string} [options.disabledClass] - The class that will be applied to the module element when disabled
-     * @param {string} [options.errorClass] - The class that will be applied to the module element when it has a load error
-     * @param {Array|string} [options.styles] - Array of stylesheet urls or single url
-     * @param {string} [options.template] - The url to the template to load
-     * @param {Object|string} [options.data] - The data or url to the module's data
-     * @param {Object} [options.requestOptions] - The request options to use when running the fetch method to get data
-     * @param {Module~onLoad} [options.onLoad] - A function that fires when module's load() method is called
-     * @param {Module~onShow} [options.onShow] - A function that fires when module is shown
-     * @param {Module~onHide} [options.onHide] - A function that fires when module is hidden
-     * @param {Module~onEnable} [options.onEnable] - A function that fires when module is enabled
-     * @param {Module~onDisable} [options.onDisable] - A function that fires when module is disabled
-     * @param {Module~onError} [options.onError] - A function that fires when module goes into error state
-     */
-
-    function Module(el, options) {
-        _classCallCheck(this, Module);
-
-        options = options || {};
-
-        if (!el) {
-            console.error("Module error: No element was passed to constructor");
-        }
-
-        this.el = el;
-
-        var defaultOptions = {
-            loadedClass: 'module-loaded',
-            activeClass: 'module-active',
-            disabledClass: 'module-disabled',
-            errorClass: 'module-error',
-            styles: [],
-            template: "",
-            data: null,
-            requestOptions: null,
-            onLoad: function onLoad() {},
-            onShow: function onShow() {},
-            onHide: function onHide() {},
-            onEnable: function onEnable() {},
-            onDisable: function onDisable() {},
-            onError: function onError() {}
-        };
-
-        // we are adding default options to passed custom options
-        // to ensure all expected options exist when instantiating sub classes
-        for (var name in defaultOptions) {
-            if (defaultOptions.hasOwnProperty(name)) {
-                if (!options[name]) {
-                    options[name] = defaultOptions[name];
-                }
-            }
-        }
-
-        this.options = options;
-
-        this._handleElementInitialState();
-
-        // setup helpers
-        _handlebars2.default.registerHelper('slugify', _handlebarsHelperSlugify2.default);
-
-        this.subModules = {};
-        this.active = false;
-        this.loaded = false;
-        this._elChildren = [];
-    }
-
-    /**
-     * Loads the module's styles, template, and data and applies loaded css classes and state.
-     * @return {Promise}
-     */
-
-
-    _createClass(Module, [{
-        key: 'load',
-        value: function load() {
-            var _this = this;
-
-            var views = _underscore2.default.values(this.subModules);
-            if (!this.loaded) {
-                // load all subModules
-                return _promise2.default.all(_underscore2.default.invoke(views, 'load')).then(function () {
-                    return _this.getStyles(_this.options.styles).then(function () {
-                        return _this.fetchData(_this.options.data, _this.options.requestOptions).then(function (data) {
-                            return _this.getTemplate(data).then(function (html) {
-                                if (html) {
-                                    var templateContent = _this.getTemplateContent(html);
-                                    // html collection so we need to do a traditional for loop here
-                                    for (var i = 0; i < templateContent.children.length; i++) {
-                                        _this._elChildren.push(templateContent.children[i]);
-                                    }
-                                    _this.el.appendChild(document.adoptNode(templateContent));
-                                }
-                                _this.loaded = true;
-                                if (_this.el) {
-                                    _this.el.classList.add(_this.options.loadedClass);
-                                }
-                                _this.options.onLoad();
-                            });
-                        });
-                    });
-                }).catch(function (e) {
-                    _this.error(e);
-                    // throw error to reject promise
-                    throw e;
-                });
-            } else {
-                return _promise2.default.resolve();
-            }
-        }
-
-        /**
-         * Makes a request to get the data for the module.
-         * @param {string|Object} url - The url to fetch data from or data object
-         * @param [options] - fetch options
-         * @returns {*}
-         */
-
-    }, {
-        key: 'fetchData',
-        value: function fetchData(url, options) {
-            if (typeof url !== 'string') {
-                return _promise2.default.resolve(url);
-            }
-            return _resourceManagerJs2.default.fetchData(url, options);
-        }
-
-        /**
-         * Gets the css files for the module.
-         * @param cssUrl
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'getStyles',
-        value: function getStyles(cssUrl) {
-            return _resourceManagerJs2.default.loadCss(cssUrl);
-        }
-
-        /**
-         * Gets the html template for the module.
-         * @param {Object} [templateData] - The data to inject (if template is a handlebar file)
-         * @returns {Promise}
-         */
-
-    }, {
-        key: 'getTemplate',
-        value: function getTemplate(templateData) {
-            var path = this.options.template || '';
-            var isHandlebarFile = function isHandlebarFile(filePath) {
-                if (filePath) {
-                    var frags = filePath.split('.');
-                    var ext = frags[frags.length - 1];
-                    return ext === 'hbs';
-                }
-            };
-            return _resourceManagerJs2.default.loadTemplate(path).then(function (html) {
-                html = html || '';
-                if (html && isHandlebarFile(path)) {
-                    html = _handlebars2.default.compile(html)(templateData || {});
-                }
-                return html;
-            });
-        }
-
-        /**
-         * Triggers a load error on the module.
-         * @param {Object} [err] - The error object to trigger
-         * @return {Promise} Returns a promise when erroring operation is complete
-         */
-
-    }, {
-        key: 'error',
-        value: function error(err) {
-            var e = err || new Error();
-
-            this.el.classList.add(this.options.errorClass);
-
-            this.errored = true;
-            this.loaded = false;
-
-            this.options.onError(e);
-            return this.waitForTransition().then(function () {
-                return e;
-            });
-        }
-
-        /**
-         * Enables the module.
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'enable',
-        value: function enable() {
-            var el = this.el;
-            if (el) {
-                el.classList.remove(this.options.disabledClass);
-            }
-            this.disabled = false;
-            this.options.onEnable();
-            return this.waitForTransition();
-        }
-
-        /**
-         * Disables the module.
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'disable',
-        value: function disable() {
-            var el = this.el;
-            if (el) {
-                el.classList.add(this.options.disabledClass);
-            }
-            this.disabled = true;
-
-            this.options.onDisable();
-            return this.waitForTransition();
-        }
-
-        /**
-         * Shows the module.
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'show',
-        value: function show() {
-            var el = this.el;
-            if (el) {
-                el.classList.add(this.options.activeClass);
-            }
-            this.active = true;
-            this.options.onShow();
-            return this.waitForTransition();
-        }
-
-        /**
-         * Hides the module.
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'hide',
-        value: function hide() {
-            var el = this.el;
-            if (el) {
-                el.classList.remove(this.options.activeClass);
-            }
-            this.active = false;
-            this.options.onHide();
-            return this.waitForTransition();
-        }
-
-        /**
-         * Sets up element internally by evaluating its initial state.
-         * @private
-         */
-
-    }, {
-        key: '_handleElementInitialState',
-        value: function _handleElementInitialState() {
-            var el = this.el;
-            if (!el) {
-                return;
-            }
-            if (el.classList.contains(this.options.disabledClass)) {
-                this._origDisabled = true;
-                this.disable();
-            }
-
-            if (el.classList.contains(this.options.errorClass)) {
-                this._origError = true;
-                this.error(new Error());
-            }
-        }
-
-        /**
-         * Restores the elements classes back to the way they were before instantiation.
-         * @private
-         */
-
-    }, {
-        key: '_resetElementInitialState',
-        value: function _resetElementInitialState() {
-            var options = this.options,
-                disabledClass = options.disabledClass,
-                errorClass = options.errorClass;
-
-            if (!this.el) {
-                return;
-            }
-            if (this._origDisabled) {
-                this.el.classList.add(disabledClass);
-            } else {
-                this.el.classList.remove(disabledClass);
-            }
-
-            if (!this._origError) {
-                this.el.classList.remove(errorClass);
-            } else {
-                this.el.classList.add(errorClass);
-            }
-        }
-
-        /**
-         * Builds a transition promise that waits to resolve until the module el's CSS transition is completed (if applicable).
-         * @returns {Promise} Returns a promise that resolves when the element has finished animating
-         */
-
-    }, {
-        key: 'waitForTransition',
-        value: function waitForTransition() {
-            var _this2 = this;
-
-            var duration = this.getTransitionDuration();
-            return new _promise2.default(function (resolve) {
-                if (duration > 0) {
-                    setTimeout(resolve.bind(_this2, _this2.el), duration);
-                } else {
-                    resolve(_this2.el);
-                }
-            });
-        }
-
-        /**
-         * Gets the time is takes for the element to transition to its show state.
-         * @returns {Number} Returns the total CSS transition time in milliseconds
-         */
-
-    }, {
-        key: 'getTransitionDuration',
-        value: function getTransitionDuration() {
-            var delayProp = this.getCssComputedProperty('transition-delay') || '0ms',
-                durationProp = this.getCssComputedProperty('transition-duration') || '0ms',
-                times = Array.isArray(durationProp) ? durationProp : [durationProp],
-                delay = Array.isArray(delayProp) ? delayProp : [delayProp],
-                highest = 0,
-                map;
-
-            times.push.apply(times, delay); // account for delay
-
-            // calculate highest number of time
-            times.forEach(function (value) {
-                value.split(',').forEach(function (v) {
-                    v = convertCssTimeValueToMilliseconds(v);
-                    map = getCssPropUnitMap(v);
-                    if (map.num > highest) {
-                        highest = map.num;
-                    }
-                });
-            });
-
-            return highest;
-        }
-
-        /**
-         * Gets the computed property of the element.
-         * @param {string} prop - The name of the property to get
-         * @returns {string} Returns the value of the property
-         */
-
-    }, {
-        key: 'getCssComputedProperty',
-        value: function getCssComputedProperty(prop) {
-            var style = window.getComputedStyle(this.el);
-            return style.getPropertyValue(prop) || this.el.style[getJsPropName(prop)];
-        }
-
-        /**
-         * Gets the closest ancestor element that has a css class.
-         * @param {string} className - The class name that the ancestor must have to match
-         * @param {Element} startTarget - The element the method should start from
-         */
-
-    }, {
-        key: 'getClosestAncestorElementByClassName',
-        value: function getClosestAncestorElementByClassName(className, startTarget) {
-            var result = null;
-            traverseEachParent(function (parent) {
-                if (parent.classList.contains(className)) {
-                    result = parent;
-                    return false;
-                }
-            }, startTarget || this.el.parentNode || this.el);
-            return result;
-        }
-
-        /**
-         * Returns the content nodes of the passed html.
-         * @param {String} html
-         * @returns {DocumentFragment}
-         */
-
-    }, {
-        key: 'getTemplateContent',
-        value: function getTemplateContent(html) {
-            var templateFrag = document.createElement('template');
-            templateFrag.innerHTML = html;
-            return templateFrag.content;
-        }
-
-        /**
-         * Destroys all nested views and cleans up.
-         */
-
-    }, {
-        key: 'destroy',
-        value: function destroy() {
-            var _this3 = this;
-
-            var subModules = this.subModules;
-
-            for (var key in subModules) {
-                if (subModules.hasOwnProperty(key) && subModules[key]) {
-                    subModules[key].destroy();
-                }
-            }
-            this.subModules = {};
-            this.active = false;
-            this.loaded = false;
-            this.errored = false;
-
-            this.el.classList.remove(this.options.loadedClass);
-
-            this._resetElementInitialState();
-
-            this._elChildren.forEach(function (el) {
-                if (_this3.el.contains(el)) {
-                    _this3.el.removeChild(el);
-                }
-            });
-            this._elChildren = [];
-        }
-    }]);
-
-    return Module;
-}();
-
-exports.default = Module;
-
-},{"handlebars":38,"handlebars-helper-slugify":7,"promise":42,"resource-manager-js":40,"underscore":61}],42:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./lib')
-
-},{"./lib":47}],43:[function(require,module,exports){
-'use strict';
-
-var asap = require('asap/raw');
-
-function noop() {}
-
-// States:
-//
-// 0 - pending
-// 1 - fulfilled with _value
-// 2 - rejected with _value
-// 3 - adopted the state of another promise, _value
-//
-// once the state is no longer pending (0) it is immutable
-
-// All `_` prefixed properties will be reduced to `_{random number}`
-// at build time to obfuscate them and discourage their use.
-// We don't use symbols or Object.defineProperty to fully hide them
-// because the performance isn't good enough.
-
-
-// to avoid using try/catch inside critical functions, we
-// extract them to here.
-var LAST_ERROR = null;
-var IS_ERROR = {};
-function getThen(obj) {
-  try {
-    return obj.then;
-  } catch (ex) {
-    LAST_ERROR = ex;
-    return IS_ERROR;
-  }
-}
-
-function tryCallOne(fn, a) {
-  try {
-    return fn(a);
-  } catch (ex) {
-    LAST_ERROR = ex;
-    return IS_ERROR;
-  }
-}
-function tryCallTwo(fn, a, b) {
-  try {
-    fn(a, b);
-  } catch (ex) {
-    LAST_ERROR = ex;
-    return IS_ERROR;
-  }
-}
-
-module.exports = Promise;
-
-function Promise(fn) {
-  if (typeof this !== 'object') {
-    throw new TypeError('Promises must be constructed via new');
-  }
-  if (typeof fn !== 'function') {
-    throw new TypeError('not a function');
-  }
-  this._45 = 0;
-  this._81 = 0;
-  this._65 = null;
-  this._54 = null;
-  if (fn === noop) return;
-  doResolve(fn, this);
-}
-Promise._10 = null;
-Promise._97 = null;
-Promise._61 = noop;
-
-Promise.prototype.then = function(onFulfilled, onRejected) {
-  if (this.constructor !== Promise) {
-    return safeThen(this, onFulfilled, onRejected);
-  }
-  var res = new Promise(noop);
-  handle(this, new Handler(onFulfilled, onRejected, res));
-  return res;
-};
-
-function safeThen(self, onFulfilled, onRejected) {
-  return new self.constructor(function (resolve, reject) {
-    var res = new Promise(noop);
-    res.then(resolve, reject);
-    handle(self, new Handler(onFulfilled, onRejected, res));
-  });
-};
-function handle(self, deferred) {
-  while (self._81 === 3) {
-    self = self._65;
-  }
-  if (Promise._10) {
-    Promise._10(self);
-  }
-  if (self._81 === 0) {
-    if (self._45 === 0) {
-      self._45 = 1;
-      self._54 = deferred;
-      return;
-    }
-    if (self._45 === 1) {
-      self._45 = 2;
-      self._54 = [self._54, deferred];
-      return;
-    }
-    self._54.push(deferred);
-    return;
-  }
-  handleResolved(self, deferred);
-}
-
-function handleResolved(self, deferred) {
-  asap(function() {
-    var cb = self._81 === 1 ? deferred.onFulfilled : deferred.onRejected;
-    if (cb === null) {
-      if (self._81 === 1) {
-        resolve(deferred.promise, self._65);
-      } else {
-        reject(deferred.promise, self._65);
-      }
-      return;
-    }
-    var ret = tryCallOne(cb, self._65);
-    if (ret === IS_ERROR) {
-      reject(deferred.promise, LAST_ERROR);
-    } else {
-      resolve(deferred.promise, ret);
-    }
-  });
-}
-function resolve(self, newValue) {
-  // Promise Resolution Procedure: https://github.com/promises-aplus/promises-spec#the-promise-resolution-procedure
-  if (newValue === self) {
-    return reject(
-      self,
-      new TypeError('A promise cannot be resolved with itself.')
-    );
-  }
-  if (
-    newValue &&
-    (typeof newValue === 'object' || typeof newValue === 'function')
-  ) {
-    var then = getThen(newValue);
-    if (then === IS_ERROR) {
-      return reject(self, LAST_ERROR);
-    }
-    if (
-      then === self.then &&
-      newValue instanceof Promise
-    ) {
-      self._81 = 3;
-      self._65 = newValue;
-      finale(self);
-      return;
-    } else if (typeof then === 'function') {
-      doResolve(then.bind(newValue), self);
-      return;
-    }
-  }
-  self._81 = 1;
-  self._65 = newValue;
-  finale(self);
-}
-
-function reject(self, newValue) {
-  self._81 = 2;
-  self._65 = newValue;
-  if (Promise._97) {
-    Promise._97(self, newValue);
-  }
-  finale(self);
-}
-function finale(self) {
-  if (self._45 === 1) {
-    handle(self, self._54);
-    self._54 = null;
-  }
-  if (self._45 === 2) {
-    for (var i = 0; i < self._54.length; i++) {
-      handle(self, self._54[i]);
-    }
-    self._54 = null;
-  }
-}
-
-function Handler(onFulfilled, onRejected, promise){
-  this.onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : null;
-  this.onRejected = typeof onRejected === 'function' ? onRejected : null;
-  this.promise = promise;
-}
-
-/**
- * Take a potentially misbehaving resolver function and make sure
- * onFulfilled and onRejected are only called once.
- *
- * Makes no guarantees about asynchrony.
- */
-function doResolve(fn, promise) {
-  var done = false;
-  var res = tryCallTwo(fn, function (value) {
-    if (done) return;
-    done = true;
-    resolve(promise, value);
-  }, function (reason) {
-    if (done) return;
-    done = true;
-    reject(promise, reason);
-  })
-  if (!done && res === IS_ERROR) {
-    done = true;
-    reject(promise, LAST_ERROR);
-  }
-}
-
-},{"asap/raw":6}],44:[function(require,module,exports){
-'use strict';
-
-var Promise = require('./core.js');
-
-module.exports = Promise;
-Promise.prototype.done = function (onFulfilled, onRejected) {
-  var self = arguments.length ? this.then.apply(this, arguments) : this;
-  self.then(null, function (err) {
-    setTimeout(function () {
-      throw err;
-    }, 0);
-  });
-};
-
-},{"./core.js":43}],45:[function(require,module,exports){
-'use strict';
-
-//This file contains the ES6 extensions to the core Promises/A+ API
-
-var Promise = require('./core.js');
-
-module.exports = Promise;
-
-/* Static Functions */
-
-var TRUE = valuePromise(true);
-var FALSE = valuePromise(false);
-var NULL = valuePromise(null);
-var UNDEFINED = valuePromise(undefined);
-var ZERO = valuePromise(0);
-var EMPTYSTRING = valuePromise('');
-
-function valuePromise(value) {
-  var p = new Promise(Promise._61);
-  p._81 = 1;
-  p._65 = value;
-  return p;
-}
-Promise.resolve = function (value) {
-  if (value instanceof Promise) return value;
-
-  if (value === null) return NULL;
-  if (value === undefined) return UNDEFINED;
-  if (value === true) return TRUE;
-  if (value === false) return FALSE;
-  if (value === 0) return ZERO;
-  if (value === '') return EMPTYSTRING;
-
-  if (typeof value === 'object' || typeof value === 'function') {
-    try {
-      var then = value.then;
-      if (typeof then === 'function') {
-        return new Promise(then.bind(value));
-      }
-    } catch (ex) {
-      return new Promise(function (resolve, reject) {
-        reject(ex);
-      });
-    }
-  }
-  return valuePromise(value);
-};
-
-Promise.all = function (arr) {
-  var args = Array.prototype.slice.call(arr);
-
-  return new Promise(function (resolve, reject) {
-    if (args.length === 0) return resolve([]);
-    var remaining = args.length;
-    function res(i, val) {
-      if (val && (typeof val === 'object' || typeof val === 'function')) {
-        if (val instanceof Promise && val.then === Promise.prototype.then) {
-          while (val._81 === 3) {
-            val = val._65;
-          }
-          if (val._81 === 1) return res(i, val._65);
-          if (val._81 === 2) reject(val._65);
-          val.then(function (val) {
-            res(i, val);
-          }, reject);
-          return;
-        } else {
-          var then = val.then;
-          if (typeof then === 'function') {
-            var p = new Promise(then.bind(val));
-            p.then(function (val) {
-              res(i, val);
-            }, reject);
-            return;
-          }
-        }
-      }
-      args[i] = val;
-      if (--remaining === 0) {
-        resolve(args);
-      }
-    }
-    for (var i = 0; i < args.length; i++) {
-      res(i, args[i]);
-    }
-  });
-};
-
-Promise.reject = function (value) {
-  return new Promise(function (resolve, reject) {
-    reject(value);
-  });
-};
-
-Promise.race = function (values) {
-  return new Promise(function (resolve, reject) {
-    values.forEach(function(value){
-      Promise.resolve(value).then(resolve, reject);
-    });
-  });
-};
-
-/* Prototype Methods */
-
-Promise.prototype['catch'] = function (onRejected) {
-  return this.then(null, onRejected);
-};
-
-},{"./core.js":43}],46:[function(require,module,exports){
-'use strict';
-
-var Promise = require('./core.js');
-
-module.exports = Promise;
-Promise.prototype['finally'] = function (f) {
-  return this.then(function (value) {
-    return Promise.resolve(f()).then(function () {
-      return value;
-    });
-  }, function (err) {
-    return Promise.resolve(f()).then(function () {
-      throw err;
-    });
-  });
-};
-
-},{"./core.js":43}],47:[function(require,module,exports){
-'use strict';
-
-module.exports = require('./core.js');
-require('./done.js');
-require('./finally.js');
-require('./es6-extensions.js');
-require('./node-extensions.js');
-require('./synchronous.js');
-
-},{"./core.js":43,"./done.js":44,"./es6-extensions.js":45,"./finally.js":46,"./node-extensions.js":48,"./synchronous.js":49}],48:[function(require,module,exports){
-'use strict';
-
-// This file contains then/promise specific extensions that are only useful
-// for node.js interop
-
-var Promise = require('./core.js');
-var asap = require('asap');
-
-module.exports = Promise;
-
-/* Static Functions */
-
-Promise.denodeify = function (fn, argumentCount) {
-  if (
-    typeof argumentCount === 'number' && argumentCount !== Infinity
-  ) {
-    return denodeifyWithCount(fn, argumentCount);
-  } else {
-    return denodeifyWithoutCount(fn);
-  }
-}
-
-var callbackFn = (
-  'function (err, res) {' +
-  'if (err) { rj(err); } else { rs(res); }' +
-  '}'
-);
-function denodeifyWithCount(fn, argumentCount) {
-  var args = [];
-  for (var i = 0; i < argumentCount; i++) {
-    args.push('a' + i);
-  }
-  var body = [
-    'return function (' + args.join(',') + ') {',
-    'var self = this;',
-    'return new Promise(function (rs, rj) {',
-    'var res = fn.call(',
-    ['self'].concat(args).concat([callbackFn]).join(','),
-    ');',
-    'if (res &&',
-    '(typeof res === "object" || typeof res === "function") &&',
-    'typeof res.then === "function"',
-    ') {rs(res);}',
-    '});',
-    '};'
-  ].join('');
-  return Function(['Promise', 'fn'], body)(Promise, fn);
-}
-function denodeifyWithoutCount(fn) {
-  var fnLength = Math.max(fn.length - 1, 3);
-  var args = [];
-  for (var i = 0; i < fnLength; i++) {
-    args.push('a' + i);
-  }
-  var body = [
-    'return function (' + args.join(',') + ') {',
-    'var self = this;',
-    'var args;',
-    'var argLength = arguments.length;',
-    'if (arguments.length > ' + fnLength + ') {',
-    'args = new Array(arguments.length + 1);',
-    'for (var i = 0; i < arguments.length; i++) {',
-    'args[i] = arguments[i];',
-    '}',
-    '}',
-    'return new Promise(function (rs, rj) {',
-    'var cb = ' + callbackFn + ';',
-    'var res;',
-    'switch (argLength) {',
-    args.concat(['extra']).map(function (_, index) {
-      return (
-        'case ' + (index) + ':' +
-        'res = fn.call(' + ['self'].concat(args.slice(0, index)).concat('cb').join(',') + ');' +
-        'break;'
-      );
-    }).join(''),
-    'default:',
-    'args[argLength] = cb;',
-    'res = fn.apply(self, args);',
-    '}',
-    
-    'if (res &&',
-    '(typeof res === "object" || typeof res === "function") &&',
-    'typeof res.then === "function"',
-    ') {rs(res);}',
-    '});',
-    '};'
-  ].join('');
-
-  return Function(
-    ['Promise', 'fn'],
-    body
-  )(Promise, fn);
-}
-
-Promise.nodeify = function (fn) {
-  return function () {
-    var args = Array.prototype.slice.call(arguments);
-    var callback =
-      typeof args[args.length - 1] === 'function' ? args.pop() : null;
-    var ctx = this;
-    try {
-      return fn.apply(this, arguments).nodeify(callback, ctx);
-    } catch (ex) {
-      if (callback === null || typeof callback == 'undefined') {
-        return new Promise(function (resolve, reject) {
-          reject(ex);
-        });
-      } else {
-        asap(function () {
-          callback.call(ctx, ex);
-        })
-      }
-    }
-  }
-}
-
-Promise.prototype.nodeify = function (callback, ctx) {
-  if (typeof callback != 'function') return this;
-
-  this.then(function (value) {
-    asap(function () {
-      callback.call(ctx, null, value);
-    });
-  }, function (err) {
-    asap(function () {
-      callback.call(ctx, err);
-    });
-  });
-}
-
-},{"./core.js":43,"asap":5}],49:[function(require,module,exports){
-'use strict';
-
-var Promise = require('./core.js');
-
-module.exports = Promise;
-Promise.enableSynchronous = function () {
-  Promise.prototype.isPending = function() {
-    return this.getState() == 0;
-  };
-
-  Promise.prototype.isFulfilled = function() {
-    return this.getState() == 1;
-  };
-
-  Promise.prototype.isRejected = function() {
-    return this.getState() == 2;
-  };
-
-  Promise.prototype.getValue = function () {
-    if (this._81 === 3) {
-      return this._65.getValue();
-    }
-
-    if (!this.isFulfilled()) {
-      throw new Error('Cannot get a value of an unfulfilled promise.');
-    }
-
-    return this._65;
-  };
-
-  Promise.prototype.getReason = function () {
-    if (this._81 === 3) {
-      return this._65.getReason();
-    }
-
-    if (!this.isRejected()) {
-      throw new Error('Cannot get a rejection reason of a non-rejected promise.');
-    }
-
-    return this._65;
-  };
-
-  Promise.prototype.getState = function () {
-    if (this._81 === 3) {
-      return this._65.getState();
-    }
-    if (this._81 === -1 || this._81 === -2) {
-      return 0;
-    }
-
-    return this._81;
-  };
-};
-
-Promise.disableSynchronous = function() {
-  Promise.prototype.isPending = undefined;
-  Promise.prototype.isFulfilled = undefined;
-  Promise.prototype.isRejected = undefined;
-  Promise.prototype.getValue = undefined;
-  Promise.prototype.getReason = undefined;
-  Promise.prototype.getState = undefined;
-};
-
-},{"./core.js":43}],50:[function(require,module,exports){
+},{"lodash":39,"promise":41}],50:[function(require,module,exports){
 /*
  * Copyright 2009-2011 Mozilla Foundation and contributors
  * Licensed under the New BSD license. See LICENSE.txt or:
@@ -28081,11 +28120,11 @@ var Router = function () {
             if (options.triggerUrlChange) {
                 // register new url in history
                 windowHistory.pushState({ path: path }, document.title, path);
-                this._currentPath = path;
                 if (this.options.onRouteChange) {
                     this.options.onRouteChange.call(this, path);
                 }
             }
+            this._currentPath = path;
         }
 
         /**
@@ -28688,5 +28727,5 @@ var Router = function () {
 
 exports.default = Router;
 
-},{"lodash":39,"module-js":41,"promise":42}]},{},[62])(62)
+},{"lodash":39,"module-js":40,"promise":41}]},{},[62])(62)
 });
