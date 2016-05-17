@@ -31,7 +31,7 @@
   "dependencies": {
     "async-promises": "^0.1.2",
     "lodash": "^4.7.0",
-    "module-js": "^5.8.3",
+    "module-js": "^5.9.1",
     "promise": "^7.1.1"
   },
   "browserify": {
