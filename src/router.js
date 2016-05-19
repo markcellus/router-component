@@ -389,14 +389,13 @@ class Router {
      * @returns {*}
      */
     loadScript (scriptUrl, el, options, Class = this.options.moduleClass) {
-        let contents = null;
         options = options || {};
         options.requestOptions = _.extend({}, this.options.requestOptions, options.requestOptions);
 
         if (!scriptUrl) {
-            return new this.options.moduleClass(el, options);
+            return new Class(el, options);
         }
-        contents = require(scriptUrl);
+        let contents = require(scriptUrl);
 
         // support new es6 module exports
         // if module exports a default, use that
@@ -405,11 +404,13 @@ class Router {
             contents = contents.default;
         }
 
-        // if function, assume it has a constructor and instantiate it
         if (typeof contents === 'function') {
-            contents = new contents(el, options);
+            // contents are a function, so assume it has a constructor and instantiate it
+            return new contents(el, options);
+        } else {
+            // it is already an instance, so just return the contents.
+            return contents;
         }
-        return contents;
     }
 
     /**
