@@ -10,18 +10,26 @@ As seen on [fallout4.com](http://www.fallout4.com).
 
 ## Benefits
 
-* Loads scripts, templates, data, and css files
+* Loads scripts, templates, data, and css files using the [Fetch API](https://fetch.spec.whatwg.org/)
 * Caches requests for faster performance
 * Supports handlebar templates (.hbs) allowing them to be loaded on the client-side
+* Uses [pushState()](http://w3c.github.io/html/browsers.html#dom-history-pushstate) API.
 
+## Examples
+
+Samples of how to use this package can be found in the [examples](examples) folder.
 
 ## Prerequisites
 
 ### Server setup
 
-Before you begin using, you must setup your server to have all of urls point to 
-your index.html page that will house your code. If your server uses Apache, this can usually easily be done by
-placing something like the following in a [.htaccess](https://httpd.apache.org/docs/current/howto/htaccess.html) file.
+Before you begin, although not required, you should setup your server to have all of urls point to your index.html page
+that will house your code. That way, when a page under a nested url is accessed from the browser, it will go to index.html
+so that Router can navigate the user to the correct page within your single page application. This is also helpful
+when the user attempts to refresh the page while on a nested url.
+
+If your server uses Apache, this can usually easily be done by placing something like the following in
+a [.htaccess](https://httpd.apache.org/docs/current/howto/htaccess.html) file.
 
 ```
 <ifModule mod_rewrite.c>
@@ -33,7 +41,6 @@ placing something like the following in a [.htaccess](https://httpd.apache.org/d
 </ifModule>
 ```
  
-
 ## Setup
 
 ### 1. Create a container element for your pages
@@ -104,7 +111,7 @@ var pages = {
 
 ## Usage
 
-### Listening in on url requests
+### Startup
 
 To start the router, you must pass it your page and module configuration objects and run the `start()` method
  to begin listening in on url requests. This example uses the `pages` and `modules` configuration specified above.
@@ -120,9 +127,10 @@ router.start();
 ```
 
 Then, when a user requests the `/home` url,  the templates, script, modules and data
-under your `home` pages config entry will load instantly.
+under your `home` pages config entry will load instantly. Note that to support direct nested url requests, you must
+have your [server setup to do so](#server-setup).
 
-### Initial page load
+### Handling initial page load
 
 When starting the router and loading the initial page from your browser, the Router could possibly load
 before the DOM has been loaded (depending on when you decide to call the `start()` method). If so,
@@ -135,9 +143,37 @@ window.addEventListener('DOMContentLoaded', function () {
 });
 ```
 
-### Triggering URLs
+## Options
 
-If you need to trigger new urls in your javascript programmatically, you can do things like this:
+When instantiating the Router, you can pass it options:
+
+| Option | Type | Description |
+|--------|--------|--------|
+| `pagesConfig`| Object | An object that maps all urls to their appropriate page scripts, templates and css
+| `modulesConfig`| Object | An object that maps all available modules in your application to their appropriate scripts, templates and css
+| `pagesContainer`| HTMLElement | The element under which all page elements will be nested (defaults to the `document.body` element)
+| `requestOptions`| Object | A set of global options that will be used whenever a page is fetched
+| `onRouteRequest`| Function | An optional function to intercept url requests before Router does anything with it
+| `onRouteError`| Function | An optional function that is triggered whenever this is a page load error
+| `onRouteChange`| Function | Called whenever a new route (url) has been requested
+| `onPageLoad`| Function | Called whenever a new page is loaded
+| `pageClass`| [Module](https://github.com/mkay581/module-js#module-js) | A custom class for pages that will be instantiated as urls are requested
+| `moduleClass`| [Module](https://github.com/mkay581/module-js#module-js) | A custom class for modules that will be instantiated as urls are requested
+
+## Methods
+
+### start()
+
+Starts the router to begin intercepting url requests and binds all listeners.
+
+### stop()
+
+Puts the router in a "sleep" state and unbinds all listeners. In other words, it's just the opposite of `start()`.
+
+### triggerRoute(url)
+
+The triggerRoute method tells router to navigate to a specific `url`. When this is called, all templates, css, data, and scripts
+will load for the url which are all retrieved by the [fetch API](https://fetch.spec.whatwg.org/).
 
 ```javascript
 router.triggerRoute('home').then(function () {
@@ -145,36 +181,38 @@ router.triggerRoute('home').then(function () {
 });
 ```
 
-## Modules
+### loadPage(url)
+
+Loads the page at the specified `url`, which essentially calls the Page instance's `load()` method, which loads the template,
+css, data, for a Page, along with all of the page's sub-modules.
+
+### showPage(url)
+
+Shows a Page instance associated with the specified url and calls its `show()` method.
+
+### hidePage(url)
+
+Hides a Page instance associated with the specified url and calls its `hide()` method.
+
+### reset()
+
+The Router caches subsequent requests to the same pages for performance. In other words, every page only loads once
+(but can be shown and hidden multiple times). Calling this method will reset that cache so that pages load again.
+
+### resetPage(url)
+
+This is the same as the [reset](#reset) method, but just for a single page.
+
+
+## Pages and Modules
 
 Each of the pages and modules loaded by Router is an instance of the Module class
 from the [module-js](https://github.com/mkay581/module-js#module-js) package.
 
-If you would like to have your own custom implementations of Pages or Modules that load upon any given url,
-you will to ensure your custom class implements the same interface as the Module class in
+If you would like to have your own custom implementations of Pages or Modules that load upon any given url request,
+you will need to ensure your custom class implements the same interface as the Module class in
 the [module-js](https://github.com/mkay581/module-js#module-js) package or have your custom class extend it using
-the `extends` keyword. See example below.
-
-```javascript
-var pages = {
-    '^my-page(/)?$': {
-        template: '/path/to/my/template.hbs',
-        script: 'page.js',
-        data: 'url/to/page/data'
-    }
-};
-var router = new Router({
-    pagesConfig: pages
-});
-router.start();
-// trigger the page when the DOM loads
-window.addEventListener('DOMContentLoaded', function () {
-    router.triggerRoute('/my-page');
-});
-
-```
-
-And your page.js would look like this:
+the `extends` keyword illustrated below.
 
 ```
 //page.js
@@ -185,6 +223,39 @@ class CustomPage extends Module {
     }
 ```
 
+## Global Modules
+
+Sometimes there will be modules (like headers and footers for instance) that you would like to live indefinitely and
+be shown in combination with multiple pages. These modules are considered "global" and Router treats them
+like a Singleton that is separate from all other modules. Global modules are only instantiated once, regardless of how many
+page's have them specified.
+
+To mark a module as global, just set the global flag to true inside your modules configuration illustrated below.
+
+```javascript
+ var router = Router({
+    modulesConfig: {
+        'header': {
+            global: true,
+            template: 'path/to/header.html',
+            script: 'path/to/header-script' // this can return a singleton or an es6 class
+        }
+    },
+    pagesConfig: {
+        'page1': {
+            template: 'path/to/page/1',
+            modules: ['header']
+        },
+        'page2': {
+            template: 'path/to/page/2',
+            modules: ['header']
+        }
+    }
+ })
+
+```
+
+The above code ensures that the `header` module appears on both at page1 and page2 urls.
 
 ## Important Notes
 
@@ -192,8 +263,6 @@ class CustomPage extends Module {
 Browserify, RequireJS or any other script loader that exposes a global "require" variable.
 * Once a CSS file is loaded, it is loaded infinitely, so it's important to namespace your styles and be specific 
  if you do not want your styles to overlap and apply between pages.
-* When a page is loaded, it is cached and will remain hidden in the DOM until you physically remove the
-element in your custom destroy logic.
 
 ## FAQ
 
