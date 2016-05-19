@@ -1,0 +1,51 @@
+<html>
+<head>
+    <link rel="stylesheet" href="main.css" />
+</head>
+<body>
+
+<!-- create an empty container for all of our pages -->
+<div class="sidebar"></div>
+<div class="pages-container"></div>
+
+<script src="../../dist/router.js"></script>
+<script>
+
+    var modules = {
+        sidebar: {
+            el: document.body.getElementsByClassName('sidebar')[0],
+            template: 'sidebar.hbs',
+            global: true
+        }
+    };
+
+    var pages =  {
+        'my-first-page': {
+            data: {
+                name: 'MyPage'
+            },
+            template: 'my-first-page.hbs',
+            modules: ['sidebar']
+        },
+        'my-second-page': {
+            data: {
+                name: 'MySecondPage'
+            },
+            template: 'my-second-page.hbs',
+            modules: ['sidebar']
+        }
+    };
+
+    var router = new Router.default({
+        modulesConfig: modules,
+        pagesConfig: pages
+    });
+    router.start();
+    window.addEventListener('DOMContentLoaded', function () {
+        // when page finishes loading, go to first page
+        router.triggerRoute('my-first-page');
+    });
+</script>
+
+</body>
+</html>
