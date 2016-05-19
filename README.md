@@ -284,7 +284,8 @@ The above code ensures that the `header` module appears on both at page1 and pag
 * Any javascript files that you include in your routes configuration must be "require"-able using either 
 Browserify, RequireJS or any other script loader that exposes a global "require" variable.
 * Once a CSS file is loaded, it is loaded infinitely, so it's important to namespace your styles and be specific 
- if you do not want your styles to overlap and apply between pages.
+ if you do not want your styles to overlap and apply between pages. This will no longer be a problem when
+ [Web Components](https://github.com/w3c/webcomponents) are more widely supported by browsers.
 
 ## FAQ
 
