@@ -259,6 +259,7 @@ To mark a module as global, just set the global flag to true inside your modules
         'header': {
             global: true,
             template: 'path/to/header.html',
+            el: document.getElementById('header'), // optional pre-existing element where header template content should be appended
             script: 'path/to/header-script' // this can return a singleton or an es6 class
         }
     },

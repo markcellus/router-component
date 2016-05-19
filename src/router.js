@@ -649,11 +649,7 @@ class Router {
         var map = this._globalModuleMaps[moduleKey] || {},
             config = this.getModuleConfig(moduleKey);
         if (!map.promise) {
-            // inject modules into page DOM
-            var div = document.createElement('div');
-            map.el = div.children[0];
-            // create html into DOM element and pass it off to load call for
-            // custom mangling before it gets appended to DOM
+            map.el = map.el || config.el;
             map.module = this.loadScript(config.script, map.el, config);
             map.promise = new Promise((resolve) => {
                 if (!map.module.load) {
