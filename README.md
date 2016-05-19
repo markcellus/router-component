@@ -14,6 +14,7 @@ As seen on [fallout4.com](http://www.fallout4.com).
 * Caches requests for faster performance
 * Supports handlebar templates (.hbs) allowing them to be loaded on the client-side
 * Uses [pushState()](http://w3c.github.io/html/browsers.html#dom-history-pushstate) API.
+* Automatically modifies all internal `<a>` tags on a page to prevent them from causing page reloads
 
 ## Examples
 
@@ -162,6 +163,10 @@ When instantiating the Router, you can pass it options:
 
 ## Methods
 
+For the most part, after setting up your Router instance, the user would click around on your pages to control which pages are shown.
+But you may want to manually perform actions on your Router using javascript. For this purpose, you can use the methods below on
+your Router instance.
+
 ### start()
 
 Starts the router to begin intercepting url requests and binds all listeners.
@@ -189,6 +194,9 @@ css, data, for a Page, along with all of the page's sub-modules.
 ### showPage(url)
 
 Shows a Page instance associated with the specified url and calls its `show()` method.
+It is worth noting that when a page is shown, all `<a>` tags, in that page's html, that contain
+an `href` attribute are modified to trigger the urls
+without causing a page reload. This is a single-page application package, remember? :)
 
 ### hidePage(url)
 
@@ -206,8 +214,9 @@ This is the same as the [reset](#reset) method, but just for a single page.
 
 ## Pages and Modules
 
-Each of the pages and modules loaded by Router is an instance of the Module class
-from the [module-js](https://github.com/mkay581/module-js#module-js) package.
+From the Router's perspective, everything is a [Module](https://github.com/mkay581/module-js#module-js) based off of the
+[module-js](https://github.com/mkay581/module-js#module-js) package, including a Page.
+So each of the Page and Module instances used by Router share the same interface, allowing Router to manipulate them as necessary.
 
 If you would like to have your own custom implementations of Pages or Modules that load upon any given url request,
 you will need to ensure your custom class implements the same interface as the Module class in
@@ -221,6 +230,18 @@ class CustomPage extends Module {
          // my custom loading here
          return super.load();
     }
+```
+
+Then you would pass your custom Page class to Router using the `pageClass` option, as illustrated below:
+
+```javascript
+let router = new Router({
+    pageClass: CustomPage,
+    pagesConfig: {
+        //... page config here
+    }
+});
+
 ```
 
 ## Global Modules
