@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.7.3.
+* router-js - v3.7.4.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -28249,14 +28249,13 @@ var Router = function () {
         value: function loadScript(scriptUrl, el, options) {
             var Class = arguments.length <= 3 || arguments[3] === undefined ? this.options.moduleClass : arguments[3];
 
-            var contents = null;
             options = options || {};
             options.requestOptions = _lodash2.default.extend({}, this.options.requestOptions, options.requestOptions);
 
             if (!scriptUrl) {
-                return new this.options.moduleClass(el, options);
+                return new Class(el, options);
             }
-            contents = require(scriptUrl);
+            var contents = require(scriptUrl);
 
             // support new es6 module exports
             // if module exports a default, use that
@@ -28265,11 +28264,13 @@ var Router = function () {
                 contents = contents.default;
             }
 
-            // if function, assume it has a constructor and instantiate it
             if (typeof contents === 'function') {
-                contents = new contents(el, options);
+                // contents are a function, so assume it has a constructor and instantiate it
+                return new contents(el, options);
+            } else {
+                // it is already an instance, so just return the contents.
+                return contents;
             }
-            return contents;
         }
 
         /**
@@ -28542,11 +28543,7 @@ var Router = function () {
             var map = this._globalModuleMaps[moduleKey] || {},
                 config = this.getModuleConfig(moduleKey);
             if (!map.promise) {
-                // inject modules into page DOM
-                var div = document.createElement('div');
-                map.el = div.children[0];
-                // create html into DOM element and pass it off to load call for
-                // custom mangling before it gets appended to DOM
+                map.el = map.el || config.el;
                 map.module = this.loadScript(config.script, map.el, config);
                 map.promise = new _promise2.default(function (resolve) {
                     if (!map.module.load) {
