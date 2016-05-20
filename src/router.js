@@ -252,8 +252,8 @@ class Router {
     /**
      * Sets a url has active and adds it to the history.
      * @param {string} path - The url to set
-     * @param {Object} options - Set of options
-     * @param {Object} options.triggerUrlChange - Whether to trigger a url change
+     * @param {Object} [options] - Set of options
+     * @param {Boolean} [options.triggerUrlChange] - Whether to trigger a url change
      */
     registerUrl (path, options) {
         var window = this.getWindow(),
