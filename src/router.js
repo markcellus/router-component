@@ -168,30 +168,6 @@ class Router {
     }
 
     /**
-     * Navigates to previous url in session history.
-     * @param {Number} index - an index with a position relative to the current page (the current page being, of course, index 0)
-     */
-    goBack (index) {
-        if (index) {
-            window.history.go(index);
-        } else {
-            window.history.back();
-        }
-    }
-
-    /**
-     * Navigates forward (if gone back).
-     * @param {Number} index - an index with a position relative to the current page
-     */
-    goForward (index) {
-        if (index) {
-            window.history.go(index);
-        } else {
-            window.history.forward();
-        }
-    }
-
-    /**
      * Gets the current relative params.
      * @returns {Array} Returns an array of params
      */
