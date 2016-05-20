@@ -10,8 +10,9 @@ import Router from "./../src/router";
 describe('Router', function () {
     var mockPage,
         mockModule,
-        origPushState,
-        requireStub;
+        requireStub,
+        windowStub,
+        windowMock;
 
     var createPageStub = function () {
         var page = sinon.createStubInstance(Module);
@@ -34,23 +35,29 @@ describe('Router', function () {
     };
 
     beforeEach(function () {
-        // disable spawning of new urls when testing!
-        origPushState = window.history.pushState;
-        window.history.pushState = function () {};
+        windowStub = sinon.stub(Router.prototype, 'getWindow');
+        windowMock = {
+            history: {
+                pushState: sinon.stub() // disable spawning of new urls when testing!
+            },
+            location: {
+                pathname: '/',
+                hash: ''
+            },
+            addEventListener: sinon.stub(), // dont actually trigger any popstate events!
+            removeEventListener: sinon.stub()
+        };
+        windowStub.returns(windowMock);
 
         // set up mock page and set defaults
         mockPage = createPageStub();
         mockModule = createModuleStub();
 
         requireStub = sinon.stub(window, 'require');
-
-        // dont trigger any popstate events!
-        sinon.stub(window, 'addEventListener');
     });
 
     afterEach(function () {
-        window.history.pushState = origPushState;
-        window.addEventListener.restore();
+        windowStub.restore();
         requireStub.restore();
     });
 
@@ -65,21 +72,19 @@ describe('Router', function () {
 
     it('should return query params from current window url', function () {
         var router = new Router();
-        sinon.stub(router, 'getWindow').returns({location: {
-            href: 'http://my-testable-url.com/my/testable/path/?my=little&tea=pot',
-            hash: ''
-        }});
+        windowMock.location.href = 'http://my-testable-url.com/my/testable/path/?my=little&tea=pot';
+        windowMock.location.hash = '';
+        windowStub.returns(windowMock);
         router.start({});
         var queryParams = router.getQueryParams();
         assert.deepEqual({'my': 'little', 'tea': 'pot'}, queryParams, 'query params parsed from url: ' + JSON.stringify(queryParams));
         router.stop();
-        router.getWindow.restore();
     });
 
     it('should fire onRouteChange callback when a url is triggered', function () {
         var urlChangeSpy = sinon.spy();
         var router = new Router({onRouteChange: urlChangeSpy});
-        router.start({});
+        router.start();
         var url = 'my/testable/url';
         router.triggerRoute(url);
         assert.equal(urlChangeSpy.args[0][0], url, 'url change spy was called with route when url was triggered');
@@ -95,22 +100,12 @@ describe('Router', function () {
             pagesConfig: pagesConfig
         });
         requireStub.withArgs(url).returns(mockPage);
-        var window = {
-            history: {
-                pushState: sinon.stub()
-            },
-            location: {
-                hash: ''
-            }
-        };
-        var getWindowStub = sinon.stub(router, 'getWindow').returns(window);
         router.start();
         return router.triggerRoute(url)
             .then(function () {
-                assert.equal(window.history.pushState.args[0][0].path, url, 'history.pushState() was called with correct data history');
-                assert.equal(window.history.pushState.args[0][2], url, 'history.pushState() was called with correct url parameter');
+                assert.equal(windowMock.history.pushState.args[0][0].path, url, 'history.pushState() was called with correct data history');
+                assert.equal(windowMock.history.pushState.args[0][2], url, 'history.pushState() was called with correct url parameter');
                 router.stop();
-                getWindowStub.restore();
             });
     });
 
@@ -228,30 +223,20 @@ describe('Router', function () {
     it('getting current url params when NO route has been triggered', function () {
         var router = new Router({pagesConfig: {}});
         var path = 'test';
-        sinon.stub(router, 'getWindow').returns({location: {hash: '#' + path}, history: {}});
+        windowMock.location.hash = '#' + path;
+        windowStub.returns(windowMock);
         router.start();
         assert.deepEqual(router.getRelativeUrlParams(), [path], 'calling getRelativeUrlParams() before triggering a route returns correct url');
         router.stop();
-        router.getWindow.restore();
     });
 
     it('getting current url params when a route has been triggered', function () {
         var router = new Router({pagesConfig: {}});
-        var getWindowStub = sinon.stub(router, 'getWindow');
-        getWindowStub.returns({
-            history: {
-                pushState: function(){}
-            },
-            location: {
-                hash: ''
-            }
-        });
         router.start();
         var url = 'my/url';
         router.triggerRoute(url);
         assert.deepEqual(router.getRelativeUrlParams(), ['my', 'url'], 'getRelativeUrlParams() returns correct url params of the url that was triggered');
         router.stop();
-        getWindowStub.restore();
     });
 
     it('getting current url when a route has been triggered', function () {
@@ -272,21 +257,29 @@ describe('Router', function () {
         router.stop();
     });
 
-    it('should call loadPage() with new url when pop state changes', function (done) {
+    it('should call triggerRoute() with new url and triggerUrlChange set to false when pop state changes', function () {
+        var popStateListener = windowMock.addEventListener.withArgs('popstate');
         var router = new Router({pagesConfig: {}});
-        var popStateListener = window.addEventListener.withArgs('popstate');
-        var loadPageStub = sinon.stub(router, 'loadPage');
+        var triggerRouteSpy = sinon.spy(router, 'triggerRoute');
         router.start();
         var url = 'my/url';
         var event = {state: {path: url}};
         popStateListener.callArgWith(1, event); // trigger pop state event!
-        // must wait until promise for custom route handling resolves
-        _.delay(function () {
-            assert.equal(loadPageStub.args[0][0], url, 'loadPage() was called with new pop state url');
-            router.stop();
-            loadPageStub.restore();
-            done();
-        }, 10);
+        assert.equal(triggerRouteSpy.args[0][0], url);
+        assert.equal(triggerRouteSpy.args[0][1].triggerUrlChange, false);
+        router.stop();
+    });
+
+    it('should NOT call triggerRoute() when pop state changes and does not have a state', function () {
+        var popStateListener = windowMock.addEventListener.withArgs('popstate');
+        var router = new Router({pagesConfig: {}});
+        var triggerRouteSpy = sinon.spy(router, 'triggerRoute');
+        router.start();
+        var url = 'my/url';
+        var event = {};
+        popStateListener.callArgWith(1, event); // trigger pop state event!
+        assert.equal(triggerRouteSpy.callCount, 0);
+        router.stop();
     });
 
     it('loadPage() should pass the styles property of the matching route config of the url requested to the associated page\'s constructor', function () {
@@ -312,20 +305,10 @@ describe('Router', function () {
     it('registerUrl() method should call window.history.pushState() with correct parameters', function () {
         var pageUrl = 'my/real/url';
         var router = new Router();
-        var window = {
-            history: {
-                pushState: sinon.stub()
-            },
-            location: {
-                hash: ''
-            }
-        };
-        var getWindowStub = sinon.stub(router, 'getWindow').returns(window);
         router.start();
         router.registerUrl(pageUrl);
-        assert.equal(window.history.pushState.args[0][2], pageUrl, 'pushState was called with new url');
+        assert.equal(windowMock.history.pushState.args[0][2], pageUrl, 'pushState was called with new url');
         router.stop();
-        getWindowStub.restore();
     });
 
     it('registerUrl() method should return the registered url as the current path', function () {

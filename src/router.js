@@ -72,15 +72,17 @@ class Router {
         this._links = [];
         this._linkClickEventListener = this.onClickLink.bind(this);
 
+        this._getOnPopStateListener = this.onPopStateChange.bind(this);
+
     }
 
     /**
      * Spawns off some required-initializations and starts router.
      */
     start () {
-
-        this._currentPath = this.getWindow().location.hash.replace('#', '');
-        this.bindPopstateEvent();
+        let window = this.getWindow();
+        this._currentPath = window.location.hash.replace('#', '');
+        window.addEventListener('popstate', this._getOnPopStateListener);
     }
 
     /**
@@ -90,37 +92,8 @@ class Router {
         this.options = {};
         this._currentPath = null;
         this.reset();
-        this.unbindPopstateEvent();
+        this.getWindow().removeEventListener('popstate', this._getOnPopStateListener);
         this._unbindAllLinks();
-    }
-
-    /**
-     * Sets up pop state events for future urls.
-     */
-    bindPopstateEvent () {
-        window.addEventListener('popstate', this._getOnPopStateListener());
-    }
-
-    /**
-     * Removes pop state event listener.
-     */
-    unbindPopstateEvent () {
-        window.removeEventListener('popstate', this._getOnPopStateListener());
-    }
-
-    /**
-     * Gets the cached listener for pop state changes.
-     * @returns {Function}
-     * @private
-     */
-    _getOnPopStateListener () {
-        var self = this;
-        return function (event) {
-            // sometimes ios browser doesnt have a event state object on initial load *shrug*
-            if (event.state) {
-                self._onRouteRequest.call(self, event.state.path);
-            }
-        }
     }
 
     /**
@@ -145,6 +118,19 @@ class Router {
                 this.resetGlobalModule(key);
             }
         });
+    }
+
+    /**
+     * Is triggered when the page is loaded (on some browsers) and if the user navigates using browser's back/forward buttons.
+     * @param {Event} e - The event
+     */
+    onPopStateChange (e) {
+        // sometimes there is no state, like when user uses
+        // back button so many times, there are no more internal
+        // history entries; we must accommodate
+        if (e.state) {
+            this.triggerRoute(e.state.path, {triggerUrlChange: false});
+        }
     }
 
     /**
