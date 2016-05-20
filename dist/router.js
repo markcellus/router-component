@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.7.4.
+* router-js - v3.7.5.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -27866,6 +27866,8 @@ var Router = function () {
         this._globalModuleMaps = this._buildGlobalModuleMaps();
         this._links = [];
         this._linkClickEventListener = this.onClickLink.bind(this);
+
+        this._getOnPopStateListener = this.onPopStateChange.bind(this);
     }
 
     /**
@@ -27876,9 +27878,9 @@ var Router = function () {
     _createClass(Router, [{
         key: 'start',
         value: function start() {
-
-            this._currentPath = this.getWindow().location.hash.replace('#', '');
-            this.bindPopstateEvent();
+            var window = this.getWindow();
+            this._currentPath = window.location.hash.replace('#', '');
+            window.addEventListener('popstate', this._getOnPopStateListener);
         }
 
         /**
@@ -27891,46 +27893,8 @@ var Router = function () {
             this.options = {};
             this._currentPath = null;
             this.reset();
-            this.unbindPopstateEvent();
+            this.getWindow().removeEventListener('popstate', this._getOnPopStateListener);
             this._unbindAllLinks();
-        }
-
-        /**
-         * Sets up pop state events for future urls.
-         */
-
-    }, {
-        key: 'bindPopstateEvent',
-        value: function bindPopstateEvent() {
-            window.addEventListener('popstate', this._getOnPopStateListener());
-        }
-
-        /**
-         * Removes pop state event listener.
-         */
-
-    }, {
-        key: 'unbindPopstateEvent',
-        value: function unbindPopstateEvent() {
-            window.removeEventListener('popstate', this._getOnPopStateListener());
-        }
-
-        /**
-         * Gets the cached listener for pop state changes.
-         * @returns {Function}
-         * @private
-         */
-
-    }, {
-        key: '_getOnPopStateListener',
-        value: function _getOnPopStateListener() {
-            var self = this;
-            return function (event) {
-                // sometimes ios browser doesnt have a event state object on initial load *shrug*
-                if (event.state) {
-                    self._onRouteRequest.call(self, event.state.path);
-                }
-            };
         }
 
         /**
@@ -27960,6 +27924,22 @@ var Router = function () {
                     _this.resetGlobalModule(key);
                 }
             });
+        }
+
+        /**
+         * Is triggered when the page is loaded (on some browsers) and if the user navigates using browser's back/forward buttons.
+         * @param {Event} e - The event
+         */
+
+    }, {
+        key: 'onPopStateChange',
+        value: function onPopStateChange(e) {
+            // sometimes there is no state, like when user uses
+            // back button so many times, there are no more internal
+            // history entries; we must accommodate
+            if (e.state) {
+                this.triggerRoute(e.state.path, { triggerUrlChange: false });
+            }
         }
 
         /**
