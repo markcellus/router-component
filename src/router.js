@@ -256,15 +256,14 @@ class Router {
      * @param {Boolean} [options.triggerUrlChange] - Whether to trigger a url change
      */
     registerUrl (path, options) {
-        var window = this.getWindow(),
-            windowHistory = window.history;
+        let window = this.getWindow();
 
         options = options || {};
         options.triggerUrlChange = typeof options.triggerUrlChange !== 'undefined' ? options.triggerUrlChange : true;
 
         if (options.triggerUrlChange) {
             // register new url in history
-            windowHistory.pushState({path: path}, document.title, path);
+            window.history.pushState({path: path}, document.title, path);
             if (this.options.onRouteChange) {
                 this.options.onRouteChange.call(this, path);
             }
@@ -678,6 +677,7 @@ class Router {
      * @returns {boolean} Returns true if link is an external link
      */
     isLinkExternal (url) {
+        let window = this.getWindow();
         var is = url.match(/^(http\:|https\:|www\.)/) && url.indexOf(window.location.hostname) === -1;
         return is ? true : false;
     }
