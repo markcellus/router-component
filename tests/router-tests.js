@@ -38,7 +38,8 @@ describe('Router', function () {
         windowStub = sinon.stub(Router.prototype, 'getWindow');
         windowMock = {
             history: {
-                pushState: sinon.stub() // disable spawning of new urls when testing!
+                pushState: sinon.stub(),
+                replaceState: sinon.stub()
             },
             location: {
                 pathname: '/',
@@ -105,6 +106,23 @@ describe('Router', function () {
             .then(function () {
                 assert.equal(windowMock.history.pushState.args[0][0].path, url, 'history.pushState() was called with correct data history');
                 assert.equal(windowMock.history.pushState.args[0][2], url, 'history.pushState() was called with correct url parameter');
+                router.stop();
+            });
+    });
+
+    it('should call replaceState with correct path when triggering a new route with replace option set to "true"', function () {
+        var url = 'my/testable/url';
+        var pagesConfig = {};
+        pagesConfig[url] = {};
+        var router = new Router({pagesConfig: pagesConfig});
+        var mockPage = createPageStub();
+        requireStub.withArgs(url).returns(mockPage);
+        router.start();
+        return router.triggerRoute(url, {replace: true})
+            .then(function () {
+                assert.equal(windowMock.history.replaceState.args[0][0].path, url, 'was called with correct data history');
+                assert.equal(windowMock.history.replaceState.args[0][2], url, 'was called with correct url parameter');
+                assert.equal(windowMock.history.pushState.callCount, 0, 'pushState was not called');
                 router.stop();
             });
     });
