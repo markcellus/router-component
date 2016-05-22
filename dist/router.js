@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.7.6.
+* router-js - v3.7.7.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -27946,8 +27946,7 @@ var Router = function () {
          * Navigates to a supplied url.
          * @param {string} url - The url to navigate to.
          * @param {Object} [options] - Set of navigation options
-         * @param {boolean} [options.trigger] - True if the route function should be called (defaults to true)
-         * @param {boolean} [options.replace] - True to update the URL without creating an entry in the browser's history
+         * @param {boolean} [options.replace] - True to replace the current browser url history entry with the new one
          * @param {boolean} [options.triggerUrlChange] - False to not trigger the browser url to change
          * @returns {Promise} Returns a Promise when the page of the route has loaded
          */
@@ -27980,36 +27979,6 @@ var Router = function () {
                 params[splitParam[0]] = splitParam[1];
             });
             return params;
-        }
-
-        /**
-         * Navigates to previous url in session history.
-         * @param {Number} index - an index with a position relative to the current page (the current page being, of course, index 0)
-         */
-
-    }, {
-        key: 'goBack',
-        value: function goBack(index) {
-            if (index) {
-                window.history.go(index);
-            } else {
-                window.history.back();
-            }
-        }
-
-        /**
-         * Navigates forward (if gone back).
-         * @param {Number} index - an index with a position relative to the current page
-         */
-
-    }, {
-        key: 'goForward',
-        value: function goForward(index) {
-            if (index) {
-                window.history.go(index);
-            } else {
-                window.history.forward();
-            }
         }
 
         /**
@@ -28084,27 +28053,33 @@ var Router = function () {
         /**
          * Sets a url has active and adds it to the history.
          * @param {string} path - The url to set
-         * @param {Object} options - Set of options
-         * @param {Object} options.triggerUrlChange - Whether to trigger a url change
+         * @param {Object} [options] - Set of options
+         * @param {Boolean} [options.triggerUrlChange] - Whether to trigger a url change
+         * @param {Boolean} [options.replace] - Whether to replace the current url with the new one
          */
 
     }, {
         key: 'registerUrl',
         value: function registerUrl(path, options) {
-            var window = this.getWindow(),
-                windowHistory = window.history;
+            var window = this.getWindow();
 
             options = options || {};
             options.triggerUrlChange = typeof options.triggerUrlChange !== 'undefined' ? options.triggerUrlChange : true;
-
-            if (options.triggerUrlChange) {
-                // register new url in history
-                windowHistory.pushState({ path: path }, document.title, path);
-                if (this.options.onRouteChange) {
-                    this.options.onRouteChange.call(this, path);
-                }
-            }
             this._currentPath = path;
+
+            if (!options.triggerUrlChange) {
+                return;
+            }
+
+            if (options.replace) {
+                window.history.replaceState({ path: path }, document.title, path);
+            } else {
+                window.history.pushState({ path: path }, document.title, path);
+            }
+
+            if (this.options.onRouteChange) {
+                this.options.onRouteChange.call(this, path);
+            }
         }
 
         /**
@@ -28569,6 +28544,7 @@ var Router = function () {
     }, {
         key: 'isLinkExternal',
         value: function isLinkExternal(url) {
+            var window = this.getWindow();
             var is = url.match(/^(http\:|https\:|www\.)/) && url.indexOf(window.location.hostname) === -1;
             return is ? true : false;
         }
