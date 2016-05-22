@@ -127,6 +127,36 @@ describe('Router', function () {
             });
     });
 
+    it('should NOT call pushState when triggering a new route with triggerUrlChange set to "false"', function () {
+        var url = 'my/testable/url';
+        var pagesConfig = {};
+        pagesConfig[url] = {};
+        var router = new Router({pagesConfig: pagesConfig});
+        var mockPage = createPageStub();
+        requireStub.withArgs(url).returns(mockPage);
+        router.start();
+        return router.triggerRoute(url, {triggerUrlChange: false})
+            .then(function () {
+                assert.equal(windowMock.history.pushState.callCount, 0);
+                router.stop();
+            });
+    });
+
+    it('should NOT call replaceState when triggering a new route with triggerUrlChange set to "false"', function () {
+        var url = 'my/testable/url';
+        var pagesConfig = {};
+        pagesConfig[url] = {};
+        var router = new Router({pagesConfig: pagesConfig});
+        var mockPage = createPageStub();
+        requireStub.withArgs(url).returns(mockPage);
+        router.start();
+        return router.triggerRoute(url, {triggerUrlChange: false})
+            .then(function () {
+                assert.equal(windowMock.history.replaceState.callCount, 0);
+                router.stop();
+            });
+    });
+
     it('should resolve page load and NOT require script if there is no script url associated for the page in the route config', function () {
         // setup
         var pageUrl = 'my/index/with/no/script/url';
