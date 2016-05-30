@@ -43,7 +43,8 @@ describe('Router', function () {
             },
             location: {
                 pathname: '/',
-                hash: ''
+                hash: '',
+                hostname: window.location.hostname // use current hostname of page
             },
             addEventListener: sinon.stub(), // dont actually trigger any popstate events!
             removeEventListener: sinon.stub()
@@ -1429,7 +1430,7 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
         var link = document.createElement('a');
-        var linkTo = 'the/url/to/load';
+        var linkTo = 'jkl';
         link.setAttribute('href', linkTo);
         var mockPage = createPageStub();
         mockPage.el = document.createElement('div');
@@ -1464,7 +1465,7 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig});
         router.start();
         var link = document.createElement('a');
-        link.setAttribute('href', '#'); // prevent url from loading a new page when testing
+        link.setAttribute('href', 'djley/sj'); // prevent url from loading a new page when testing
         var mockPage = createPageStub();
         mockPage.el = document.createElement('div');
         mockPage.el.appendChild(link);
@@ -1482,8 +1483,10 @@ describe('Router', function () {
                     'bubbles': true,
                     'cancelable': true
                 });
+                linkEvent.preventDefault();
+                var linkPreventDefaultSpy = sinon.spy(linkEvent, 'preventDefault');
                 link.dispatchEvent(linkEvent);
-                assert.ok(!linkEvent.defaultPrevented);
+                assert.equal(linkPreventDefaultSpy.callCount, 0);
                 assert.equal(triggerRouteSpy.callCount, triggerRouteCallCount);
                 router.stop();
             });
@@ -1509,7 +1512,8 @@ describe('Router', function () {
         var router = new Router({pagesConfig: pagesConfig, modulesConfig: modulesConfig});
         router.start();
         var link = document.createElement('a');
-        link.setAttribute('href', '#'); // prevent url from loading a new page when testing
+        link.setAttribute('href', 'blah.com/lb'); // prevent url from loading a new page when testing
+        windowStub.returns(windowMock);
         var mockPage = createPageStub();
         var mockGlobalModule = createModuleStub();
         mockGlobalModule.el = document.createElement('div');
