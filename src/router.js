@@ -497,7 +497,15 @@ class Router {
             }
         });
         this.bindLinks(page.el);
-        return page.show();
+        this.options.pagesContainer.appendChild(page.el);
+        return new Promise((resolve) => {
+            // we are waiting here to give the element a little time to get situated in the DOM to
+            // avoid having any css transitions interrupted and/or, in some cases, ditched entirely
+            setTimeout(() => {
+                return page.show().then(resolve);
+            }, 5);
+        })
+
     }
 
     /**
@@ -541,6 +549,7 @@ class Router {
             return pageMap.promise
                 .then(() => {
                     return page.hide().then(() => {
+                        this.options.pagesContainer.removeChild(pageMap.page.el);
                         // hide all pages modules
                         _.each(pageMap.modules, function (module) {
                             if (module.hide) {
@@ -684,6 +693,7 @@ class Router {
      */
     resetPage (routes) {
         routes = routes.constructor === Array ? routes : [routes];
+
         routes.forEach(path => {
             let mapKey = this._getRouteMapKeyByPath(path);
             let pageMap = this._pageMaps[mapKey];

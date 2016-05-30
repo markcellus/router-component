@@ -2121,4 +2121,95 @@ describe('Router', function () {
         });
     });
 
+    it('should add the page\'s el from the DOM when navigating to a page', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        var secondPageUrl = 'path/to/second/page';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.ok(pagesContainer.contains(firstMockPage.el));
+            router.stop();
+        });
+    });
+
+    it('should remove the page\'s el from the DOM when navigating away from a page', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        var secondPageUrl = 'path/to/second/page';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        return router.triggerRoute(pageUrl).then(function () {
+            return router.triggerRoute(secondPageUrl).then(function () {
+                assert.ok(!pagesContainer.contains(firstMockPage.el));
+                router.stop();
+            });
+        });
+    });
+
+    it('should inject the same page el from the DOM that was removed when navigating back to a previously hidden page', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        var secondPageUrl = 'path/to/second/page';
+        var secondPageScriptPath = 'second/path/to/second/script';
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        return router.triggerRoute(pageUrl).then(function () {
+            return router.triggerRoute(secondPageUrl).then(function () {
+                return router.triggerRoute(pageUrl).then(function () {
+                    assert.ok(pagesContainer.contains(firstMockPage.el));
+                    router.stop();
+                });
+            });
+        });
+    });
+
+    it('should call a page\'s show() method when showPage() is called but only after at least 5 milliseconds have passed', function (done) {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var firstMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        // must load page to register it to pagesMaps
+        router.loadPage(pageUrl).then(() => {
+            router.showPage(pageUrl);
+            assert.equal(firstMockPage.show.callCount, 0);
+            setTimeout(() => {
+                assert.equal(firstMockPage.show.callCount, 1);
+                router.stop();
+                done();
+            }, 6)
+        });
+    });
+
 });
