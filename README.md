@@ -76,7 +76,14 @@ Of course, you can use fancier CSS transitions if you'd like.
 
 ### 3. Configure your modules, pages and routes
 
-Create your modules configuration:
+Then, create your modules and pages configurations identified below.
+
+## Usage
+
+### Configuration
+
+First you need a configuration file that identifies the urls to each of their pages and the modules they will contain.
+Here's a sample Module configuration.
 
 ```javascript
 var modules = {
@@ -88,12 +95,12 @@ var modules = {
     },
     'custom-module': {
         script: 'custom/module/path.js',
-        template: 'custom/module/template.html'
+        template: 'custom/module/template.html',
     }
 };
 ```
 
-Then map your urls to your pages in another configuration object.
+And here is a sample page configuration that maps the modules specified above.
 
 ```javascript
 var pages = {
@@ -107,10 +114,8 @@ var pages = {
         data: 'url/to/home-page/data'
     }
 };
-
 ```
 
-## Usage
 
 ### Startup
 
