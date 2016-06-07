@@ -96,6 +96,9 @@ var modules = {
     'custom-module': {
         script: 'custom/module/path.js',
         template: 'custom/module/template.html',
+        options: { //any custom options that are passed to the module when router instantiates
+            custom: true
+        }
     }
 };
 ```

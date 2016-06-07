@@ -354,8 +354,7 @@ class Router {
      * @param {Module} [Class] - The class to fallback to when instantia
      * @returns {*}
      */
-    loadScript (scriptUrl, el, options, Class = this.options.moduleClass) {
-        options = options || {};
+    loadScript (scriptUrl, el, options = {}, Class = this.options.moduleClass) {
         options.requestOptions = _.extend({}, this.options.requestOptions, options.requestOptions);
 
         if (!scriptUrl) {
@@ -419,6 +418,13 @@ class Router {
             pageModuleKeys.forEach((key, idx) => {
                 let moduleConfig = this.options.modulesConfig[key];
                 let moduleEl = document.createElement('div');
+
+                // support options passed through config file
+                if (moduleConfig.options) {
+                    moduleConfig = _.extend(moduleConfig.options, moduleConfig);
+                    delete moduleConfig.options;
+                }
+
                 pageMap.modules['mod' + idx] = this.loadScript(moduleConfig.script, moduleEl, moduleConfig);
             });
             this.options.pagesContainer.appendChild(pageMap.page.el);

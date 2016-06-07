@@ -2212,4 +2212,40 @@ describe('Router', function () {
         });
     });
 
+    it('should pass options specified in a global module to the Module\'s constructor when going to a page where it has been assigned', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        var customModuleOptions = {test: 'my option'};
+        modulesConfig[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl,
+            options: customModuleOptions
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        pagesConfig[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        var mockPage = createPageStub();
+        var mockModule = createModuleStub();
+        var mockModuleConstructor = sinon.stub().returns(mockModule);
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModuleConstructor);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.deepEqual(mockModuleConstructor.args[0][1].test, 'my option');
+            router.stop();
+        });
+    });
+
 });
