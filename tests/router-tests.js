@@ -1290,6 +1290,44 @@ describe('Router', function () {
         });
     });
 
+    it('should set the css class passed via customPageClass onto page\'s element when loaded', function () {
+        var pageUrl = 'my/real/url';
+        var pageRouteRegex = '^' + pageUrl;
+        var pageScriptUrl = 'path/to/my/script.js';
+        var pagesConfig = {};
+        var customClass = 'my-custom-class';
+        pagesConfig[pageRouteRegex] = {script: pageScriptUrl, customPageClass: customClass};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var mockPage = createPageStub();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.ok(pagesContainer.children[0].classList.contains(customClass));
+            router.stop();
+        });
+    });
+
+    it('should set multiple css classes passed via customPageClass onto page\'s element when loaded', function () {
+        var pageUrl = 'my/real/url';
+        var pageRouteRegex = '^' + pageUrl;
+        var pageScriptUrl = 'path/to/my/script.js';
+        var pagesConfig = {};
+        var firstCustomClass = 'my-custom-class';
+        var secondCustomClass  = 'my-second-class';
+        pagesConfig[pageRouteRegex] = {script: pageScriptUrl, customPageClass: firstCustomClass + ' ' + secondCustomClass};
+        var pagesContainer = document.createElement('div');
+        var router = new Router({pagesConfig: pagesConfig, pagesContainer: pagesContainer});
+        router.start();
+        var mockPage = createPageStub();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.ok(pagesContainer.children[0].classList.contains(firstCustomClass));
+            assert.ok(pagesContainer.children[0].classList.contains(secondCustomClass));
+            router.stop();
+        });
+    });
+
     it('should pass correct page default css classes when a page is loaded', function () {
         var pageUrl = 'my/real/url';
         var pageRouteRegex = '^' + pageUrl;

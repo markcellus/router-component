@@ -404,6 +404,7 @@ class Router {
                 disabledClass: 'page-disabled',
                 errorClass: 'page-error'
             });
+
             try {
                 pageMap.page = this.loadScript(pageConfig.script, document.createElement('div'), pageConfig, this.options.pageClass);
             } catch (e) {
@@ -412,7 +413,15 @@ class Router {
                 }
                 return Promise.reject(e);
             }
-            pageMap.page.el.classList.add('page'); // add default page class
+
+            // add default page class
+            pageMap.page.el.classList.add('page');
+            if (pageConfig.customPageClass) {
+                let classes = pageConfig.customPageClass.split(' ');
+                // add default page class
+                pageMap.page.el.classList.add(...classes);
+            }
+
             let pageModuleKeys = this.getPageModulesByRoute(route);
             pageMap.modules = {};
             pageModuleKeys.forEach((key, idx) => {
