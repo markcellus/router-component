@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.8.0.
+* router-js - v3.8.1.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -44599,6 +44599,9 @@ var Router = function () {
                         }
                     }
                 }
+                // update page title
+                this.document.title = pageMap.page.title || pageConfig.title || this.document.title;
+
                 pageMap.promise = _promise2.default.all(moduleLoadPromises).then(function () {
                     return pageMap.page.load();
                 });
@@ -44614,13 +44617,19 @@ var Router = function () {
         }
 
         /**
-         * Shows all global modules assigned to a page.
-         * @param {string} path - The page path
-         * @returns {Promise} Returns a promise when all global modules are shown
+         * Gets the Document element.
+         * @returns {HTMLDocument}
          */
 
     }, {
         key: 'showGlobalModules',
+
+
+        /**
+         * Shows all global modules assigned to a page.
+         * @param {string} path - The page path
+         * @returns {Promise} Returns a promise when all global modules are shown
+         */
         value: function showGlobalModules(path) {
             var pageConfig = this.getPageConfigByPath(path),
                 promises = [];
@@ -44991,6 +45000,11 @@ var Router = function () {
             this._links.forEach(function (l) {
                 l.removeEventListener('click', _this9._linkClickEventListener);
             });
+        }
+    }, {
+        key: 'document',
+        get: function get() {
+            return window.document;
         }
     }]);
 
