@@ -2286,4 +2286,78 @@ describe('Router', function () {
         });
     });
 
+    it('should append the module\'s el to the page\'s el when navigating to a page that contains it', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var modulesConfig = {};
+        var moduleName = 'customModule';
+        var moduleScriptUrl = 'path/to/module/script';
+        var moduleTemplateUrl = 'url/to/my/template';
+        modulesConfig[moduleName] = {
+            template: moduleTemplateUrl,
+            script: moduleScriptUrl
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTemplateUrl = 'url/to/my/template';
+        pagesConfig[pageUrl] = {
+            template: pageTemplateUrl,
+            modules: [moduleName],
+            script: pageScriptUrl
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        var mockPage = createPageStub();
+        var mockModule = createModuleStub();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(moduleScriptUrl).returns(mockModule);
+        return router.triggerRoute(pageUrl).then(function () {
+            assert.ok(mockPage.el.contains(mockModule.el));
+            router.stop();
+        });
+    });
+
+    it('should append multiple module\'s el to the page\'s el in the order in which they are specified in the configuration when navigating to a page that contains them (before modules are loaded)', function (done) {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var firstModuleScriptPath = 'path/to/module/script';
+        var secondModuleScriptPath = 'path/to/second/module/script';
+        var modulesConfig = {
+            firstModule: {
+                script: firstModuleScriptPath
+            },
+            secondModule: {
+                script: secondModuleScriptPath
+            }
+        };
+        var pageScriptUrl = 'path/to/page/script';
+        pagesConfig[pageUrl] = {
+            modules: ['firstModule', 'secondModule'],
+            script: pageScriptUrl
+        };
+        var router = new Router({
+            pagesConfig: pagesConfig,
+            modulesConfig: modulesConfig
+        });
+        router.start();
+        var mockPage = createPageStub();
+        // ensure test passes even when module's load calls are not resolved
+        var firstMockModule = createModuleStub();
+        firstMockModule.load.returns(new Promise(function () {}));
+        var secondMockModule = createModuleStub();
+        secondMockModule.load.returns(new Promise(function () {}));
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        requireStub.withArgs(firstModuleScriptPath).returns(firstMockModule);
+        requireStub.withArgs(secondModuleScriptPath).returns(secondMockModule);
+        router.triggerRoute(pageUrl);
+        _.defer(function () {
+            assert.equal(mockPage.el.children[0], firstMockModule.el);
+            assert.equal(mockPage.el.children[1], secondMockModule.el);
+            router.stop();
+            done();
+        });
+    });
+
 });

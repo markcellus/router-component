@@ -445,6 +445,9 @@ class Router {
             for (var key in pageMap.modules) {
                 if (pageMap.modules.hasOwnProperty(key) && pageMap.modules[key]) {
                     let module = pageMap.modules[key];
+                    if (module.el) {
+                        pageMap.page.el.appendChild(module.el);
+                    }
                     if (module.load) {
                         moduleLoadPromises.push(module.load());
                     }
