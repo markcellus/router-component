@@ -80,10 +80,11 @@ Then, create your modules and pages configurations identified below.
 
 ## Usage
 
-### Configuration
 
 First you need a configuration file that identifies the urls to each of their pages and the modules they will contain.
 Here's a sample Module configuration.
+
+### Modules Configuration
 
 ```javascript
 var modules = {
@@ -103,6 +104,8 @@ var modules = {
 };
 ```
 
+### Pages Configuration
+
 And here is a sample page configuration that maps the modules specified above.
 
 ```javascript
@@ -118,6 +121,17 @@ var pages = {
     }
 };
 ```
+
+The following are all possible configuration values that you can assign to a page or module that will be processed
+when the url to the page or module is accessed.
+
+| Option | Type | Description |
+|--------|--------|--------|
+| `template`| String | The url path to the file that that contains the html to use (can be an html file or a handlebars file)
+| `data`| Object|String | Either the data object that will be used in the handlebars template, and/or the API endpoint url that will return the data
+| `script`| String | A path to the script file to be compiled
+| `modules`| Array | Which modules in the [module's configuration](#modules-configuration) should be loaded (for Page configurations only)
+| `customPageClass`| String | A string or space-delimited string containing the custom css class you'd like to be added to the page/modules element when loaded
 
 
 ### Startup
