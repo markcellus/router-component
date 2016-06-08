@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.8.2.
+* router-js - v3.8.3.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
