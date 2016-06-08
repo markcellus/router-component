@@ -135,10 +135,6 @@ var router = new Router({
 router.start();
 ```
 
-Then, when a user requests the `/home` url,  the templates, script, modules and data
-under your `home` pages config entry will load instantly. Note that to support direct nested url requests, you must
-have your [server setup to do so](#server-setup).
-
 ### Handling initial page load
 
 When starting the router and loading the initial page from your browser, the Router could possibly load
@@ -151,6 +147,16 @@ window.addEventListener('DOMContentLoaded', function () {
     router.triggerRoute(window.location.pathname);
 });
 ```
+
+### Triggering urls
+
+URLs can be triggered by user requests (via clicks on `<a>` elements throughout your application) or by calling
+[`triggerRoute()`](#triggerrouteurl) with the url path.
+
+When a path is requested using one of these methods, the page assigned to that url, including its script, templates,
+data and css, along with any assigned modules, will load instantly and get appended to the DOM.
+
+Note that to support direct nested url requests, you must have your [server setup to do so](#server-setup).
 
 ## Options
 
@@ -185,8 +191,9 @@ Puts the router in a "sleep" state and unbinds all listeners. In other words, it
 
 ### triggerRoute(url)
 
-The triggerRoute method tells router to navigate to a specific `url`. When this is called, all templates, css, data, and scripts
-will load for the url which are all retrieved by the [fetch API](https://fetch.spec.whatwg.org/).
+The triggerRoute method tells router to navigate to a specific `url`. When this is called, the page associated with the url
+along with all of its assigned modules will load and get appended to the DOM. All specified templates, css, data, and scripts
+will also load, which are retrieved by the [fetch API](https://fetch.spec.whatwg.org/).
 
 ```javascript
 router.triggerRoute('home').then(function () {
