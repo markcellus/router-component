@@ -2360,4 +2360,54 @@ describe('Router', function () {
         });
     });
 
+    it('should change the document\'s title to the value set as the "title" in the configuration for a page when loaded', function () {
+        var mockDocument = {title: 'blah'};
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTitle = 'My page title';
+        var pagesConfig = {
+            'my/page/url': {
+                script: pageScriptUrl,
+                title: pageTitle
+            }
+        };
+        var router = new Router({pagesConfig: pagesConfig});
+        Object.defineProperty(router, 'document', {
+            get: function () {
+                return mockDocument;
+            }
+        });
+        router.start();
+        var mockPage = createPageStub();
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        return router.triggerRoute('my/page/url').then(function () {
+            assert.equal(mockDocument.title, pageTitle);
+            router.stop();
+        });
+    });
+
+    it('should change the document\'s title to the value set as the "title" getter in the configuration for a page when loaded', function () {
+        var mockDocument = {title: 'blah'};
+        var pageScriptUrl = 'path/to/page/script';
+        var pageTitle = 'My page title';
+        var pagesConfig = {
+            'my/page/url': {
+                script: pageScriptUrl
+            }
+        };
+        var router = new Router({pagesConfig: pagesConfig});
+        Object.defineProperty(router, 'document', {
+            get: function () {
+                return mockDocument;
+            }
+        });
+        router.start();
+        var mockPage = createPageStub();
+        mockPage.title = pageTitle;
+        requireStub.withArgs(pageScriptUrl).returns(mockPage);
+        return router.triggerRoute('my/page/url').then(function () {
+            assert.equal(mockDocument.title, pageTitle);
+            router.stop();
+        });
+    });
+
 });

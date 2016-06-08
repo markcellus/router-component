@@ -453,6 +453,9 @@ class Router {
                     }
                 }
             }
+            // update page title
+            this.document.title = pageMap.page.title || pageConfig.title || this.document.title;
+            
             pageMap.promise = Promise.all(moduleLoadPromises).then(() => {
                 return pageMap.page.load();
             });
@@ -466,6 +469,14 @@ class Router {
             throw err;
         });
 
+    }
+
+    /**
+     * Gets the Document element.
+     * @returns {HTMLDocument}
+     */
+    get document () {
+        return window.document;
     }
 
     /**

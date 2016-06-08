@@ -130,6 +130,7 @@ when the url to the page or module is accessed.
 | `template`| String | The url path to the file that that contains the html to use (can be an html file or a handlebars file)
 | `data`| Object|String | Either the data object that will be used in the handlebars template, and/or the API endpoint url that will return the data
 | `script`| String | A path to the script file to be compiled
+| `title`| String | The title of the page or module. When set on a page's configuration, it will be set as the [document.title](https://developer.mozilla.org/en-US/docs/Web/API/Document/title) of the page when loaded
 | `modules`| Array | Which modules in the [module's configuration](#modules-configuration) should be loaded (for Page configurations only)
 | `customPageClass`| String | A string or space-delimited string containing the custom css class you'd like to be added to the page/modules element when loaded
 
