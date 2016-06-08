@@ -2410,4 +2410,36 @@ describe('Router', function () {
         });
     });
 
+    it('should change the document\'s title back to the original value when start was called when visiting a page that does not have a custom title after coming from a page that did have one', function () {
+        var firstPageScriptUrl = 'path/to/page/script';
+        var secondPageScriptUrl = 'path/to/page2/script';
+        var pagesConfig = {
+            'my/page/url': {
+                script: firstPageScriptUrl,
+                title: 'My custom title'
+            },
+            'my/second/page/url': {
+                script: secondPageScriptUrl
+            }
+        };
+        var router = new Router({pagesConfig: pagesConfig});
+        var mockDocument = {title: 'originalTitle'};
+        Object.defineProperty(router, 'document', {
+            get: function () {
+                return mockDocument;
+            }
+        });
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptUrl).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptUrl).returns(secondMockPage);
+        return router.triggerRoute('my/page/url').then(function () {
+            return router.triggerRoute('my/second/page/url').then(function () {
+                assert.equal(mockDocument.title, 'originalTitle');
+                router.stop();
+            });
+        });
+    });
+
 });

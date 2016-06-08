@@ -83,6 +83,7 @@ class Router {
         let window = this.getWindow();
         this._currentPath = window.location.hash.replace('#', '');
         window.addEventListener('popstate', this._getOnPopStateListener);
+        this._origDocumentTitle = this.document.title;
     }
 
     /**
@@ -454,7 +455,7 @@ class Router {
                 }
             }
             // update page title
-            this.document.title = pageMap.page.title || pageConfig.title || this.document.title;
+            this.document.title = pageMap.page.title || pageConfig.title || this._origDocumentTitle;
             
             pageMap.promise = Promise.all(moduleLoadPromises).then(() => {
                 return pageMap.page.load();
