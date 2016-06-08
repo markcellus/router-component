@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.7.9.
+* router-js - v3.8.0.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -10982,7 +10982,6 @@ var Module = function () {
                                     _this.el.classList.add(_this.options.loadedClass);
                                 }
                                 _this.options.onLoad();
-                                return _this.waitForTransition();
                             });
                         });
                     });
@@ -11152,11 +11151,6 @@ var Module = function () {
         key: 'show',
         value: function show() {
             var el = this.el;
-
-            if (this.active) {
-                return this.waitForTransition();
-            }
-
             if (el) {
                 el.classList.add(this.options.activeClass);
             }
@@ -11331,49 +11325,37 @@ var Module = function () {
         }
 
         /**
-         * Resets module and its submodules.
-         */
-
-    }, {
-        key: 'reset',
-        value: function reset() {
-            var _this4 = this;
-
-            for (var key in this.subModules) {
-                if (this.subModules.hasOwnProperty(key) && this.subModules[key] && this.subModules[key].reset) {
-                    this.subModules[key].reset();
-                }
-            }
-            this.active = false;
-            this.loaded = false;
-            this.errored = false;
-
-            this.el.classList.remove(this.options.activeClass);
-            this.el.classList.remove(this.options.loadedClass);
-            this._elChildren.forEach(function (el) {
-                if (_this4.el.contains(el)) {
-                    _this4.el.removeChild(el);
-                }
-            });
-            this._elChildren = [];
-        }
-
-        /**
          * Destroys all nested views and cleans up.
          */
 
     }, {
         key: 'destroy',
         value: function destroy() {
+            var _this4 = this;
+
             var subModules = this.subModules;
-            this.reset();
+
             for (var key in subModules) {
                 if (subModules.hasOwnProperty(key) && subModules[key]) {
                     subModules[key].destroy();
                 }
             }
             this.subModules = {};
+            this.active = false;
+            this.loaded = false;
+            this.errored = false;
+
+            this.el.classList.remove(this.options.loadedClass);
+            this.el.classList.remove(this.options.activeClass);
+
             this._resetElementInitialState();
+
+            this._elChildren.forEach(function (el) {
+                if (_this4.el.contains(el)) {
+                    _this4.el.removeChild(el);
+                }
+            });
+            this._elChildren = [];
         }
     }]);
 
@@ -44097,6 +44079,8 @@ var _moduleJs2 = _interopRequireDefault(_moduleJs);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 /**
@@ -44506,10 +44490,10 @@ var Router = function () {
 
     }, {
         key: 'loadScript',
-        value: function loadScript(scriptUrl, el, options) {
+        value: function loadScript(scriptUrl, el) {
+            var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
             var Class = arguments.length <= 3 || arguments[3] === undefined ? this.options.moduleClass : arguments[3];
 
-            options = options || {};
             options.requestOptions = _lodash2.default.extend({}, this.options.requestOptions, options.requestOptions);
 
             if (!scriptUrl) {
@@ -44564,6 +44548,7 @@ var Router = function () {
                     disabledClass: 'page-disabled',
                     errorClass: 'page-error'
                 });
+
                 try {
                     pageMap.page = this.loadScript(pageConfig.script, document.createElement('div'), pageConfig, this.options.pageClass);
                 } catch (e) {
@@ -44572,12 +44557,29 @@ var Router = function () {
                     }
                     return _promise2.default.reject(e);
                 }
-                pageMap.page.el.classList.add('page'); // add default page class
+
+                // add default page class
+                pageMap.page.el.classList.add('page');
+                if (pageConfig.customPageClass) {
+                    var _pageMap$page$el$clas;
+
+                    var classes = pageConfig.customPageClass.split(' ');
+                    // add default page class
+                    (_pageMap$page$el$clas = pageMap.page.el.classList).add.apply(_pageMap$page$el$clas, _toConsumableArray(classes));
+                }
+
                 var pageModuleKeys = this.getPageModulesByRoute(route);
                 pageMap.modules = {};
                 pageModuleKeys.forEach(function (key, idx) {
                     var moduleConfig = _this4.options.modulesConfig[key];
                     var moduleEl = document.createElement('div');
+
+                    // support options passed through config file
+                    if (moduleConfig.options) {
+                        moduleConfig = _lodash2.default.extend(moduleConfig.options, moduleConfig);
+                        delete moduleConfig.options;
+                    }
+
                     pageMap.modules['mod' + idx] = _this4.loadScript(moduleConfig.script, moduleEl, moduleConfig);
                 });
                 this.options.pagesContainer.appendChild(pageMap.page.el);
@@ -44589,6 +44591,9 @@ var Router = function () {
                 for (var key in pageMap.modules) {
                     if (pageMap.modules.hasOwnProperty(key) && pageMap.modules[key]) {
                         var module = pageMap.modules[key];
+                        if (module.el) {
+                            pageMap.page.el.appendChild(module.el);
+                        }
                         if (module.load) {
                             moduleLoadPromises.push(module.load());
                         }
