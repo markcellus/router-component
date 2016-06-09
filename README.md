@@ -173,6 +173,42 @@ data and css, along with any assigned modules, will load instantly and get appen
 
 Note that to support direct nested url requests, you must have your [server setup to do so](#server-setup).
 
+### Loading and Active States
+
+When a page is requested, it will "show" to the user when its finished loading. However, any modules assigned to the page
+won't necessarily "show" to the user when the page shows because they still can be loading. This is done to give you the
+flexibility to show loading states on a per-module basis as they load while in the user's view.
+
+ In most cases, when a module or page loads, you want to add css loading classes for 1) when it begins loading, 2) when
+ it finishes loading, and 3) when its shown.
+
+Thankfully, the Router automatically adds these css classes for you.  Here are the steps illustrating which css classes are applied when a page is loaded.
+
+1. Page's url is requested.
+1. Router loads the page and its associated modules.
+1. As page is loading, no css classes are applied (you can treat this as the loading state and style it in your CSS as such).
+1. Once page loads, a default css class of `module-loaded` will be applied to the page.
+1. If the module has an error, a default css class of `module-error` will be applied.
+1. When the module is shown, a default css class of `module-active` is applied.
+
+If you want to customize these css classes, you can pass them via the `options` object in the configuration object for your module or page.
+Here is an example:
+
+```javascript
+const MODULES_CONFIG = {
+      'my-module': {
+          script: 'custom/module/path.js',
+          template: 'custom/module/template.html',
+          options: {
+              activeClass: 'my-module-active', // applied when module is shown
+              loadedClass: 'my-module-loaded', // applied when module is loaded
+              errorClass: 'my-module-errored' // applied with module encounters an error
+          }
+      }
+}
+```
+
+
 ## Options
 
 When instantiating the Router, you can pass it options:
