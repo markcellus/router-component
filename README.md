@@ -145,8 +145,7 @@ To start the router, you must pass it your page and module configuration objects
 import Router from 'router-js';
 let router = new Router({
     pagesConfig: PAGES_CONFIG,
-    modulesConfig: MODULES_CONFIG,
-    pagesContainer: document.body.getElementsByClassName('page-container')[0]
+    modulesConfig: MODULES_CONFIG
 });
 router.start();
 ```
