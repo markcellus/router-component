@@ -87,7 +87,7 @@ Here's a sample Module configuration.
 ### Modules Configuration
 
 ```javascript
-var modules = {
+const MODULES_CONFIG = {
     'header': {
         script: 'path/to/header.js',
         template: 'path/to/header.html',
@@ -109,7 +109,7 @@ var modules = {
 And here is a sample page configuration that maps the modules specified above.
 
 ```javascript
-var pages = {
+const PAGES_CONFIG = {
     '^home(/)?$': {
         title: 'My Home Page', // seo title
         template: '/path/to/homepage.hbs', // load this template
@@ -143,9 +143,9 @@ To start the router, you must pass it your page and module configuration objects
 
 ```javascript
 import Router from 'router-js';
-var router = new Router({
-    pagesConfig: pages,
-    modulesConfig: modules,
+let router = new Router({
+    pagesConfig: PAGES_CONFIG,
+    modulesConfig: MODULES_CONFIG,
     pagesContainer: document.body.getElementsByClassName('page-container')[0]
 });
 router.start();
@@ -321,7 +321,7 @@ page's have them specified.
 To mark a module as global, just set the global flag to true inside your modules configuration illustrated below.
 
 ```javascript
- var router = Router({
+ let router = Router({
     modulesConfig: {
         'header': {
             global: true,
