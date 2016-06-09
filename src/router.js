@@ -454,9 +454,7 @@ class Router {
                     }
                 }
             }
-            // update page title
-            this.document.title = pageMap.page.title || pageConfig.title || this._origDocumentTitle;
-            
+
             pageMap.promise = Promise.all(moduleLoadPromises).then(() => {
                 return pageMap.page.load();
             });
@@ -526,6 +524,8 @@ class Router {
                 module.show();
             }
         });
+        // update page title
+        this.document.title = pageMap.page.title || pageMap.config.title || this._origDocumentTitle;
         this.bindLinks(page.el);
         this.options.pagesContainer.appendChild(page.el);
         return new Promise((resolve) => {
