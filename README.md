@@ -111,13 +111,14 @@ And here is a sample page configuration that maps the modules specified above.
 ```javascript
 var pages = {
     '^home(/)?$': {
-        template: '/path/to/homepage.html',
+        title: 'My Home Page', // seo title
+        template: '/path/to/homepage.hbs', // load this template
+        data: 'url/to/home-page/data', // inject the response from this endpoint into the template above
+        script: 'home-page.js', // load this script
         modules: [
             'header',
             'custom-module'
-        ],
-        script: 'home-page.js',
-        data: 'url/to/home-page/data'
+        ]
     }
 };
 ```
