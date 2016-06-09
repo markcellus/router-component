@@ -1,5 +1,5 @@
 /** 
-* router-js - v3.8.3.
+* router-js - v3.8.4.
 * git://github.com/mkay581/router-js.git
 * Copyright 2016 Mark Kennedy. Licensed MIT.
 */
@@ -44600,8 +44600,6 @@ var Router = function () {
                         }
                     }
                 }
-                // update page title
-                this.document.title = pageMap.page.title || pageConfig.title || this._origDocumentTitle;
 
                 pageMap.promise = _promise2.default.all(moduleLoadPromises).then(function () {
                     return pageMap.page.load();
@@ -44677,6 +44675,8 @@ var Router = function () {
                     module.show();
                 }
             });
+            // update page title
+            this.document.title = pageMap.page.title || pageMap.config.title || this._origDocumentTitle;
             this.bindLinks(page.el);
             this.options.pagesContainer.appendChild(page.el);
             return new _promise2.default(function (resolve) {
