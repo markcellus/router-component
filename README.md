@@ -42,52 +42,52 @@ a [.htaccess](https://httpd.apache.org/docs/current/howto/htaccess.html) file.
 </ifModule>
 ```
  
-## Setup
-
-### 1. Create a container element for your pages
-
-First, create your index.html or similar (if you don't already have one) with at least 
-one html element that your pages will be shown in.
-
-```html
-<html>
-    <body>
-        <div class="page-container"></div>
-    </body>
-</html>
-```
-
-### 2. Style your divs
-
-When a page url (route) is requested, css classes are applied and removed. So you'll need to setup a few lines of css 
-to show and hide based on the css classes that Router applies. 
-
-```css
-.page {
-    display: none;
-}
-
-.page-active {
-    display: block;
-}
-```
-
-Of course, you can use fancier CSS transitions if you'd like.
-
-### 3. Configure your modules, pages and routes
-
-Then, create your modules and pages configurations identified below.
-
 ## Usage
 
+### HTML
 
-First you need a configuration file that identifies the urls to each of their pages and the modules they will contain.
+By default, your Page elements will be injected into the `document.body` of your index.html file. You can customize
+where they are injected by passing a string as the `pagesContainer` in the [router's options](#options).
+
+### CSS
+
+As page routes are requested, css classes are applied and removed. All pages will get a `page` css class.
+And when they are active, they will get an additional css class of `page-active`.
+So you'll need to setup a few lines of css  to show and hide your pages based on these classes.
+
+```css
+
+/* can be treated as a loading state */
+.page {
+    display: none;
+    content: 'Loading';
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+}
+
+/* when page is loaded */
+.page-loaded {
+    display: block;
+    border: 1px solid orange;
+}
+
+/* when page is shown */
+.page-active {
+    display: block;
+    border: 1px solid green;
+    z-index: 1;
+}
+```
+
+Then, you need a configuration file that identifies the urls to each of their pages and the modules they will contain.
 Here's a sample Module configuration.
 
 ### Modules Configuration
 
 ```javascript
-var modules = {
+const MODULES_CONFIG = {
     'header': {
         script: 'path/to/header.js',
         template: 'path/to/header.html',
@@ -109,15 +109,16 @@ var modules = {
 And here is a sample page configuration that maps the modules specified above.
 
 ```javascript
-var pages = {
+const PAGES_CONFIG = {
     '^home(/)?$': {
-        template: '/path/to/homepage.html',
+        title: 'My Home Page', // seo title
+        template: '/path/to/homepage.hbs', // load this template
+        data: 'url/to/home-page/data', // inject the response from this endpoint into the template above
+        script: 'home-page.js', // load this script
         modules: [
             'header',
             'custom-module'
-        ],
-        script: 'home-page.js',
-        data: 'url/to/home-page/data'
+        ]
     }
 };
 ```
@@ -142,10 +143,9 @@ To start the router, you must pass it your page and module configuration objects
 
 ```javascript
 import Router from 'router-js';
-var router = new Router({
-    pagesConfig: pages,
-    modulesConfig: modules,
-    pagesContainer: document.body.getElementsByClassName('page-container')[0]
+let router = new Router({
+    pagesConfig: PAGES_CONFIG,
+    modulesConfig: MODULES_CONFIG
 });
 router.start();
 ```
@@ -172,6 +172,42 @@ When a path is requested using one of these methods, the page assigned to that u
 data and css, along with any assigned modules, will load instantly and get appended to the DOM.
 
 Note that to support direct nested url requests, you must have your [server setup to do so](#server-setup).
+
+### Module Loading and Active States
+
+When a page is requested, it will "show" to the user when its finished loading. However, any modules assigned to the page
+won't necessarily "show" to the user when the page shows because they still can be loading. This is done to give you the
+flexibility to show loading states on a per-module basis as they load while in the user's view.
+
+Thankfully, the Router automatically adds css classes for every module 1) when it begins loading, 2) when it finishes loading,
+3) when its shown, and 4) if it has any errors.
+
+Here are the steps illustrating which css classes are applied when a page is loaded.
+
+1. Page's url is requested.
+1. Router loads the page and its associated modules.
+1. As page is loading, no css classes are applied (you can treat this as the loading state and style it in your CSS as such).
+1. Once page loads, a default css class of `module-loaded` will be applied to the page.
+1. If the module has an error, a default css class of `module-error` will be applied.
+1. When the module is shown, a default css class of `module-active` is applied.
+
+If you want to customize these css classes, you can pass them via the `options` object in the configuration object for your module or page.
+Here is an example:
+
+```javascript
+const MODULES_CONFIG = {
+      'my-module': {
+          script: 'custom/module/path.js',
+          template: 'custom/module/template.html',
+          options: {
+              activeClass: 'my-module-active', // applied when module is shown
+              loadedClass: 'my-module-loaded', // applied when module is loaded
+              errorClass: 'my-module-errored' // applied with module encounters an error
+          }
+      }
+}
+```
+
 
 ## Options
 
@@ -292,7 +328,7 @@ page's have them specified.
 To mark a module as global, just set the global flag to true inside your modules configuration illustrated below.
 
 ```javascript
- var router = Router({
+ let router = Router({
     modulesConfig: {
         'header': {
             global: true,
