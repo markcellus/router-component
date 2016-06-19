@@ -2476,4 +2476,112 @@ describe('Router', function () {
         });
     });
 
+    it('should pass triggerRoute options data into the second argument of the associated page constructor', function () {
+        var pageUrl = 'my/page/url';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        var router = new Router({pagesConfig: pagesConfig});
+        router.start();
+        var firstMockPage = createPageStub();
+        var pageConstructor = sinon.stub().returns(firstMockPage);
+        requireStub.withArgs(firstPageScriptPath).returns(pageConstructor);
+        var testData = {my: 'data'};
+        return router.triggerRoute(pageUrl, {data: testData}).then(() => {
+            assert.deepEqual(pageConstructor.args[0][1].data, testData);
+            router.stop();
+        });
+    });
+
+    it('should call resetPage with the requested route if has been previously accessed with different data that what was passed as triggerRoute options data', function () {
+
+        var pageUrl = 'my/page/url';
+        var secondPageUrl = 'my/page/url/two';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        var secondPageScriptPath = 'path/to/page/script/two';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var router = new Router({pagesConfig: pagesConfig});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        var resetPageSpy = sinon.spy(router, 'resetPage');
+        var testData = {my: 'data'};
+        return router.triggerRoute(pageUrl).then(() => {
+            assert.equal(resetPageSpy.callCount, 0);
+            // trigger another page to change current url so our previous url will load again
+            return router.triggerRoute(secondPageUrl).then(() => {
+                assert.equal(resetPageSpy.callCount, 0);
+                firstMockPage.options = {};
+                return router.triggerRoute(pageUrl, {data: testData}).then(() => {
+                    assert.equal(resetPageSpy.args[0][0], pageUrl);
+                    router.stop();
+                });
+            });
+        });
+
+    });
+
+    it('should call page\'s load method a second time if a set of options data is passed into triggerRoute for first time', function () {
+        var pageUrl = 'my/page/url';
+        var secondPageUrl = 'my/page/url/second';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        var secondPageScriptPath = 'path/to/page/script/two';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var router = new Router({pagesConfig: pagesConfig});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        var testData = {my: 'data'};
+        return router.triggerRoute(pageUrl).then(() => {
+            assert.equal(firstMockPage.load.callCount, 1);
+            // trigger another page to change current url so our previous url will load again
+            return router.triggerRoute(secondPageUrl).then(() => {
+                assert.equal(firstMockPage.load.callCount, 1);
+                firstMockPage.options = {};
+                return router.triggerRoute(pageUrl, {data: testData}).then(() => {
+                    assert.equal(firstMockPage.load.callCount, 2);
+                    router.stop();
+                });
+            });
+        });
+    });
+
+    it('should not call load() a second time if the same set of options data is passed into triggerRoute', function () {
+        var pageUrl = 'my/page/url';
+        var secondPageUrl = 'my/page/url/second';
+        var pagesConfig = {};
+        var firstPageScriptPath = 'path/to/page/script';
+        var secondPageScriptPath = 'path/to/page/script/two';
+        pagesConfig[pageUrl] = {script: firstPageScriptPath};
+        pagesConfig[secondPageUrl] = {script: secondPageScriptPath};
+        var router = new Router({pagesConfig: pagesConfig});
+        router.start();
+        var firstMockPage = createPageStub();
+        var secondMockPage = createPageStub();
+        requireStub.withArgs(firstPageScriptPath).returns(firstMockPage);
+        requireStub.withArgs(secondPageScriptPath).returns(secondMockPage);
+        var testData = {my: 'data'};
+        return router.triggerRoute(pageUrl, {data: testData}).then(() => {
+            // mock options data on page level
+            firstMockPage.options = {data: testData};
+            assert.equal(firstMockPage.load.callCount, 1);
+            // trigger another page to change current url so our previous url will load again
+            return router.triggerRoute(secondPageUrl).then(() => {
+                assert.equal(firstMockPage.load.callCount, 1);
+                return router.triggerRoute(pageUrl, {data: testData}).then(() => {
+                    assert.equal(firstMockPage.load.callCount, 1);
+                    router.stop();
+                });
+            });
+        });
+    });
+
 });

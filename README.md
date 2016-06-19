@@ -256,6 +256,7 @@ You can also pass an object of options as the second argument to triggerRoute. O
 
 | Option | Type | Description |
 |--------|--------|--------|
+| `data`| Object | An object of data that will be used for the template of the route that is being triggered, overriding any data set in the route configuration.
 | `triggerUrlChange`| Boolean | Whether to actually change the url and fire all associated events. Defaults to `true`.
 | `replace`| Boolean | Set to `true` to replace the current browser url history entry with the new one. Defaults to `false`.
 

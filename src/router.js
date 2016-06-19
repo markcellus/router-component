@@ -139,6 +139,7 @@ class Router {
      * @param {string} url - The url to navigate to.
      * @param {Object} [options] - Set of navigation options
      * @param {boolean} [options.replace] - True to replace the current browser url history entry with the new one
+     * @param {Object} [options.data] - Object of data to use for the template at the specified route
      * @param {boolean} [options.triggerUrlChange] - False to not trigger the browser url to change
      * @returns {Promise} Returns a Promise when the page of the route has loaded
      */
@@ -191,6 +192,7 @@ class Router {
      * @param {string} path - The path that is
      * @param {Object} [options] - request options
      * @param {Object} [options.triggerUrlChange] - Whether to trigger a url change
+     * @param {Object} [options.data] - Object of data to use for the template at the specified route
      * @private
      * @return {Promise}
      */
@@ -201,7 +203,7 @@ class Router {
                 this._currentPreviousPageHidePromise = this.hidePage(prevPath, path);
                 return this._currentPreviousPageHidePromise.then(() => {
                     return this.loadGlobalModules(path).then(() => {
-                        return this.loadPage(path)
+                        return this.loadPage(path, options)
                             .then(function () {
                                 if (this.options.onPageLoad) {
                                     this.options.onPageLoad.call(this, path);
@@ -382,9 +384,11 @@ class Router {
     /**
      * Loads a page.
      * @param {string} route - The url of the page to load
+     * @param {Object} [options] - Options
+     * @param {Object} [options.data] - Object of data to use for the template at the specified route
      * @returns {Promise} Returns a promise representing the load call
      */
-    loadPage (route) {
+    loadPage (route, options={}) {
         let pageKey = this._getRouteMapKeyByPath(route);
         let pageConfig = this.options.pagesConfig[pageKey];
         let pageMap = this._pageMaps[pageKey] || {};
@@ -396,6 +400,12 @@ class Router {
             return Promise.reject(e);
         }
 
+
+        // if data is not the same as the data passed in, reset the page
+        if (pageMap.page && options.data && pageMap.page.options.data !== options.data) {
+            this.resetPage(route);
+            pageMap = {};
+        }
         // instantiate and cache page instance if doesnt already exist
         if (!pageMap.page) {
             pageMap.config = pageConfig;
@@ -405,6 +415,8 @@ class Router {
                 disabledClass: 'page-disabled',
                 errorClass: 'page-error'
             });
+
+            pageConfig.data = options.data || pageConfig.data;
 
             try {
                 pageMap.page = this.loadScript(pageConfig.script, document.createElement('div'), pageConfig, this.options.pageClass);
