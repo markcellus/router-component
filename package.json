@@ -1,6 +1,6 @@
 {
   "name": "router-js",
-  "version": "3.8.5",
+  "version": "3.8.6",
   "description": "A simple router for single-page web apps",
   "repository": {
     "type": "git",
