@@ -204,7 +204,7 @@ Starts the router to begin intercepting url requests and binds all listeners.
 
 Puts the router in a "sleep" state and unbinds all listeners. In other words, it's just the opposite of `start()`.
 
-### triggerRoute(url)
+### triggerRoute(url[,options])
 
 The triggerRoute method tells router to navigate to a specific `url`. When this is called, the page associated with the url
 along with all of its assigned modules will load and get appended to the DOM. All specified templates, css, data, and scripts
@@ -215,6 +215,14 @@ router.triggerRoute('home').then(function () {
    // home page element has been injected into DOM and active class has been applied
 });
 ```
+
+You can also pass an object of options as the second argument to triggerRoute. Options object can contain the following properties:
+
+| Option | Type | Description |
+|--------|--------|--------|
+| `triggerUrlChange`| Boolean | Whether to actually change the url and fire all associated events. Defaults to `true`.
+| `replace`| Boolean | Set to `true` to replace the current browser url history entry with the new one. Defaults to `false`.
+
 
 ### loadPage(url)
 
