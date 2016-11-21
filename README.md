@@ -25,7 +25,7 @@ Samples of how to use this package can be found in the [examples](examples) fold
 You can install as an npm package if using a build system like [Browserify](http://browserify.org/). 
 
 ```
-npm install route-js --save-dev
+npm install router-js --save-dev
 ```
 
 ## Prerequisites
