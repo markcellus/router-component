@@ -1,12 +1,20 @@
-'use strict';
 module.exports = {
-    dist: 'dist',
     build: {
         files: {
             'dist/router.js': ['src/router.js']
         },
         browserifyOptions: {
-            standalone: 'Router'
+            standalone: 'Router',
+            transform: [
+                [
+                    "babelify",
+                    {
+                        "plugins": [
+                            ["add-module-exports"] //so exports will work for dist file in browsers
+                        ]
+                    }
+                ]
+            ]
         },
         minifyFiles: {
             'dist/router-min.js': ['dist/router.js']

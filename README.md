@@ -20,6 +20,14 @@ As seen on [fallout4.com](http://www.fallout4.com).
 
 Samples of how to use this package can be found in the [examples](examples) folder.
 
+## Installation
+
+You can install as an npm package if using a build system like [Browserify](http://browserify.org/). 
+
+```
+npm install route-js --save-dev
+```
+
 ## Prerequisites
 
 ### Server setup
