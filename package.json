@@ -13,6 +13,9 @@
     "name": "Mark Kennedy",
     "url": "http://heyimmark.com"
   },
+  "engines": {
+    "node": ">=8.9.0"
+  },
   "keywords": [
     "router",
     "routing",
