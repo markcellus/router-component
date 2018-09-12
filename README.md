@@ -75,7 +75,7 @@ your single-page application, which will have your router code. An example of th
 <head>
     <script type="module" src="node_modules/router-js/dist/router.js"></script>
     <script type="module">
-        import { extractParams } from 'node_modules/router-js/dist/router.js'
+        import { extractPathParams } from 'node_modules/router-js/dist/router.js'
         customElements.define('the-first-page', class extends HTMLElement {
               connectedCallback() {
                 // called when "page1/?foo=bar" is requested ("page1/?foo=baz" would work too)
@@ -89,7 +89,7 @@ your single-page application, which will have your router code. An example of th
              // called when "second/page/851/markymark/" is requested
               const url = new URL(window.location);
               const pathPattern = this.getAttribute('path');
-              const [id, username] = extractParams(url.href);
+              const [id, username] = extractPathParams(pathPattern, url.href);
               console.log(id); // 851
               console.log(username); // markymark
            }
