@@ -1,7 +1,7 @@
 {
-  "name": "router-js",
-  "version": "3.9.1",
-  "description": "A simple router for single-page web apps",
+  "name": "router-webcomponent",
+  "version": "0.0.1",
+  "description": "A simple router for web components",
   "repository": {
     "type": "git",
     "url": "git://github.com/mkay581/router-js.git"

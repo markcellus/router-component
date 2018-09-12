@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/mkay581/router-js.svg?branch=master)](https://travis-ci.org/mkay581/router-js)
 
-# Router
+# Router Web Component
 
 A small, declarative router web component for single-page apps that allows you to load pages dynamically when urls 
 are requested without performing a hard reload of the entire web page.
@@ -19,7 +19,7 @@ Samples of how to use this package can be found in the [examples](examples) fold
 ## Installation
 
 ```
-npm i router-js
+npm i router-webcomponent
 ```
 
 ## Prerequisites
@@ -38,7 +38,7 @@ your single-page application, which will have your router code. An example of th
 ```html
 <html>
 <head>
-    <script type="module" src="node_modules/router-js/dist/router.js"></script>
+    <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
     <script type="module">
         customElements.define('first-page', class extends HTMLElement {
           connectedCallback() {
@@ -73,9 +73,9 @@ your single-page application, which will have your router code. An example of th
 ```html
 <html>
 <head>
-    <script type="module" src="node_modules/router-js/dist/router.js"></script>
+    <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
     <script type="module">
-        import { extractPathParams } from 'node_modules/router-js/dist/router.js'
+        import { extractPathParams } from 'node_modules/router-component/dist/router-component.js'
         customElements.define('the-first-page', class extends HTMLElement {
               connectedCallback() {
                 // called when "page1/?foo=bar" is requested ("page1/?foo=baz" would work too)
