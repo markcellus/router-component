@@ -19,7 +19,7 @@ Samples of how to use this package can be found in the [examples](examples) fold
 ## Installation
 
 ```
-npm i router-webcomponent
+npm i router-component
 ```
 
 ## Prerequisites
@@ -58,7 +58,7 @@ your single-page application, which will have your router code. An example of th
     </script>
 </head>
 <body>
-    <router-component on-route-change=${this.handleChange}>
+    <router-component>
         <first-page path="/page1"></first-page>
         <second-page path="/second/view[/]?"></second-page>
         <page-doesnt-exist path="*"></page-doesnt-exist>
@@ -112,7 +112,7 @@ your single-page application, which will have your router code. An example of th
     </script>
 </head>
 <body>
-    <router-component on-route-change=${this.handleChange}>
+    <router-component>
         <the-first-page path="/page1?foo=[bar|baz]"></the-first-page>
         <page-number-too path="second/page/[0-9]/[a-zA-Z]/"></page-number-too>
         <number-tree path="/my/page/3">
