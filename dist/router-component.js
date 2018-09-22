@@ -1,3 +1,11 @@
+/*!
+ * Router-component v0.1.1
+ * https://npm.com/router-component
+ *
+ * Copyright (c) 2018 Mark Kennedy
+ * Licensed under the MIT license
+ */
+
 function __awaiter(thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -67,7 +75,7 @@ class RouterComponent extends HTMLElement {
         }
         if (!element) {
             throw new Error(`Navigated to path "${pathname}" but there is no matching element with a path ` +
-                `that matches. Maybe you should implement a catch-all route with the path attribute of "*"?`);
+                `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`);
         }
         this.appendChild(element);
         // we must wait a few milliseconds for the DOM to resolve
