@@ -1,3 +1,11 @@
+/*!
+ * Router-component v0.1.0
+ * https://npm.com/router-component
+ *
+ * Copyright (c) 2018 Mark Kennedy
+ * Licensed under the MIT license
+ */
+
 function __awaiter(thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
