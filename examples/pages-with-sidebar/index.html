@@ -1,51 +1,25 @@
 <html>
 <head>
     <link rel="stylesheet" href="main.css" />
+    <script type="module" src="../../dist/router-component.js"></script>
+    <script type="module" src="./home-page.js"></script>
+    <script type="module" src="./second-page.js"></script>
+    <script type="module" src="the-sidebar.js"></script>
+
+    <script type="module">
+        // setup link clicks for the sidebar
+        const router = document.querySelector('router-component');
+        const sidebar = document.querySelector('the-sidebar');
+        router.setupLinks(sidebar);
+    </script>
 </head>
 <body>
 
-<!-- create an empty container for all of our pages -->
-<div class="sidebar"></div>
-<div class="pages-container"></div>
-
-<script src="../../dist/router.js"></script>
-<script>
-
-    var modules = {
-        sidebar: {
-            el: document.body.getElementsByClassName('sidebar')[0],
-            template: 'sidebar.hbs',
-            global: true
-        }
-    };
-
-    var pages =  {
-        'my-first-page': {
-            data: {
-                name: 'MyPage'
-            },
-            template: 'my-first-page.hbs',
-            modules: ['sidebar']
-        },
-        'my-second-page': {
-            data: {
-                name: 'MySecondPage'
-            },
-            template: 'my-second-page.hbs',
-            modules: ['sidebar']
-        }
-    };
-
-    var router = new Router({
-        modulesConfig: modules,
-        pagesConfig: pages
-    });
-    router.start();
-    window.addEventListener('DOMContentLoaded', function () {
-        // when page finishes loading, go to first page
-        router.triggerRoute('my-first-page');
-    });
-</script>
+    <the-sidebar></the-sidebar>
+    <router-component>
+        <second-page path="page/2"></second-page>
+        <home-page path="*"></home-page>
+    </router-component>
 
 </body>
 </html>

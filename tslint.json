@@ -27,7 +27,8 @@
     ],
     "max-line-length": false,
     "interface-name": [true, "never-prefix"],
-    "ordered-imports": false
+    "ordered-imports": false,
+    "curly": false
   },
   "rulesDirectory": []
 }

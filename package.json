@@ -4,15 +4,12 @@
   "description": "A simple router for web components",
   "repository": {
     "type": "git",
-    "url": "git://github.com/mkay581/router-js.git"
+    "url": "git://github.com/mkay581/router-component.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "author": {
-    "name": "Mark Kennedy",
-    "url": "http://heyimmark.com"
-  },
+  "author": "Mark Kennedy <mark@heyimmark.com> (heyimmark.com)",
   "engines": {
     "node": ">=8.9.0"
   },
@@ -27,13 +24,12 @@
     "polymer router"
   ],
   "license": "MIT",
-  "main": "dist/router.js",
-  "types": "src/router.ts",
+  "main": "dist/router-component.js",
+  "types": "src/router-component.ts",
   "devDependencies": {
     "@types/youtube": "0.0.34",
     "banner-cli": "0.11.1",
     "chai": "^4.1.2",
-    "eslint": "^5.5.0",
     "karma": "^3.0.0",
     "karma-chai": "^0.1.0",
     "karma-chrome-launcher": "^2.2.0",
@@ -43,7 +39,6 @@
     "rollup": "^0.65.2",
     "rollup-plugin-node-resolve": "^3.4.0",
     "rollup-plugin-typescript": "^0.8.1",
-    "sinon": "^6.2.0",
     "tslint": "^5.11.0",
     "typescript": "^3.0.3",
     "uglify-es": "^3.3.9"
@@ -52,10 +47,10 @@
     "test": "karma start karma.conf.js && tslint src/**/*",
     "test-server": "karma start karma.conf.js --single-run=false",
     "preversion": "npm test",
-    "minify": "uglifyjs dist/router.js -o dist/router.min.js",
+    "minify": "uglifyjs dist/router-component.js -o dist/router-component.min.js",
     "build-dist": "rm -rf dist/* && rollup -c && npm run minify",
     "version": "npm run build-dist && banner-cli dist/*.js && git add -A dist",
     "postversion": "git push && git push --tags",
-    "start-dev": "rollup -c --watch"
+    "start": "rollup -c --watch"
   }
 }

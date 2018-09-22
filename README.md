@@ -25,11 +25,8 @@ npm i router-component
 ## Prerequisites
 
 This library assumes you are using a browser that supports [Web Components](https://www.webcomponents.org/introduction). 
-They are the future of the web and are already implemented natively in browsers. So if you aren't already using them, 
-you probably should. 
-
-Before using this package, make sure your server is setup to have all your page URIs to point to the root index.html page of
-your single-page application, which will have your router code. An example of the index.html is below.
+and that you are using them as your routed elements. They are the future of the web and are already implemented 
+natively in browsers.
 
 ## Usage
 
@@ -129,8 +126,14 @@ your single-page application, which will have your router code. An example of th
 
 To run tests:
 
-```
+```bash
 npm test
+```
+
+To debug and run locally:
+
+```bash
+npm start
 ```
 
 

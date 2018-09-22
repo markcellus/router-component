@@ -2,15 +2,7 @@ body {
     display: flex;
 }
 
-.page {
-    display: none;
-}
-
-.page-active {
-    display: block;
-}
-
-.sidebar {
+the-sidebar {
     background: rgb(211, 211, 211);
     width: 190px;
     display: flex;
