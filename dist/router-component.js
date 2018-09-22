@@ -1,11 +1,3 @@
-/*!
- * Router-component v0.1.0
- * https://npm.com/router-component
- *
- * Copyright (c) 2018 Mark Kennedy
- * Licensed under the MIT license
- */
-
 function __awaiter(thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -41,16 +33,17 @@ class RouterComponent extends HTMLElement {
         window.addEventListener('popstate', this.changedUrlListener);
         this.show(this.location.pathname);
     }
-    get directory() {
-        const { pathname } = this.location;
+    get basePath() {
+        let { pathname } = this.location;
+        if (pathname === '/') {
+            pathname = `/${pathname.replace(/^\//, '')}`;
+        }
         return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
     }
     matchPathWithRegex(pathname = '', regex) {
-        const { directory } = this;
         if (pathname === '/') {
-            pathname = `${directory}${pathname.replace(/^\//, '')}`;
+            pathname = `${this.basePath}${pathname.replace(/^\//, '')}`;
         }
-        regex = `${directory}${regex.replace(/^\//, '')}`;
         return pathname.match(regex);
     }
     getRouteElementByPath(pathname) {

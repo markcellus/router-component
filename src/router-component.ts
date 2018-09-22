@@ -27,17 +27,18 @@ export class RouterComponent extends HTMLElement {
         this.show(this.location.pathname);
     }
 
-    get directory(): string {
-        const { pathname} = this.location;
+    get basePath() {
+        let { pathname} = this.location;
+        if (pathname === '/') {
+            pathname = `/${pathname.replace(/^\//, '')}`;
+        }
         return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
     }
 
     matchPathWithRegex(pathname: string = '', regex: string): RegExpMatchArray {
-        const { directory } = this;
         if (pathname === '/') {
-            pathname = `${directory}${pathname.replace(/^\//, '')}`;
+            pathname = `${this.basePath}${pathname.replace(/^\//, '')}`;
         }
-        regex = `${directory}${regex.replace(/^\//, '')}`;
         return pathname.match(regex);
     }
 
@@ -63,7 +64,7 @@ export class RouterComponent extends HTMLElement {
 
         if (!element) {
             throw new Error(`Navigated to path "${pathname}" but there is no matching element with a path ` +
-                `that matches. Maybe you should implement a catch-all route with the path attribute of "*"?`)
+                `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`)
         }
         this.appendChild(element);
 

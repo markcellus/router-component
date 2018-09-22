@@ -28,6 +28,10 @@ This library assumes you are using a browser that supports [Web Components](http
 and that you are using them as your routed elements. They are the future of the web and are already implemented 
 natively in browsers.
 
+For advanced usage of this library, you will need to know
+[Regular Expressions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions) and how 
+they work in JavaScript.
+
 ## Usage
 
 ### Basic Example
@@ -58,7 +62,7 @@ natively in browsers.
     <router-component>
         <first-page path="/page1"></first-page>
         <second-page path="/second/view[/]?"></second-page>
-        <page-doesnt-exist path="*"></page-doesnt-exist>
+        <page-doesnt-exist path=".*"></page-doesnt-exist>
     </router-component>
 </body>
 </html>
@@ -115,12 +119,21 @@ natively in browsers.
         <number-tree path="/my/page/3">
             <sub-page path="deeper/page"></sub-page>
         </number-tree>
-        <four-oh-four-page path="*"></four-oh-four-page>
+        <four-oh-four-page path=".*"></four-oh-four-page>
     </router-component>
 </body>
 </html>
 
 ```
+
+
+## API
+
+Each child element of `<router-component>` should be a WebComponent (extend CustomElement) and can be passed the following attributes:
+
+| Option | Type | Description |
+|--------|--------|--------|
+| `path`| String | A regex expression that the browser URL needs to match in order for the component to render
 
 ## Development
 

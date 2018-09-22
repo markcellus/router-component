@@ -24,7 +24,7 @@ describe('Router Component', function () {
             }
         });
         component.innerHTML = `
-            <first-page path="*"></first-page>
+            <first-page path=".*"></first-page>
         `;
         document.body.appendChild(component);
         const firstPage = document.body.querySelector('first-page');
@@ -105,7 +105,7 @@ describe('Router Component', function () {
         document.body.appendChild(component);
         const newPath = 'nope';
         assert.throws(() => component.show(newPath), Error, `Navigated to path "${newPath}" but there is no matching ` +
-            `element with a path that matches. Maybe you should implement a catch-all route with the path attribute of "*"?`);
+            `element with a path that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`);
         component.remove();
     });
 
@@ -224,7 +224,7 @@ describe('Router Component', function () {
             <first-page path="/page1">
                 <a href="/">To fallback page</a>
             </first-page>
-            <fallback-page path="*"></fallback-page>
+            <fallback-page path=".*"></fallback-page>
         `;
         document.body.appendChild(component);
         const firstPageLink = document.querySelector('first-page a');
