@@ -8,6 +8,7 @@ export class RouterComponent extends HTMLElement {
     private fragment: DocumentFragment;
     private changedUrlListener: () => void;
     private routeElements: Set<Element> = new Set();
+    private clickedLinkListener: () => void;
 
     changedUrl(e: PopStateEvent) {
         const { pathname } = this.location;
@@ -71,12 +72,13 @@ export class RouterComponent extends HTMLElement {
         // we must wait a few milliseconds for the DOM to resolve
         // or links wont be setup correctly
         const timer = setTimeout(async () => {
-            this.setupLinks(element);
+            this.bindLinks(element);
             clearTimeout(timer);
         }, 200);
 
         if (this.shownPage) {
             this.fragment.appendChild(this.shownPage);
+            this.unbindLinks(this.shownPage);
         }
         this.shownPage = element;
     }
@@ -93,18 +95,33 @@ export class RouterComponent extends HTMLElement {
         window.removeEventListener('popstate', this.changedUrlListener);
         this.routeElements.clear();
     }
+    
+    clickedLink(e) {
+        const link = e.target;
+        if (link.origin === this.location.origin) {
+            e.preventDefault();
+            const popStateEvent = new PopStateEvent('popstate', {});
+            window.history.pushState({}, document.title, link.pathname);
+            window.dispatchEvent(popStateEvent);
+        }
+    }
 
-    setupLinks(element: Element) {
+    bindLinks(element: Element) {
         const links: NodeListOf<HTMLAnchorElement> = element.querySelectorAll('a');
         // TODO: dont stop at just the first level shadow root
         const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
+        this.clickedLinkListener = this.clickedLink.bind(this);
         [...links, ...shadowLinks].forEach((link) => {
-            link.addEventListener('click', (e) => {
-                if (link.origin === window.location.origin) {
-                    e.preventDefault();
-                    this.show(link.pathname);
-                }
-            });
+            link.addEventListener('click', this.clickedLinkListener);
+        });
+    }
+    
+    unbindLinks(element: Element) {
+        const links: NodeListOf<HTMLAnchorElement> = element.querySelectorAll('a');
+        const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
+        this.clickedLinkListener = this.clickedLink.bind(this);
+        [...links, ...shadowLinks].forEach((link) => {
+            link.removeEventListener('click', this.clickedLinkListener);
         });
     }
 
