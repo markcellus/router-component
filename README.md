@@ -1,20 +1,17 @@
 [![Build Status](https://travis-ci.org/mkay581/router-js.svg?branch=master)](https://travis-ci.org/mkay581/router-js)
 
-# Router Web Component
+# Router Component
 
-A small, declarative router web component for single-page apps that allows you to load pages dynamically when urls 
-are requested without performing a hard reload of the entire web page.
+A small, declarative router component for single-page apps that allows you to load web pages (or any web component) 
+dynamically when urls are requested, without performing a hard reload of the entire page.
 
 ## Benefits
 
-* Very lightweight and no dependencies -- only provides routing needs and nothing more
-* Declaritive syntax, no configuration file needed
+* Very lightweight (there is very little code in this library)
+* No dependencies -- only provides routing needs and nothing more
+* Easy, declarative html syntax -- no complex configuration files or routing engines
 * Automatically intercepts all `<a>` tags on a page (that contain relative `href`s) to prevent them from causing page
 reloads, which use [pushState()](http://w3c.github.io/html/browsers.html#dom-history-pushstate) API.
-
-## Examples
-
-Samples of how to use this package can be found in the [examples](examples) folder.
 
 ## Installation
 
@@ -35,6 +32,8 @@ they work in JavaScript.
 ## Usage
 
 ### Basic Example
+
+Code samples showing how to use this package can be found in the [examples](examples) folder, but here is a basic example.
 
 ```html
 <html>
@@ -69,71 +68,17 @@ they work in JavaScript.
 
 ```
 
-### Advanced Example
-
-```html
-<html>
-<head>
-    <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
-    <script type="module">
-        import { extractPathParams } from 'node_modules/router-component/dist/router-component.js'
-        customElements.define('the-first-page', class extends HTMLElement {
-              connectedCallback() {
-                // called when "page1/?foo=bar" is requested ("page1/?foo=baz" would work too)
-                const url = new URL(window.location);
-                const paramValue = url.searchParams.get('foo');
-                console.log(paramValue); // bar
-              }
-            }); 
-        customElements.define('page-number-too',  class extends HTMLElement {
-           connectedCallback() {
-             // called when "second/page/851/markymark/" is requested
-              const url = new URL(window.location);
-              const pathPattern = this.getAttribute('path');
-              const [id, username] = extractPathParams(pathPattern, url.href);
-              console.log(id); // 851
-              console.log(username); // markymark
-           }
-         }); 
-        customElements.define('number-tree', class extends HTMLElement {
-           connectedCallback() {
-              console.log(window.location.pathname); // "/my/page/3"
-           }
-         }); 
-        customElements.define('sub-page', class extends HTMLElement {
-            connectedCallback() {
-               console.log(window.location.pathname); // "/my/page/3/deeper/page"
-            }
-          }); 
-        customElements.define('', class {
-           connectedCallback() {
-                this.innerHTML = `<p>Wrong page, go to <a href="/page?foo=bar">first page</a></p>`;
-           }
-         }); 
-    </script>
-</head>
-<body>
-    <router-component>
-        <the-first-page path="/page1?foo=[bar|baz]"></the-first-page>
-        <page-number-too path="second/page/[0-9]/[a-zA-Z]/"></page-number-too>
-        <number-tree path="/my/page/3">
-            <sub-page path="deeper/page"></sub-page>
-        </number-tree>
-        <four-oh-four-page path=".*"></four-oh-four-page>
-    </router-component>
-</body>
-</html>
-
-```
-
 
 ## API
 
-Each child element of `<router-component>` should be a WebComponent (extend CustomElement) and can be passed the following attributes:
+Each child element of `<router-component>` should be extend 
+[CustomElement](https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements) so that the following attributes
+can be passed to them:
 
 | Option | Type | Description |
 |--------|--------|--------|
-| `path`| String | A regex expression that the browser URL needs to match in order for the component to render
+| `path`| String | A regex expression that the browser URL needs to match in order for the component to render. Capture groups are also supported to allow for dynamic parameters in URLs.
+| `search-params`| String | A search string regex that the requested page would need to have in order to match. Setting this value to `foo=[bar|baz]` would match `index.html?foo=bar` for instance)
 
 ## Development
 

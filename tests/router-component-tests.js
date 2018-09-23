@@ -1,4 +1,4 @@
-import '../src/router-component';
+import {extractPathParams} from '../src/router-component';
 import '../node_modules/chai/chai.js';
 import sinon from '../node_modules/sinon/pkg/sinon-esm.js';
 
@@ -14,10 +14,12 @@ describe('Router Component', function () {
         window.history.pushState.restore();
     });
 
-    it('should remove all children from the dom when instantiated', function () {
+    it('should remove all children from the dom when instantiated if none match the current route', function () {
         const component = document.createElement('router-component');
         Object.defineProperty(component, 'location', {
-            value: {}
+            value: {
+                pathname: '/'
+            }
         });
         component.innerHTML = '<first-page path="/page1"></first-page>';
         document.body.appendChild(component);
@@ -41,6 +43,39 @@ describe('Router Component', function () {
         component.remove();
     });
 
+    it('should show the / route when initial window location is a file name', function () {
+        const component = document.createElement('router-component');
+        Object.defineProperty(component, 'location', {
+            value: {
+                pathname: '/blah.html'
+            }
+        });
+        component.innerHTML = `
+            <first-page path="/"></first-page>
+        `;
+        document.body.appendChild(component);
+        const firstPage = document.body.querySelector('first-page');
+        assert.deepEqual(firstPage.parentElement, component);
+        component.remove();
+    });
+
+    it('should show / route when initial window location is a path with a file name', function () {
+        const component = document.createElement('router-component');
+        const dir = 'this/is/a/deep/path/with/a/';
+        Object.defineProperty(component, 'location', {
+            value: {
+                pathname: `${dir}file.html`
+            }
+        });
+        component.innerHTML = `
+            <first-page path="/"></first-page>
+        `;
+        document.body.appendChild(component);
+        const firstPage = document.body.querySelector('first-page');
+        assert.deepEqual(firstPage.parentElement, component);
+        component.remove();
+    });
+
     it('should show the route that has a relative path that matches the end of the initial window location pathnname', function () {
         const component = document.createElement('router-component');
         Object.defineProperty(component, 'location', {
@@ -54,6 +89,39 @@ describe('Router Component', function () {
         document.body.appendChild(component);
         const firstPage = document.body.querySelector('first-page');
         assert.deepEqual(firstPage.parentElement, component);
+        component.remove();
+    });
+
+    it('should show the route whose path and search params matches the current window location and its search params ', function () {
+        const component = document.createElement('router-component');
+        Object.defineProperty(component, 'location', {
+            value: {
+                pathname: '/page1',
+                search: '?foo=bar'
+            }
+        });
+        component.innerHTML = `
+            <first-page path="page1" search-params="foo=bar"></first-page>
+        `;
+        document.body.appendChild(component);
+        const firstPage = document.body.querySelector('first-page');
+        assert.deepEqual(firstPage.parentElement, component);
+        component.remove();
+    });
+
+    it('should show the route whose path and search params regex matches the current window location and its search params ', function () {
+        const component = document.createElement('router-component');
+        Object.defineProperty(component, 'location', {
+            value: {
+                pathname: '/page1',
+                search: '?foo=baz'
+            }
+        });
+        component.innerHTML = `
+            <first-page path="page1" search-params="foo=[bar|baz]"></first-page>
+        `;
+        document.body.appendChild(component);
+        assert.ok(document.body.querySelector('first-page'));
         component.remove();
     });
 
@@ -277,6 +345,14 @@ describe('Router Component', function () {
             clearTimeout(timer);
             done();
         }, 201);
+    });
+
+    describe('extractPathParams', function () {
+        it('returns the captured groups of the string with the supplied regex', function () {
+            const testPath = 'test';
+            const id = '8';
+            assert.deepEqual(extractPathParams('([a-z]+)/([0-9])', `${testPath}/${id}`), [testPath, id]);
+        });
     });
 
 

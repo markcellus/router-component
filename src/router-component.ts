@@ -1,5 +1,14 @@
 export function extractPathParams(pattern: string, path: string): string[] {
-    return [];
+    const regex = new RegExp(pattern);
+    const matches = regex.exec(path);
+    if (!matches) {
+        return [];
+    } else {
+        const groups = [...matches];
+        // remove first result since its not a capture group
+        groups.shift();
+        return groups;
+    }
 }
 
 export class RouterComponent extends HTMLElement {
@@ -25,20 +34,25 @@ export class RouterComponent extends HTMLElement {
         }
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
-        this.show(this.location.pathname);
+        let path = this.location.pathname;
+        if (this.directory !== '/') {
+            path = `/${this.filename}`;
+        }
+        this.show(path);
     }
 
-    get basePath() {
-        let { pathname} = this.location;
-        if (pathname === '/') {
-            pathname = `/${pathname.replace(/^\//, '')}`;
-        }
+    get filename(): string {
+        return this.location.pathname.replace(this.directory, '');
+    }
+
+    get directory(): string {
+        const { pathname} = this.location;
         return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
     }
 
     matchPathWithRegex(pathname: string = '', regex: string): RegExpMatchArray {
-        if (pathname === '/') {
-            pathname = `${this.basePath}${pathname.replace(/^\//, '')}`;
+        if (!pathname.startsWith('/')) {
+            pathname = `${this.directory}${pathname.replace(/^\//, '')}`;
         }
         return pathname.match(regex);
     }
@@ -47,7 +61,12 @@ export class RouterComponent extends HTMLElement {
         let element: Element;
         if (!pathname) return;
         for (const child of this.routeElements) {
-            if (this.matchPathWithRegex(pathname, child.getAttribute('path'))) {
+            let path = pathname;
+            const search = child.getAttribute('search-params');
+            if (search) {
+                path = `${pathname}?${search}`;
+            }
+            if (this.matchPathWithRegex(path, child.getAttribute('path'))) {
                 element = child;
                 break;
             }
@@ -101,7 +120,7 @@ export class RouterComponent extends HTMLElement {
         if (link.origin === this.location.origin) {
             e.preventDefault();
             const popStateEvent = new PopStateEvent('popstate', {});
-            window.history.pushState({}, document.title, link.pathname);
+            window.history.pushState({}, document.title, `${link.pathname}${link.search}`);
             window.dispatchEvent(popStateEvent);
         }
     }

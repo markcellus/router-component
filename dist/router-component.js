@@ -1,11 +1,3 @@
-/*!
- * Router-component v0.1.2
- * https://npm.com/router-component
- *
- * Copyright (c) 2018 Mark Kennedy
- * Licensed under the MIT license
- */
-
 function __awaiter(thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -16,7 +8,17 @@ function __awaiter(thisArg, _arguments, P, generator) {
 }
 
 function extractPathParams(pattern, path) {
-    return [];
+    const regex = new RegExp(pattern);
+    const matches = regex.exec(path);
+    if (!matches) {
+        return [];
+    }
+    else {
+        const groups = [...matches];
+        // remove first result since its not a capture group
+        groups.shift();
+        return groups;
+    }
 }
 class RouterComponent extends HTMLElement {
     constructor(...args) {
@@ -39,18 +41,18 @@ class RouterComponent extends HTMLElement {
         }
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
-        this.show(this.location.pathname);
+        this.show('/');
     }
-    get basePath() {
-        let { pathname } = this.location;
-        if (pathname === '/') {
-            pathname = `/${pathname.replace(/^\//, '')}`;
-        }
+    get directory() {
+        const { pathname } = this.location;
         return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
     }
+    get filename() {
+        return this.location.pathname.replace(this.directory, '');
+    }
     matchPathWithRegex(pathname = '', regex) {
-        if (pathname === '/') {
-            pathname = `${this.basePath}${pathname.replace(/^\//, '')}`;
+        if (!pathname.startsWith('/')) {
+            pathname = `${this.directory}${pathname.replace(/^\//, '')}`;
         }
         return pathname.match(regex);
     }
@@ -59,7 +61,12 @@ class RouterComponent extends HTMLElement {
         if (!pathname)
             return;
         for (const child of this.routeElements) {
-            if (this.matchPathWithRegex(pathname, child.getAttribute('path'))) {
+            let path = pathname;
+            const search = child.getAttribute('search-params');
+            if (search) {
+                path = `${pathname}?${search}`;
+            }
+            if (this.matchPathWithRegex(path, child.getAttribute('path'))) {
                 element = child;
                 break;
             }
@@ -105,7 +112,7 @@ class RouterComponent extends HTMLElement {
         if (link.origin === this.location.origin) {
             e.preventDefault();
             const popStateEvent = new PopStateEvent('popstate', {});
-            window.history.pushState({}, document.title, link.pathname);
+            window.history.pushState({}, document.title, `${link.pathname}${link.search}`);
             window.dispatchEvent(popStateEvent);
         }
     }
