@@ -1,3 +1,11 @@
+/*!
+ * Router-component v0.2.0
+ * https://npm.com/router-component
+ *
+ * Copyright (c) 2018 Mark Kennedy
+ * Licensed under the MIT license
+ */
+
 function __awaiter(thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -41,14 +49,18 @@ class RouterComponent extends HTMLElement {
         }
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
-        this.show('/');
+        let path = this.location.pathname;
+        if (this.directory !== '/') {
+            path = `/${this.filename}`;
+        }
+        this.show(path);
+    }
+    get filename() {
+        return this.location.pathname.replace(this.directory, '');
     }
     get directory() {
         const { pathname } = this.location;
         return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
-    }
-    get filename() {
-        return this.location.pathname.replace(this.directory, '');
     }
     matchPathWithRegex(pathname = '', regex) {
         if (!pathname.startsWith('/')) {
