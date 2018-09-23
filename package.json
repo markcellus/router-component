@@ -1,6 +1,6 @@
 {
   "name": "router-component",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A simple router for web components",
   "repository": {
     "type": "git",

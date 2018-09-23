@@ -1,3 +1,11 @@
+/*!
+ * Router-component v0.1.2
+ * https://npm.com/router-component
+ *
+ * Copyright (c) 2018 Mark Kennedy
+ * Licensed under the MIT license
+ */
+
 function __awaiter(thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -73,11 +81,12 @@ class RouterComponent extends HTMLElement {
         // we must wait a few milliseconds for the DOM to resolve
         // or links wont be setup correctly
         const timer = setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-            this.setupLinks(element);
+            this.bindLinks(element);
             clearTimeout(timer);
         }), 200);
         if (this.shownPage) {
             this.fragment.appendChild(this.shownPage);
+            this.unbindLinks(this.shownPage);
         }
         this.shownPage = element;
     }
@@ -91,19 +100,30 @@ class RouterComponent extends HTMLElement {
         window.removeEventListener('popstate', this.changedUrlListener);
         this.routeElements.clear();
     }
-    setupLinks(element) {
+    clickedLink(e) {
+        const link = e.target;
+        if (link.origin === this.location.origin) {
+            e.preventDefault();
+            const popStateEvent = new PopStateEvent('popstate', {});
+            window.history.pushState({}, document.title, link.pathname);
+            window.dispatchEvent(popStateEvent);
+        }
+    }
+    bindLinks(element) {
         const links = element.querySelectorAll('a');
         // TODO: dont stop at just the first level shadow root
         const shadowLinks = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
+        this.clickedLinkListener = this.clickedLink.bind(this);
         [...links, ...shadowLinks].forEach((link) => {
-            link.addEventListener('click', (e) => {
-                if (link.origin === window.location.origin) {
-                    e.preventDefault();
-                    const popStateEvent = new PopStateEvent('popstate', {});
-                    window.history.pushState({}, document.title, link.pathname);
-                    window.dispatchEvent(popStateEvent);
-                }
-            });
+            link.addEventListener('click', this.clickedLinkListener);
+        });
+    }
+    unbindLinks(element) {
+        const links = element.querySelectorAll('a');
+        const shadowLinks = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
+        this.clickedLinkListener = this.clickedLink.bind(this);
+        [...links, ...shadowLinks].forEach((link) => {
+            link.removeEventListener('click', this.clickedLinkListener);
         });
     }
 }
