@@ -36,33 +36,40 @@ they work in JavaScript.
 Code samples showing how to use this package can be found in the [examples](examples) folder, but here is a basic example.
 
 ```html
+<!-- index.html -->
 <html>
 <head>
     <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
     <script type="module">
         customElements.define('first-page', class extends HTMLElement {
-          connectedCallback() {
-            console.log(window.location.pathname); // "/page1"
-          }
-        }); 
+            connectedCallback() {
+                this.innerHTML = `
+                    Navigated to ${window.location.pathname} <br />` + //"/"
+                    `Go to <a href="/second/view">second page</a>.`
+                ;
+            }
+        });
         customElements.define('second-page', class extends HTMLElement {
-           connectedCallback() {
-              console.log(window.location.pathname); // "/second/view" OR "/second/view/"
-           }
-         }); 
+            connectedCallback() {
+                this.innerHTML = `
+                    Navigated to ${window.location.pathname} <br />` + // "/second/view" OR "/second/view/"
+                    `Go to <a href="/doesnt/work">a page that doesnt exist</a>.`
+                ;
+            }
+        });
         customElements.define('page-doesnt-exist', class extends HTMLElement {
-           connectedCallback() {
-              this.innerHTML = `<p>Wrong page, go to <a href="/page1">first page</a></p>`;
-           }
-         }); 
+            connectedCallback() {
+                this.innerHTML = `<p>Wrong page, go to <a href="/">first page again</a></p>`;
+            }
+        });
     </script>
 </head>
 <body>
-    <router-component>
-        <first-page path="/page1"></first-page>
-        <second-page path="/second/view[/]?"></second-page>
-        <page-doesnt-exist path=".*"></page-doesnt-exist>
-    </router-component>
+<router-component>
+    <first-page path="^/(index.html)?$"></first-page>
+    <second-page path="/second/view[/]?"></second-page>
+    <page-doesnt-exist path=".*"></page-doesnt-exist>
+</router-component>
 </body>
 </html>
 
@@ -71,14 +78,14 @@ Code samples showing how to use this package can be found in the [examples](exam
 
 ## API
 
-Each child element of `<router-component>` should be extend 
+Each child element of `<router-component>` should extend 
 [CustomElement](https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements) so that the following attributes
 can be passed to them:
 
 | Option | Type | Description |
 |--------|--------|--------|
 | `path`| String | A regex expression that the browser URL needs to match in order for the component to render. Capture groups are also supported to allow for dynamic parameters in URLs.
-| `search-params`| String | A search string regex that the requested page would need to have in order to match. Setting this value to `foo=[bar|baz]` would match `index.html?foo=bar` for instance)
+| `search-params`| String | A search string regex that the requested page would need to have in order to match. Setting this value to `foo=[bar\|baz]` would match `index.html?foo=bar` for instance)
 
 ## Development
 
