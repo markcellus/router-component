@@ -19,12 +19,8 @@ export class RouterComponent extends HTMLElement {
     private routeElements: Set<Element> = new Set();
     private clickedLinkListener: () => void;
 
-    changedUrl(e: PopStateEvent) {
-        const { pathname } = this.location;
-        if (this.shownPage.getAttribute('path') === pathname) return;
-        this.show(pathname);
-    }
-    connectedCallback() {
+    constructor() {
+        super();
         this.fragment = document.createDocumentFragment();
         const children: HTMLCollection = this.children;
         while (children.length > 0) {
@@ -32,6 +28,15 @@ export class RouterComponent extends HTMLElement {
             this.routeElements.add(element);
             this.fragment.appendChild(element);
         }
+    }
+
+    changedUrl(e: PopStateEvent) {
+        const { pathname } = this.location;
+        if (this.shownPage.getAttribute('path') === pathname) return;
+        this.show(pathname);
+    }
+
+    connectedCallback() {
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
         let path = this.location.pathname;
