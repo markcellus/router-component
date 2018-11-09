@@ -1,5 +1,5 @@
 /*!
- * Router-component v0.2.0
+ * Router-component v0.2.1
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
@@ -29,9 +29,16 @@ function extractPathParams(pattern, path) {
     }
 }
 class RouterComponent extends HTMLElement {
-    constructor(...args) {
-        super(...args);
+    constructor() {
+        super();
         this.routeElements = new Set();
+        this.fragment = document.createDocumentFragment();
+        const children = this.children;
+        while (children.length > 0) {
+            const [element] = children;
+            this.routeElements.add(element);
+            this.fragment.appendChild(element);
+        }
     }
     changedUrl(e) {
         const { pathname } = this.location;
@@ -40,13 +47,6 @@ class RouterComponent extends HTMLElement {
         this.show(pathname);
     }
     connectedCallback() {
-        this.fragment = document.createDocumentFragment();
-        const children = this.children;
-        while (children.length > 0) {
-            const [element] = children;
-            this.routeElements.add(element);
-            this.fragment.appendChild(element);
-        }
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
         let path = this.location.pathname;
