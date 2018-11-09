@@ -1,5 +1,5 @@
 /*!
- * Router-component v0.2.2
+ * Router-component v0.2.3
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
@@ -60,7 +60,7 @@ class RouterComponent extends HTMLElement {
             };
         });
         let path = this.location.pathname;
-        if (this.directory !== '/') {
+        if (this.extension && this.directory !== '/') {
             path = `/${this.filename}`;
         }
         this.show(path);
@@ -71,6 +71,14 @@ class RouterComponent extends HTMLElement {
     get directory() {
         const { pathname } = this.location;
         return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
+    }
+    get extension() {
+        const { pathname } = this.location;
+        const frags = pathname.split('.');
+        if (frags.length <= 1) {
+            return '';
+        }
+        return frags[frags.length - 1];
     }
     matchPathWithRegex(pathname = '', regex) {
         if (!pathname.startsWith('/')) {
