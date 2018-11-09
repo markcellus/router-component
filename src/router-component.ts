@@ -120,8 +120,8 @@ export class RouterComponent extends HTMLElement {
         this.routeElements.clear();
     }
     
-    clickedLink(e) {
-        const link = e.target;
+    clickedLink(e: MouseEvent) {
+        const link = e.target as HTMLAnchorElement;
         if (link.origin === this.location.origin) {
             e.preventDefault();
             const popStateEvent = new PopStateEvent('popstate', {});
