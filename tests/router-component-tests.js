@@ -6,14 +6,6 @@ const { assert } = chai;
 
 describe('Router Component', function () {
 
-    beforeEach(() => {
-        sinon.stub(window.history, 'pushState');
-    });
-
-    afterEach(() => {
-        window.history.pushState.restore();
-    });
-
     it('should remove all children from the dom when instantiated if none match the current route', function () {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
@@ -22,11 +14,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/'
-            }
-        });
+        window.history.pushState({}, document.title, '/');
         document.body.appendChild(tpl.content);
         assert.ok(!document.body.querySelector('first-page'));
         component.remove();
@@ -54,11 +42,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/blah.html'
-            }
-        });
+        window.history.pushState({}, document.title, '/blah.html');
         document.body.appendChild(tpl.content);
         const firstPage = document.body.querySelector('first-page');
         assert.deepEqual(firstPage.parentElement, component);
@@ -74,11 +58,7 @@ describe('Router Component', function () {
         `;
         const component = tpl.content.querySelector('router-component');
         const dir = 'this/is/a/deep/path/with/a/';
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: `${dir}file.html`
-            }
-        });
+        window.history.pushState({}, document.title, `${dir}file.html`);
         document.body.appendChild(tpl.content);
         const firstPage = document.body.querySelector('first-page');
         assert.deepEqual(firstPage.parentElement, component);
@@ -93,11 +73,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/test/path/page1'
-            }
-        });
+        window.history.pushState({}, document.title, '/test/path/page1');
         document.body.appendChild(tpl.content);
         const firstPage = document.body.querySelector('first-page');
         assert.deepEqual(firstPage.parentElement, component);
@@ -112,12 +88,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1',
-                search: '?foo=bar'
-            }
-        });
+        window.history.pushState({}, document.title, '/page1?foo=bar');
         document.body.appendChild(tpl.content);
         const firstPage = document.body.querySelector('first-page');
         assert.deepEqual(firstPage.parentElement, component);
@@ -132,12 +103,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1',
-                search: '?foo=baz'
-            }
-        });
+        window.history.pushState({}, document.title, '/page1?foo=baz');
         document.body.appendChild(tpl.content);
         assert.ok(document.body.querySelector('first-page'));
         component.remove();
@@ -152,11 +118,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1'
-            }
-        });
+        window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
         const firstPage = document.body.querySelector('first-page');
         assert.deepEqual(firstPage.parentElement, component);
@@ -173,14 +135,9 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1'
-            },
-            configurable: true
-        });
+        window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
-        component.location.pathname = '/page2';
+        window.history.pushState({}, document.title, '/page2');
         const popstate = new PopStateEvent('popstate', { state: {} });
         window.dispatchEvent(popstate);
         assert.ok(!document.body.querySelector('first-page'));
@@ -197,11 +154,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1'
-            },
-        });
+        window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
         const newPath = 'nope';
         assert.throws(() => component.show(newPath), Error, `Navigated to path "${newPath}" but there is no matching ` +
@@ -218,11 +171,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1'
-            }
-        });
+        window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
         assert.ok(!document.body.querySelector('first-page'));
         assert.ok(document.body.querySelector('second-page'));
@@ -239,9 +188,7 @@ describe('Router Component', function () {
         `;
         const component = tpl.content.querySelector('router-component');
         const pathname = '/page1';
-        Object.defineProperty(component, 'location', {
-            value: {pathname},
-        });
+        window.history.pushState({}, document.title, pathname);
         document.body.appendChild(tpl.content);
         assert.doesNotThrow(() => component.show(pathname));
         assert.ok(document.body.querySelector('first-page'));
@@ -258,9 +205,7 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {pathname: '/page'},
-        });
+        window.history.pushState({}, document.title, '/page');
         document.body.appendChild(tpl.content);
         // showing first page
         assert.doesNotThrow(() => component.show('/page/2'));
@@ -280,19 +225,11 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1',
-                origin: window.location.origin
-            },
-            configurable: true
-        });
         document.body.appendChild(tpl.content);
+        window.history.pushState({}, document.title, '/page1');
         const firstPageLink = document.querySelector('first-page a');
         const timer = setTimeout(() => {
-            component.location.pathname = '/page2';
             firstPageLink.click();
-            assert.deepEqual(window.history.pushState.args[0], [{}, document.title, '/page2']);
             assert.ok(!document.body.querySelector('first-page'));
             assert.ok(document.body.querySelector('second-page'));
             component.remove();
@@ -312,18 +249,11 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1',
-                origin: window.location.origin
-            },
-        });
+        window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
         const firstPageLink = document.querySelector('first-page a');
         const timer = setTimeout(() => {
-            component.location.pathname = '/';
             firstPageLink.click();
-            assert.deepEqual(window.history.pushState.args[0], [{}, document.title, '/']);
             assert.ok(!document.body.querySelector('first-page'));
             assert.ok(document.body.querySelector('home-page'));
             component.remove();
@@ -343,18 +273,11 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1',
-                origin: window.location.origin
-            },
-        });
         document.body.appendChild(tpl.content);
+        window.history.pushState({}, document.title, '/page1');
         const firstPageLink = document.querySelector('first-page a');
         const timer = setTimeout(() => {
-            component.location.pathname = '/';
             firstPageLink.click();
-            assert.deepEqual(window.history.pushState.args[0], [{}, document.title, '/']);
             assert.ok(!document.body.querySelector('first-page'));
             assert.ok(document.body.querySelector('fallback-page'));
             component.remove();
@@ -374,25 +297,59 @@ describe('Router Component', function () {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
-        Object.defineProperty(component, 'location', {
-            value: {
-                pathname: '/page1',
-                origin: window.location.origin
-            },
-        });
+        window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
         const firstPageLink = document.querySelector('first-page a');
         const timer = setTimeout(() => {
             const evt = new Event('click');
             evt.preventDefault();
             firstPageLink.dispatchEvent(evt);
-            assert.equal(window.history.pushState.callCount, 0);
             assert.ok(document.body.querySelector('first-page'));
             assert.ok(!document.body.querySelector('second-page'));
             component.remove();
             clearTimeout(timer);
             done();
         }, 201);
+    });
+
+    it('should switch to the path that matches the current location after calling pushState', function () {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <first-page path="/page1"></first-page>
+                <second-page path="/page2"></second-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/page1');
+        document.body.appendChild(tpl.content);
+        const state = {my: 'state'};
+        const pageTitle = 'the title';
+        const url = '/page2';
+        window.history.pushState(state, pageTitle, url);
+        assert.ok(!document.body.querySelector('first-page'));
+        assert.ok(document.body.querySelector('second-page'));
+        component.remove();
+    });
+
+    it('should switch to the path that matches the current location after calling replaceState', function () {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <first-page path="/page1"></first-page>
+                <second-page path="/page2"></second-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/page1');
+        document.body.appendChild(tpl.content);
+        const state = {my: 'state'};
+        const pageTitle = 'the title';
+        const url = '/page2';
+        window.history.replaceState(state, pageTitle, url);
+        assert.ok(!document.body.querySelector('first-page'));
+        assert.ok(document.body.querySelector('second-page'));
+        component.remove();
     });
 
     describe('extractPathParams', function () {
