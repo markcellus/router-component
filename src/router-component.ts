@@ -18,6 +18,8 @@ export class RouterComponent extends HTMLElement {
     private changedUrlListener: () => void;
     private routeElements: Set<Element> = new Set();
     private clickedLinkListener: () => void;
+    // TODO: fix below so that we are using pushState and replaceState method signatures on History type
+    private historyChangeStates: [(data: any, title?: string, url?: string) => void, (data: any, title?: string, url?: string) => void];
 
     constructor() {
         super();
@@ -32,13 +34,24 @@ export class RouterComponent extends HTMLElement {
 
     changedUrl(e: PopStateEvent) {
         const { pathname } = this.location;
-        if (this.shownPage.getAttribute('path') === pathname) return;
+        if (this.shownPage && this.shownPage.getAttribute('path') === pathname) return;
         this.show(pathname);
     }
 
     connectedCallback() {
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
+
+        // we must hijack pushState and replaceState because we need to
+        // detect when consumer attempts to use and trigger a page load
+        this.historyChangeStates = [window.history.pushState, window.history.replaceState];
+        this.historyChangeStates.forEach((method) => {
+            window.history[method.name] = (...args) => {
+                const [state] = args;
+                method.apply(history, args);
+                this.changedUrl(state);
+            };
+        });
         let path = this.location.pathname;
         if (this.directory !== '/') {
             path = `/${this.filename}`;
@@ -117,16 +130,19 @@ export class RouterComponent extends HTMLElement {
 
     disconnectedCallback() {
         window.removeEventListener('popstate', this.changedUrlListener);
+        this.historyChangeStates.forEach((method) => {
+            window.history[method.name] = method;
+        })
         this.routeElements.clear();
     }
-    
+
     clickedLink(e: MouseEvent) {
         const link = e.target as HTMLAnchorElement;
         if (link.origin === this.location.origin) {
             e.preventDefault();
             const popStateEvent = new PopStateEvent('popstate', {});
             window.history.pushState({}, document.title, `${link.pathname}${link.search}`);
-            window.dispatchEvent(popStateEvent);
+            this.changedUrl(popStateEvent);
         }
     }
 
@@ -139,7 +155,7 @@ export class RouterComponent extends HTMLElement {
             link.addEventListener('click', this.clickedLinkListener);
         });
     }
-    
+
     unbindLinks(element: Element) {
         const links: NodeListOf<HTMLAnchorElement> = element.querySelectorAll('a');
         const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
