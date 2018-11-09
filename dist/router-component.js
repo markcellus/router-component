@@ -1,5 +1,5 @@
 /*!
- * Router-component v0.2.1
+ * Router-component v0.2.2
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
@@ -42,13 +42,23 @@ class RouterComponent extends HTMLElement {
     }
     changedUrl(e) {
         const { pathname } = this.location;
-        if (this.shownPage.getAttribute('path') === pathname)
+        if (this.shownPage && this.shownPage.getAttribute('path') === pathname)
             return;
         this.show(pathname);
     }
     connectedCallback() {
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
+        // we must hijack pushState and replaceState because we need to
+        // detect when consumer attempts to use and trigger a page load
+        this.historyChangeStates = [window.history.pushState, window.history.replaceState];
+        this.historyChangeStates.forEach((method) => {
+            window.history[method.name] = (...args) => {
+                const [state] = args;
+                method.apply(history, args);
+                this.changedUrl(state);
+            };
+        });
         let path = this.location.pathname;
         if (this.directory !== '/') {
             path = `/${this.filename}`;
@@ -117,6 +127,9 @@ class RouterComponent extends HTMLElement {
     }
     disconnectedCallback() {
         window.removeEventListener('popstate', this.changedUrlListener);
+        this.historyChangeStates.forEach((method) => {
+            window.history[method.name] = method;
+        });
         this.routeElements.clear();
     }
     clickedLink(e) {
@@ -125,7 +138,7 @@ class RouterComponent extends HTMLElement {
             e.preventDefault();
             const popStateEvent = new PopStateEvent('popstate', {});
             window.history.pushState({}, document.title, `${link.pathname}${link.search}`);
-            window.dispatchEvent(popStateEvent);
+            this.changedUrl(popStateEvent);
         }
     }
     bindLinks(element) {
