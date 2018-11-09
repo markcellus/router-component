@@ -53,7 +53,7 @@ export class RouterComponent extends HTMLElement {
             };
         });
         let path = this.location.pathname;
-        if (this.directory !== '/') {
+        if (this.extension && this.directory !== '/') {
             path = `/${this.filename}`;
         }
         this.show(path);
@@ -66,6 +66,15 @@ export class RouterComponent extends HTMLElement {
     get directory(): string {
         const { pathname} = this.location;
         return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
+    }
+
+    get extension(): string {
+        const { pathname} = this.location;
+        const frags = pathname.split('.');
+        if (frags.length <= 1) {
+            return '';
+        }
+        return frags[frags.length - 1];
     }
 
     matchPathWithRegex(pathname: string = '', regex: string): RegExpMatchArray {

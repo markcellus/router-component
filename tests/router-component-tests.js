@@ -65,6 +65,21 @@ describe('Router Component', function () {
         component.remove();
     });
 
+    it('should show the correct route element when navigating to a multi-segment path', function () {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <first-page path="/test/one"></first-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/test/one');
+        document.body.appendChild(tpl.content);
+        const firstPage = document.body.querySelector('first-page');
+        assert.deepEqual(firstPage.parentElement, component);
+        component.remove();
+    });
+
     it('should show the route that has a relative path that matches the end of the initial window location pathnname', function () {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
