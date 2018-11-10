@@ -88,6 +88,32 @@ can be passed to them:
 | `path`| String | A regex expression that the browser URL needs to match in order for the component to render. Capture groups are also supported to allow for dynamic parameters in URLs.
 | `search-params`| String | A search string regex that the requested page would need to have in order to match. Setting this value to `foo=[bar\|baz]` would match `index.html?foo=bar` for instance)
 
+
+## Router API
+
+You can listen to route changes that are triggered either by link clicks or via `History`'s [pushState()](http://w3c.github.io/html/browsers.html#dom-history-pushstate) or replaceState API
+
+```html
+<html>
+<head>
+    <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
+    <script type="module">
+        const router = document.body.querySelector('router-component');
+        router.addEventListener('route-changed', () => {
+            // called everytime the route changes!
+        })
+    </script>
+</head>
+<body>
+<router-component>
+    <other-page path="/other[/]?"></other-page>
+    <fallback-page path=".*"></fallback-page>
+</router-component>
+</body>
+</html>
+```
+
+
 ## Development
 
 To run tests:

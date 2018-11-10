@@ -127,6 +127,7 @@ export class RouterComponent extends HTMLElement {
             this.unbindLinks(this.shownPage);
         }
         this.shownPage = element;
+        this.dispatchEvent(new CustomEvent('route-changed'));
     }
 
     get location(): Location {

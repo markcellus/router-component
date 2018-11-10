@@ -367,6 +367,29 @@ describe('Router Component', function () {
         component.remove();
     });
 
+    it('should fire route-changed event when routes are changed', function () {
+        const tpl = document.createElement('template');
+        const routeChangedSpy = sinon.spy();
+        tpl.innerHTML = `
+            <router-component>
+                <first-page path="/page1"></first-page>
+                <second-page path="/page2"></second-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        component.addEventListener('route-changed', routeChangedSpy);
+        window.history.pushState({}, document.title, '/page1');
+        document.body.appendChild(tpl.content);
+        assert.equal(routeChangedSpy.callCount, 1);
+        const state = {my: 'state'};
+        const pageTitle = 'the title';
+        const url = '/page2';
+        window.history.pushState(state, pageTitle, url);
+        assert.equal(routeChangedSpy.callCount, 2);
+        component.remove();
+        assert.equal(routeChangedSpy.callCount, 2);
+    });
+
     describe('extractPathParams', function () {
         it('returns the captured groups of the string with the supplied regex', function () {
             const testPath = 'test';
