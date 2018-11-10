@@ -34,8 +34,6 @@ they work in JavaScript.
 
 ### Basic Example
 
-Code samples showing how to use this package can be found in the [examples](examples) folder, but here is a basic example.
-
 ```html
 <!-- index.html -->
 <html>
@@ -75,6 +73,19 @@ Code samples showing how to use this package can be found in the [examples](exam
 </html>
 
 ```
+
+### More Examples
+
+Code samples showing how to use this package can be found in the [examples](examples) folder. To run them, pull down this project
+and
+
+```bash
+npm run start-server
+```
+
+Which will make the examples available at http://localhost:3239/examples/.
+
+
 
 ## Route API
 

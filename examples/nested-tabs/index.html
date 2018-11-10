@@ -1,0 +1,52 @@
+<html>
+<head>
+    <base href="/examples/nested-tabs/" />
+    <style>
+        body {
+            display: flex;
+        }
+
+        tab-page {
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+    <script type="module" src="../../dist/router-component.js"></script>
+
+    <script>
+        customElements.define('tab-one', class extends HTMLElement {
+            connectedCallback() {
+                this.innerHTML = 'tab one!';
+            }
+        })
+
+        customElements.define('tab-two', class extends HTMLElement {
+            connectedCallback() {
+                this.innerHTML = 'tab two!';
+            }
+        })
+
+        customElements.define('tab-page', class extends HTMLElement {
+            connectedCallback() {
+                this.innerHTML = `
+                    <nav>
+                        <a href="tabs/one">Tab 1</a>
+                        <a href="tabs/two">Tab 2</a>
+                    </nav>
+                    <router-component id="tabs">
+                      <tab-one path="tabs/one"></tab-one>
+                      <tab-two path="tabs/two"></tab-two>
+                    </router-component>
+                `;
+            }
+        })
+    </script>
+</head>
+<body>
+
+    <router-component>
+        <tab-page path="nested-tabs/?$"></tab-page>
+    </router-component>
+
+</body>
+</html>

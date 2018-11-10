@@ -11,6 +11,8 @@ export function extractPathParams(pattern: string, path: string): string[] {
     }
 }
 
+const routeComponents: Set<RouterComponent> = new Set();
+
 export class RouterComponent extends HTMLElement {
     private shownPage: Element | undefined;
     private fragment: DocumentFragment;
@@ -27,6 +29,7 @@ export class RouterComponent extends HTMLElement {
     constructor() {
         super();
         this.fragment = document.createDocumentFragment();
+        routeComponents.add(this);
         const children: HTMLCollection = this.children;
         while (children.length > 0) {
             const [element] = children;
@@ -106,10 +109,17 @@ export class RouterComponent extends HTMLElement {
 
     show(pathname: string) {
         if (!pathname) return;
+        let router;
 
         const element = this.getRouteElementByPath(pathname);
         if (this.shownPage === element) {
             return;
+        }
+        if (!element) {
+            router = this.getExternalRouterByPath(pathname);
+            if (router) {
+                return router.show(pathname);
+            }
         }
 
         if (!element) {
@@ -118,14 +128,14 @@ export class RouterComponent extends HTMLElement {
                     `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`
             );
         }
-        this.appendChild(element);
-        this.setupElement(element);
-
         if (this.shownPage) {
             this.fragment.appendChild(this.shownPage);
             this.teardownElement(this.shownPage);
         }
         this.shownPage = element;
+        this.appendChild(element);
+        this.setupElement(element);
+
         this.dispatchEvent(new CustomEvent('route-changed'));
     }
     get location(): Location {
@@ -198,6 +208,15 @@ export class RouterComponent extends HTMLElement {
 
     private teardownElement(element: Element) {
         this.unbindLinks(element);
+    }
+
+    private getExternalRouterByPath(pathname: string): RouterComponent | undefined {
+        for (const component of routeComponents) {
+            const routeElement = component.getRouteElementByPath(pathname);
+            if (routeElement) {
+                return component;
+            }
+        }
     }
 }
 
