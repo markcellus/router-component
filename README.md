@@ -89,8 +89,25 @@ can be passed to them:
 | `document-title`| String | The [title of the document](https://html.spec.whatwg.org/multipage/dom.html#document.title) that will be shown when the route is active
 
 
-
 ## Router API
+
+The goal of this package is to leverage the use of existing browser APIs, while providing only a few key pieces of logic that make routing easier, which is identified below.
+
+### Changing Routes
+
+There are two ways that a route can be changed.
+
+1. By clicking on a relative link that is nested within a route element or 
+1. Programmatically using the [`pushState()`](http://w3c.github.io/html/browsers.html#dom-history-pushstate) or [`replaceState()`](http://w3c.github.io/html/browsers.html#dom-history-replacestate) API
+
+```javascript
+window.history.pushState({}, null, '/new-url');
+
+```
+
+Each method will trigger the `route-changed` event that is dispatched by the router component itself, which is illustrated in the next section below.
+
+### Detecting Route Changes
 
 You can listen to route changes that are triggered either by link clicks or via `History`'s [pushState()](http://w3c.github.io/html/browsers.html#dom-history-pushstate) or replaceState API
 
@@ -113,7 +130,6 @@ You can listen to route changes that are triggered either by link clicks or via 
 </body>
 </html>
 ```
-
 
 ## Development
 
