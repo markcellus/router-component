@@ -128,7 +128,7 @@ export class RouterComponent extends HTMLElement {
         return window.location;
     }
 
-    set location(value) {
+    set location(value: Location) {
         // no-op
     }
 

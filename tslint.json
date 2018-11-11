@@ -6,30 +6,10 @@
   ],
   "jsRules": {},
   "rules": {
-    "indent": [
-      true,
-      "spaces",
-      4
-    ],
     "member-access": false,
-    "linebreak-style": [
-      true,
-      "LF"
-    ],
-    "quotemark": [
-      true,
-      "single"
-    ],
-    "semicolon": false,
-    "no-console": [
-      true,
-      "log",
-      "error"
-    ],
-    "max-line-length": false,
-    "interface-name": [true, "never-prefix"],
-    "ordered-imports": false,
-    "curly": false
+    "curly": false,
+    "typedef": [true, "parameter", "member-variable-declaration"]
+
   },
   "rulesDirectory": []
 }
