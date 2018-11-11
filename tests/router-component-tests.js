@@ -3,8 +3,13 @@ import '../node_modules/chai/chai.js';
 import sinon from '../node_modules/sinon/pkg/sinon-esm.js';
 
 const { assert } = chai;
+const origDocTitle = document.title;
 
 describe('Router Component', function () {
+
+    afterEach(() => {
+        document.title = origDocTitle;
+    })
 
     it('should remove all children from the dom when instantiated if none match the current route', function () {
         const tpl = document.createElement('template');
@@ -364,6 +369,26 @@ describe('Router Component', function () {
         window.history.replaceState(state, pageTitle, url);
         assert.ok(!document.body.querySelector('first-page'));
         assert.ok(document.body.querySelector('second-page'));
+        component.remove();
+    });
+
+    it('should update the document title that matches the current location after calling pushState', function () {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <first-page path="/page1" document-title="Test1"></first-page>
+                <second-page path="/page2" document-title="Test2"></second-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/page1');
+        document.body.appendChild(tpl.content);
+        assert.equal(document.title, 'Test1');
+        const state = {my: 'state'};
+        const pageTitle = 'the title';
+        const url = '/page2';
+        window.history.pushState(state, pageTitle, url);
+        assert.equal(document.title, 'Test2');
         component.remove();
     });
 

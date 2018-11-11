@@ -76,8 +76,7 @@ Code samples showing how to use this package can be found in the [examples](exam
 
 ```
 
-
-## API
+## Route API
 
 Each child element of `<router-component>` should extend 
 [CustomElement](https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements) so that the following attributes
@@ -87,6 +86,8 @@ can be passed to them:
 |--------|--------|--------|
 | `path`| String | A regex expression that the browser URL needs to match in order for the component to render. Capture groups are also supported to allow for dynamic parameters in URLs.
 | `search-params`| String | A search string regex that the requested page would need to have in order to match. Setting this value to `foo=[bar\|baz]` would match `index.html?foo=bar` for instance)
+| `document-title`| String | The [title of the document](https://html.spec.whatwg.org/multipage/dom.html#document.title) that will be shown when the route is active
+
 
 
 ## Router API

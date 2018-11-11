@@ -20,6 +20,7 @@ export class RouterComponent extends HTMLElement {
     private clickedLinkListener: () => void;
     // TODO: fix below so that we are using pushState and replaceState method signatures on History type
     private historyChangeStates: [(data: any, title?: string, url?: string) => void, (data: any, title?: string, url?: string) => void];
+    private originalDocumentTitle: string;
 
     constructor() {
         super();
@@ -114,22 +115,15 @@ export class RouterComponent extends HTMLElement {
                 `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`)
         }
         this.appendChild(element);
-
-        // we must wait a few milliseconds for the DOM to resolve
-        // or links wont be setup correctly
-        const timer = setTimeout(async () => {
-            this.bindLinks(element);
-            clearTimeout(timer);
-        }, 200);
+        this.setupElement(element);
 
         if (this.shownPage) {
             this.fragment.appendChild(this.shownPage);
-            this.unbindLinks(this.shownPage);
+            this.teardownElement(this.shownPage);
         }
         this.shownPage = element;
         this.dispatchEvent(new CustomEvent('route-changed'));
     }
-
     get location(): Location {
         return window.location;
     }
@@ -142,7 +136,10 @@ export class RouterComponent extends HTMLElement {
         window.removeEventListener('popstate', this.changedUrlListener);
         this.historyChangeStates.forEach((method) => {
             window.history[method.name] = method;
-        })
+        });
+        if (this.shownPage) {
+            this.teardownElement(this.shownPage);
+        }
         this.routeElements.clear();
     }
 
@@ -173,6 +170,27 @@ export class RouterComponent extends HTMLElement {
         [...links, ...shadowLinks].forEach((link) => {
             link.removeEventListener('click', this.clickedLinkListener);
         });
+    }
+
+
+    private setupElement(element: Element) {
+        // we must wait a few milliseconds for the DOM to resolve
+        // or links wont be setup correctly
+        const timer = setTimeout(async () => {
+            this.bindLinks(element);
+            clearTimeout(timer);
+        }, 200);
+        this.originalDocumentTitle = document.title;
+        const title = element.getAttribute('document-title');
+        if (title) {
+            document.title = title;
+        } else {
+            document.title = this.originalDocumentTitle;
+        }
+    }
+
+    private teardownElement(element: Element) {
+        this.unbindLinks(element);
     }
 
 }
