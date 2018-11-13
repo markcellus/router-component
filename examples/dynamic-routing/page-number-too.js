@@ -13,7 +13,7 @@ customElements.define(
                 <strong>${username}</strong>.
             </p>
             <p>
-                Click <a href="/my/page/3/">my/page/3</a> to go to page three.
+                Click <a href="my/page/3/">my/page/3</a> to go to page three.
             </p>
         `;
         }

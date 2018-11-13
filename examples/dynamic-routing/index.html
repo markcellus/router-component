@@ -1,5 +1,6 @@
 <html>
 <head>
+    <base href="/examples/dynamic-routing/" />
     <style>
         header {
             display: flex;
@@ -37,15 +38,15 @@
 
     <header>
         <ul>
-            <li><a href="/page1?foo=bar">Page 1</a></li>
-            <li><a href="/second/page/851/johnDoe/">Page 2</a></li>
-            <li><a href="/my/page/3/">Page 3</a></li>
-            <li><a href="/my/page/3/nested/page">Nested Page 4</a></li>
-            <li><a href="/wrong">Wrong Page</a></li>
+            <li><a href="page1?foo=bar">Page 1</a></li>
+            <li><a href="second/page/851/johnDoe/">Page 2</a></li>
+            <li><a href="my/page/3/">Page 3</a></li>
+            <li><a href="my/page/3/nested/page">Nested Page 4</a></li>
+            <li><a href="wrong">Wrong Page</a></li>
         </ul>
     </header>
     <router-component>
-        <home-page path="^/$"></home-page>
+        <home-page path="dynamic-routing/$"></home-page>
         <the-first-page path="page1" search-params="foo=[bar|baz]"></the-first-page>
         <page-number-too path="/second/page/([0-9]+)/([a-zA-Z]+)/?"></page-number-too>
         <third-page path="/my/page/3/$"></third-page>

@@ -4,10 +4,12 @@ import sinon from '../node_modules/sinon/pkg/sinon-esm.js';
 
 const { assert } = chai;
 const origDocTitle = document.title;
+const originalPathName = document.location.pathname;
 
 describe('Router Component', function() {
     afterEach(() => {
         document.title = origDocTitle;
+        history.pushState({}, origDocTitle, originalPathName);
     });
 
     it('should remove all children from the dom when instantiated if none match the current route', function() {
@@ -416,6 +418,30 @@ describe('Router Component', function() {
         assert.equal(routeChangedSpy.callCount, 2);
         component.remove();
         assert.equal(routeChangedSpy.callCount, 2);
+    });
+
+    it('should change to appropriate routes when nested routes exist', function() {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <first-page path="/page1"></first-page>
+                <nested-second-page path="/nested/pages$">
+                    <router-component>
+                      <nested-one path="/nested/pages/1"></nested-one>
+                      <nested-two path="/nested/pages/2"></nested-two>
+                    </router-component>
+                </nested-second-page>
+            </router-component>
+        `;
+        const parentRouter = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/page1'); // ensure we start on first page
+        document.body.appendChild(tpl.content);
+        window.history.pushState({}, document.title, '/nested/pages');
+        const childRouter = parentRouter.querySelector('router-component');
+        assert.equal(childRouter.children.length, 0);
+        window.history.pushState({}, document.title, '/nested/pages/2');
+        assert.ok(childRouter.querySelector('nested-two'));
+        parentRouter.remove();
     });
 
     describe('extractPathParams', function() {

@@ -6,7 +6,7 @@ customElements.define(
             <strong>Sidebar</strong>
             <p>Click on an item below to go to a specific page</p>
             
-            <a href="/">Home Page</a>
+            <a href="">Home Page</a>
             <a href="page/2">Second Page</a>
         `;
         }
