@@ -1,17 +1,32 @@
 /*!
- * Router-component v0.2.3
+ * Router-component v0.2.4
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
  * Licensed under the MIT license
  */
 
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0
+
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+MERCHANTABLITY OR NON-INFRINGEMENT.
+
+See the Apache Version 2.0 License for specific language governing permissions
+and limitations under the License.
+***************************************************************************** */
+
 function __awaiter(thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator.throw(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
         function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments)).next());
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 }
 
@@ -115,17 +130,13 @@ class RouterComponent extends HTMLElement {
                 `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`);
         }
         this.appendChild(element);
-        // we must wait a few milliseconds for the DOM to resolve
-        // or links wont be setup correctly
-        const timer = setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-            this.bindLinks(element);
-            clearTimeout(timer);
-        }), 200);
+        this.setupElement(element);
         if (this.shownPage) {
             this.fragment.appendChild(this.shownPage);
-            this.unbindLinks(this.shownPage);
+            this.teardownElement(this.shownPage);
         }
         this.shownPage = element;
+        this.dispatchEvent(new CustomEvent('route-changed'));
     }
     get location() {
         return window.location;
@@ -138,6 +149,9 @@ class RouterComponent extends HTMLElement {
         this.historyChangeStates.forEach((method) => {
             window.history[method.name] = method;
         });
+        if (this.shownPage) {
+            this.teardownElement(this.shownPage);
+        }
         this.routeElements.clear();
     }
     clickedLink(e) {
@@ -165,6 +179,25 @@ class RouterComponent extends HTMLElement {
         [...links, ...shadowLinks].forEach((link) => {
             link.removeEventListener('click', this.clickedLinkListener);
         });
+    }
+    setupElement(element) {
+        // we must wait a few milliseconds for the DOM to resolve
+        // or links wont be setup correctly
+        const timer = setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+            this.bindLinks(element);
+            clearTimeout(timer);
+        }), 200);
+        this.originalDocumentTitle = document.title;
+        const title = element.getAttribute('document-title');
+        if (title) {
+            document.title = title;
+        }
+        else {
+            document.title = this.originalDocumentTitle;
+        }
+    }
+    teardownElement(element) {
+        this.unbindLinks(element);
     }
 }
 customElements.define('router-component', RouterComponent);
