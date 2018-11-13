@@ -12,14 +12,16 @@ export function extractPathParams(pattern: string, path: string): string[] {
 }
 
 export class RouterComponent extends HTMLElement {
-
     private shownPage: Element | undefined;
     private fragment: DocumentFragment;
     private changedUrlListener: () => void;
     private routeElements: Set<Element> = new Set();
     private clickedLinkListener: () => void;
     // TODO: fix below so that we are using pushState and replaceState method signatures on History type
-    private historyChangeStates: [(data: any, title?: string, url?: string) => void, (data: any, title?: string, url?: string) => void];
+    private historyChangeStates: [
+        (data: any, title?: string, url?: string) => void,
+        (data: any, title?: string, url?: string) => void
+    ];
     private originalDocumentTitle: string;
 
     constructor() {
@@ -46,7 +48,7 @@ export class RouterComponent extends HTMLElement {
         // we must hijack pushState and replaceState because we need to
         // detect when consumer attempts to use and trigger a page load
         this.historyChangeStates = [window.history.pushState, window.history.replaceState];
-        this.historyChangeStates.forEach((method) => {
+        this.historyChangeStates.forEach(method => {
             window.history[method.name] = (...args) => {
                 const [state] = args;
                 method.apply(history, args);
@@ -65,12 +67,12 @@ export class RouterComponent extends HTMLElement {
     }
 
     get directory(): string {
-        const { pathname} = this.location;
+        const { pathname } = this.location;
         return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
     }
 
     get extension(): string {
-        const { pathname} = this.location;
+        const { pathname } = this.location;
         const frags = pathname.split('.');
         if (frags.length <= 1) {
             return '';
@@ -111,8 +113,10 @@ export class RouterComponent extends HTMLElement {
         }
 
         if (!element) {
-            throw new Error(`Navigated to path "${pathname}" but there is no matching element with a path ` +
-                `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`)
+            throw new Error(
+                `Navigated to path "${pathname}" but there is no matching element with a path ` +
+                    `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`
+            );
         }
         this.appendChild(element);
         this.setupElement(element);
@@ -134,7 +138,7 @@ export class RouterComponent extends HTMLElement {
 
     disconnectedCallback() {
         window.removeEventListener('popstate', this.changedUrlListener);
-        this.historyChangeStates.forEach((method) => {
+        this.historyChangeStates.forEach(method => {
             window.history[method.name] = method;
         });
         if (this.shownPage) {
@@ -156,22 +160,25 @@ export class RouterComponent extends HTMLElement {
     bindLinks(element: Element) {
         const links: NodeListOf<HTMLAnchorElement> = element.querySelectorAll('a');
         // TODO: dont stop at just the first level shadow root
-        const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
+        const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot
+            ? element.shadowRoot.querySelectorAll('a')
+            : [];
         this.clickedLinkListener = this.clickedLink.bind(this);
-        [...links, ...shadowLinks].forEach((link) => {
+        [...links, ...shadowLinks].forEach(link => {
             link.addEventListener('click', this.clickedLinkListener);
         });
     }
 
     unbindLinks(element: Element) {
         const links: NodeListOf<HTMLAnchorElement> = element.querySelectorAll('a');
-        const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
+        const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot
+            ? element.shadowRoot.querySelectorAll('a')
+            : [];
         this.clickedLinkListener = this.clickedLink.bind(this);
-        [...links, ...shadowLinks].forEach((link) => {
+        [...links, ...shadowLinks].forEach(link => {
             link.removeEventListener('click', this.clickedLinkListener);
         });
     }
-
 
     private setupElement(element: Element) {
         // we must wait a few milliseconds for the DOM to resolve
@@ -192,7 +199,6 @@ export class RouterComponent extends HTMLElement {
     private teardownElement(element: Element) {
         this.unbindLinks(element);
     }
-
 }
 
 customElements.define('router-component', RouterComponent);
