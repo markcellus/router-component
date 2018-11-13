@@ -1,5 +1,5 @@
 /*!
- * Router-component v0.2.4
+ * Router-component v0.3.0
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
@@ -43,11 +43,13 @@ function extractPathParams(pattern, path) {
         return groups;
     }
 }
+const routeComponents = new Set();
 class RouterComponent extends HTMLElement {
     constructor() {
         super();
         this.routeElements = new Set();
         this.fragment = document.createDocumentFragment();
+        routeComponents.add(this);
         const children = this.children;
         while (children.length > 0) {
             const [element] = children;
@@ -67,7 +69,7 @@ class RouterComponent extends HTMLElement {
         // we must hijack pushState and replaceState because we need to
         // detect when consumer attempts to use and trigger a page load
         this.historyChangeStates = [window.history.pushState, window.history.replaceState];
-        this.historyChangeStates.forEach((method) => {
+        this.historyChangeStates.forEach(method => {
             window.history[method.name] = (...args) => {
                 const [state] = args;
                 method.apply(history, args);
@@ -121,21 +123,28 @@ class RouterComponent extends HTMLElement {
     show(pathname) {
         if (!pathname)
             return;
+        let router;
         const element = this.getRouteElementByPath(pathname);
         if (this.shownPage === element) {
             return;
         }
         if (!element) {
+            router = this.getExternalRouterByPath(pathname);
+            if (router) {
+                return router.show(pathname);
+            }
+        }
+        if (!element) {
             throw new Error(`Navigated to path "${pathname}" but there is no matching element with a path ` +
                 `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`);
         }
-        this.appendChild(element);
-        this.setupElement(element);
         if (this.shownPage) {
             this.fragment.appendChild(this.shownPage);
             this.teardownElement(this.shownPage);
         }
         this.shownPage = element;
+        this.appendChild(element);
+        this.setupElement(element);
         this.dispatchEvent(new CustomEvent('route-changed'));
     }
     get location() {
@@ -146,7 +155,7 @@ class RouterComponent extends HTMLElement {
     }
     disconnectedCallback() {
         window.removeEventListener('popstate', this.changedUrlListener);
-        this.historyChangeStates.forEach((method) => {
+        this.historyChangeStates.forEach(method => {
             window.history[method.name] = method;
         });
         if (this.shownPage) {
@@ -166,17 +175,21 @@ class RouterComponent extends HTMLElement {
     bindLinks(element) {
         const links = element.querySelectorAll('a');
         // TODO: dont stop at just the first level shadow root
-        const shadowLinks = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
+        const shadowLinks = element.shadowRoot
+            ? element.shadowRoot.querySelectorAll('a')
+            : [];
         this.clickedLinkListener = this.clickedLink.bind(this);
-        [...links, ...shadowLinks].forEach((link) => {
+        [...links, ...shadowLinks].forEach(link => {
             link.addEventListener('click', this.clickedLinkListener);
         });
     }
     unbindLinks(element) {
         const links = element.querySelectorAll('a');
-        const shadowLinks = element.shadowRoot ? element.shadowRoot.querySelectorAll('a') : [];
+        const shadowLinks = element.shadowRoot
+            ? element.shadowRoot.querySelectorAll('a')
+            : [];
         this.clickedLinkListener = this.clickedLink.bind(this);
-        [...links, ...shadowLinks].forEach((link) => {
+        [...links, ...shadowLinks].forEach(link => {
             link.removeEventListener('click', this.clickedLinkListener);
         });
     }
@@ -198,6 +211,14 @@ class RouterComponent extends HTMLElement {
     }
     teardownElement(element) {
         this.unbindLinks(element);
+    }
+    getExternalRouterByPath(pathname) {
+        for (const component of routeComponents) {
+            const routeElement = component.getRouteElementByPath(pathname);
+            if (routeElement) {
+                return component;
+            }
+        }
     }
 }
 customElements.define('router-component', RouterComponent);
