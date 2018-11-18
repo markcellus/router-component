@@ -7,10 +7,7 @@ export default {
         format: 'esm',
         file: 'dist/router-component.js'
     },
-    plugins: [
-        resolve(),
-        typescript()
-    ],
+    plugins: [resolve(), typescript()],
     watch: {
         include: 'src/**'
     }
