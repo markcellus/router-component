@@ -183,6 +183,9 @@ export class RouterComponent extends HTMLElement {
             const link = e.composedPath().filter(n => (n as HTMLElement).tagName === 'A')[0] as
                 | HTMLAnchorElement
                 | undefined;
+            if (!link) {
+                return;
+            }
             this.clickedLink(link, e);
         };
         document.body.addEventListener('click', this.clickedLinkListener);
