@@ -18,7 +18,7 @@ export class RouterComponent extends HTMLElement {
     private fragment: DocumentFragment;
     private changedUrlListener: () => void;
     private routeElements: Set<Element> = new Set();
-    private clickedLinkListener: () => void;
+    private clickedLinkListener: (e: any) => void;
     // TODO: fix below so that we are using pushState and replaceState method signatures on History type
     private historyChangeStates: [
         (data: any, title?: string, url?: string) => void,
@@ -47,6 +47,7 @@ export class RouterComponent extends HTMLElement {
     connectedCallback() {
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
+        this.bindLinks();
 
         // we must hijack pushState and replaceState because we need to
         // detect when consumer attempts to use and trigger a page load
@@ -154,11 +155,18 @@ export class RouterComponent extends HTMLElement {
         if (this.shownPage) {
             this.teardownElement(this.shownPage);
         }
+        this.unbindLinks();
         this.routeElements.clear();
     }
 
-    clickedLink(e: MouseEvent) {
-        const link = e.target as HTMLAnchorElement;
+    clickedLink(link: HTMLAnchorElement, e: Event) {
+        const { href } = link;
+        if (!href || href.indexOf('mailto:') !== -1) return;
+
+        const location = window.location;
+        const origin = location.origin || location.protocol + '//' + location.host;
+        if (href.indexOf(origin) !== 0) return;
+
         if (link.origin === this.location.origin) {
             e.preventDefault();
             const popStateEvent = new PopStateEvent('popstate', {});
@@ -167,36 +175,24 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
-    bindLinks(element: Element) {
-        const links: NodeListOf<HTMLAnchorElement> = element.querySelectorAll('a');
-        // TODO: dont stop at just the first level shadow root
-        const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot
-            ? element.shadowRoot.querySelectorAll('a')
-            : [];
-        this.clickedLinkListener = this.clickedLink.bind(this);
-        [...links, ...shadowLinks].forEach(link => {
-            link.addEventListener('click', this.clickedLinkListener);
-        });
+    bindLinks() {
+        // TODO: update this to be more performant
+        // listening to body to allow detection inside of shadow roots
+        this.clickedLinkListener = e => {
+            if (e.defaultPrevented) return;
+            const link = e.composedPath().filter(n => (n as HTMLElement).tagName === 'A')[0] as
+                | HTMLAnchorElement
+                | undefined;
+            this.clickedLink(link, e);
+        };
+        document.body.addEventListener('click', this.clickedLinkListener);
     }
 
-    unbindLinks(element: Element) {
-        const links: NodeListOf<HTMLAnchorElement> = element.querySelectorAll('a');
-        const shadowLinks: NodeListOf<HTMLAnchorElement> | [] = element.shadowRoot
-            ? element.shadowRoot.querySelectorAll('a')
-            : [];
-        this.clickedLinkListener = this.clickedLink.bind(this);
-        [...links, ...shadowLinks].forEach(link => {
-            link.removeEventListener('click', this.clickedLinkListener);
-        });
+    unbindLinks() {
+        document.body.removeEventListener('click', this.clickedLinkListener);
     }
 
     private setupElement(element: Element) {
-        // we must wait a few milliseconds for the DOM to resolve
-        // or links wont be setup correctly
-        const timer = setTimeout(async () => {
-            this.bindLinks(element);
-            clearTimeout(timer);
-        }, 200);
         this.originalDocumentTitle = document.title;
         const title = element.getAttribute('document-title');
         if (title) {
@@ -207,7 +203,7 @@ export class RouterComponent extends HTMLElement {
     }
 
     private teardownElement(element: Element) {
-        this.unbindLinks(element);
+        document.title = this.originalDocumentTitle;
     }
 
     private getExternalRouterByPath(pathname: string): RouterComponent | undefined {
