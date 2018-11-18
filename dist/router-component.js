@@ -1,34 +1,10 @@
 /*!
- * Router-component v0.3.0
+ * Router-component v0.4.0
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
  * Licensed under the MIT license
  */
-
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License. You may obtain a copy of the
-License at http://www.apache.org/licenses/LICENSE-2.0
-
-THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-MERCHANTABLITY OR NON-INFRINGEMENT.
-
-See the Apache Version 2.0 License for specific language governing permissions
-and limitations under the License.
-***************************************************************************** */
-
-function __awaiter(thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-}
 
 function extractPathParams(pattern, path) {
     const regex = new RegExp(pattern);
@@ -66,6 +42,7 @@ class RouterComponent extends HTMLElement {
     connectedCallback() {
         this.changedUrlListener = this.changedUrl.bind(this);
         window.addEventListener('popstate', this.changedUrlListener);
+        this.bindLinks();
         // we must hijack pushState and replaceState because we need to
         // detect when consumer attempts to use and trigger a page load
         this.historyChangeStates = [window.history.pushState, window.history.replaceState];
@@ -161,10 +138,17 @@ class RouterComponent extends HTMLElement {
         if (this.shownPage) {
             this.teardownElement(this.shownPage);
         }
+        this.unbindLinks();
         this.routeElements.clear();
     }
-    clickedLink(e) {
-        const link = e.target;
+    clickedLink(link, e) {
+        const { href } = link;
+        if (!href || href.indexOf('mailto:') !== -1)
+            return;
+        const location = window.location;
+        const origin = location.origin || location.protocol + '//' + location.host;
+        if (href.indexOf(origin) !== 0)
+            return;
         if (link.origin === this.location.origin) {
             e.preventDefault();
             const popStateEvent = new PopStateEvent('popstate', {});
@@ -172,34 +156,21 @@ class RouterComponent extends HTMLElement {
             this.changedUrl(popStateEvent);
         }
     }
-    bindLinks(element) {
-        const links = element.querySelectorAll('a');
-        // TODO: dont stop at just the first level shadow root
-        const shadowLinks = element.shadowRoot
-            ? element.shadowRoot.querySelectorAll('a')
-            : [];
-        this.clickedLinkListener = this.clickedLink.bind(this);
-        [...links, ...shadowLinks].forEach(link => {
-            link.addEventListener('click', this.clickedLinkListener);
-        });
+    bindLinks() {
+        // TODO: update this to be more performant
+        // listening to body to allow detection inside of shadow roots
+        this.clickedLinkListener = e => {
+            if (e.defaultPrevented)
+                return;
+            const link = e.composedPath().filter(n => n.tagName === 'A')[0];
+            this.clickedLink(link, e);
+        };
+        document.body.addEventListener('click', this.clickedLinkListener);
     }
-    unbindLinks(element) {
-        const links = element.querySelectorAll('a');
-        const shadowLinks = element.shadowRoot
-            ? element.shadowRoot.querySelectorAll('a')
-            : [];
-        this.clickedLinkListener = this.clickedLink.bind(this);
-        [...links, ...shadowLinks].forEach(link => {
-            link.removeEventListener('click', this.clickedLinkListener);
-        });
+    unbindLinks() {
+        document.body.removeEventListener('click', this.clickedLinkListener);
     }
     setupElement(element) {
-        // we must wait a few milliseconds for the DOM to resolve
-        // or links wont be setup correctly
-        const timer = setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-            this.bindLinks(element);
-            clearTimeout(timer);
-        }), 200);
         this.originalDocumentTitle = document.title;
         const title = element.getAttribute('document-title');
         if (title) {
@@ -210,7 +181,7 @@ class RouterComponent extends HTMLElement {
         }
     }
     teardownElement(element) {
-        this.unbindLinks(element);
+        document.title = this.originalDocumentTitle;
     }
     getExternalRouterByPath(pathname) {
         for (const component of routeComponents) {
