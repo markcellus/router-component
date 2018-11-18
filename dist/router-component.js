@@ -1,5 +1,5 @@
 /*!
- * Router-component v0.4.0
+ * Router-component v0.4.1
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
@@ -163,6 +163,9 @@ class RouterComponent extends HTMLElement {
             if (e.defaultPrevented)
                 return;
             const link = e.composedPath().filter(n => n.tagName === 'A')[0];
+            if (!link) {
+                return;
+            }
             this.clickedLink(link, e);
         };
         document.body.addEventListener('click', this.clickedLinkListener);
