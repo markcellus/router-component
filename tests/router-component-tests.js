@@ -337,6 +337,35 @@ describe('Router Component', function() {
         }, 201);
     });
 
+    it.only('should switch to the correct href location when the link is inside a shadow dom', function() {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <first-page path="/page1">
+                    <div>
+                        
+                    </div>
+                    
+                </first-page>
+                <second-page path="/page2"></second-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/page1');
+        document.body.appendChild(tpl.content);
+        const div = component.querySelector('div');
+        const shadow = div.attachShadow({ mode: 'closed' });
+        const link = document.createElement('a');
+        const linkText = document.createElement('span');
+        link.appendChild(linkText);
+        link.href = '/page2';
+        shadow.appendChild(link);
+        linkText.click();
+        assert.ok(!component.querySelector('first-page'));
+        assert.ok(component.querySelector('second-page'));
+        component.remove();
+    });
+
     it('should switch to the path that matches the current location after calling pushState', function() {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
