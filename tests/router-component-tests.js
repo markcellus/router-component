@@ -436,6 +436,7 @@ describe('Router Component', function() {
 
     describe('when triggerRouteChange is set to false when pushing new state', function() {
         let component;
+
         beforeEach(function() {
             const tpl = document.createElement('template');
             tpl.innerHTML = `
@@ -484,6 +485,12 @@ describe('Router Component', function() {
 
         it('should not change the route if null is passed as the state', function() {
             window.history.pushState(null, null, '/page3');
+            assert.ok(document.body.querySelector('first-page'));
+        });
+        it('should go back to previous route and continue to show previous page when requested', function() {
+            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            window.history.pushState({}, null, '/page1');
+            assert.equal(location.pathname, '/page1');
             assert.ok(document.body.querySelector('first-page'));
         });
     });
