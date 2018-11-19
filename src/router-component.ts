@@ -16,7 +16,7 @@ const routeComponents: Set<RouterComponent> = new Set();
 export class RouterComponent extends HTMLElement {
     private shownPage: Element | undefined;
     private fragment: DocumentFragment;
-    private changedUrlListener: () => void;
+    private popStateChangedListener: () => void;
     private routeElements: Set<Element> = new Set();
     private clickedLinkListener: (e: any) => void;
     // TODO: fix below so that we are using pushState and replaceState method signatures on History type
@@ -25,6 +25,7 @@ export class RouterComponent extends HTMLElement {
         (data: any, title?: string, url?: string) => void
     ];
     private originalDocumentTitle: string;
+    private invalid: boolean;
 
     constructor() {
         super();
@@ -38,14 +39,9 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
-    changedUrl(e: PopStateEvent) {
-        const { pathname } = this.location;
-        this.show(pathname);
-    }
-
     connectedCallback() {
-        this.changedUrlListener = this.changedUrl.bind(this);
-        window.addEventListener('popstate', this.changedUrlListener);
+        this.popStateChangedListener = this.popStateChanged.bind(this);
+        window.addEventListener('popstate', this.popStateChangedListener);
         this.bindLinks();
 
         // we must hijack pushState and replaceState because we need to
@@ -53,13 +49,15 @@ export class RouterComponent extends HTMLElement {
         this.historyChangeStates = [window.history.pushState, window.history.replaceState];
         this.historyChangeStates.forEach(method => {
             window.history[method.name] = (state: any, title: string, url?: string | null) => {
-                const triggerRouteChange = state && state.triggerRouteChange === false;
-                if (triggerRouteChange) {
+                const triggerRouteChange = !state || state.triggerRouteChange !== false;
+                if (!triggerRouteChange) {
+                    // this.prevLocation = `${location.pathname}${location.search}`;
+                    this.invalid = true;
                     delete state.triggerRouteChange;
                 }
                 method.call(history, state, title, url);
-                if (!triggerRouteChange) {
-                    this.changedUrl(state);
+                if (triggerRouteChange) {
+                    this.show(url);
                 }
             };
         });
@@ -88,13 +86,6 @@ export class RouterComponent extends HTMLElement {
         return frags[frags.length - 1];
     }
 
-    matchPathWithRegex(pathname: string = '', regex: string): RegExpMatchArray {
-        if (!pathname.startsWith('/')) {
-            pathname = `${this.directory}${pathname.replace(/^\//, '')}`;
-        }
-        return pathname.match(regex);
-    }
-
     getRouteElementByPath(pathname: string): Element | undefined {
         let element: Element;
         if (!pathname) return;
@@ -117,7 +108,12 @@ export class RouterComponent extends HTMLElement {
         let router;
 
         const element = this.getRouteElementByPath(pathname);
-        if ((this.shownPage && this.shownPage.getAttribute('path') === pathname) || this.shownPage === element) return;
+        if (
+            (this.shownPage && this.shownPage.getAttribute('path') === pathname) ||
+            (this.shownPage === element && !this.invalid)
+        )
+            return;
+        this.invalid = false;
         if (!element) {
             router = this.getExternalRouterByPath(pathname);
             if (router) {
@@ -141,6 +137,7 @@ export class RouterComponent extends HTMLElement {
 
         this.dispatchEvent(new CustomEvent('route-changed'));
     }
+
     get location(): Location {
         return window.location;
     }
@@ -148,9 +145,8 @@ export class RouterComponent extends HTMLElement {
     set location(value: Location) {
         // no-op
     }
-
     disconnectedCallback() {
-        window.removeEventListener('popstate', this.changedUrlListener);
+        window.removeEventListener('popstate', this.popStateChangedListener);
         this.historyChangeStates.forEach(method => {
             window.history[method.name] = method;
         });
@@ -171,9 +167,7 @@ export class RouterComponent extends HTMLElement {
 
         if (link.origin === this.location.origin) {
             e.preventDefault();
-            const popStateEvent = new PopStateEvent('popstate', {});
             window.history.pushState({}, document.title, `${link.pathname}${link.search}`);
-            this.changedUrl(popStateEvent);
         }
     }
 
@@ -195,6 +189,17 @@ export class RouterComponent extends HTMLElement {
 
     unbindLinks() {
         document.body.removeEventListener('click', this.clickedLinkListener);
+    }
+
+    private matchPathWithRegex(pathname: string = '', regex: string): RegExpMatchArray {
+        if (!pathname.startsWith('/')) {
+            pathname = `${this.directory}${pathname.replace(/^\//, '')}`;
+        }
+        return pathname.match(regex);
+    }
+
+    private popStateChanged() {
+        this.show(this.location.pathname);
     }
 
     private setupElement(element: Element) {
