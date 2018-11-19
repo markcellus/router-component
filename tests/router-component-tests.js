@@ -481,6 +481,11 @@ describe('Router Component', function() {
             assert.ok(document.body.querySelector('first-page'));
             assert.ok(!document.body.querySelector('second-page'));
         });
+
+        it('should not change the route if null is passed as the state', function() {
+            window.history.pushState(null, null, '/page3');
+            assert.ok(document.body.querySelector('first-page'));
+        });
     });
 
     describe('extractPathParams', function() {
