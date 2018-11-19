@@ -447,11 +447,12 @@ describe('Router Component', function() {
         const component = tpl.content.querySelector('router-component');
         window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
-        const firstPage = document.querySelector('first-page');
         sinon.spy(component, 'show');
+        const firstPage = document.querySelector('first-page');
+        assert.equal(component.show.callCount, 0);
         const firstPageLink = firstPage.querySelector('a');
         firstPageLink.click();
-        assert.ok(component.show.callCount, 1);
+        assert.equal(component.show.callCount, 1);
         component.remove();
     });
 
