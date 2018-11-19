@@ -7,9 +7,14 @@ const origDocTitle = document.title;
 const originalPathName = document.location.pathname;
 
 describe('Router Component', function() {
+    beforeEach(() => {
+        sinon.stub(console, 'warn');
+    });
+
     afterEach(() => {
         document.title = origDocTitle;
         history.pushState({}, origDocTitle, originalPathName);
+        console.warn.restore();
     });
 
     it('should remove all children from the dom when instantiated if none match the current route', function() {
@@ -34,6 +39,7 @@ describe('Router Component', function() {
             </router-component>
         `;
         const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/');
         document.body.appendChild(tpl.content);
         const firstPage = document.body.querySelector('first-page');
         assert.deepEqual(firstPage.parentElement, component);
@@ -166,7 +172,7 @@ describe('Router Component', function() {
         component.remove();
     });
 
-    it('should throw an error when attempting to go to a route that is not handled after popstate is called', function() {
+    it('should show a warning when attempting to go to a route that is not handled after popstate is called', function() {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
             <router-component>
@@ -178,12 +184,11 @@ describe('Router Component', function() {
         window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
         const newPath = 'nope';
-        assert.throws(
-            () => component.show(newPath),
-            Error,
+        component.show(newPath);
+        assert.deepEqual(console.warn.args[0], [
             `Navigated to path "${newPath}" but there is no matching ` +
                 `element with a path that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`
-        );
+        ]);
         component.remove();
     });
 
@@ -203,7 +208,7 @@ describe('Router Component', function() {
         component.remove();
     });
 
-    it('should continue to show the current page and not display an error when show has been called with the same url', function() {
+    it('should continue to show the current page and not show a warning when show has been called with the same url', function() {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
             <router-component>
@@ -215,7 +220,8 @@ describe('Router Component', function() {
         const pathname = '/page1';
         window.history.pushState({}, document.title, pathname);
         document.body.appendChild(tpl.content);
-        assert.doesNotThrow(() => component.show(pathname));
+        component.show(pathname);
+        assert.equal(console.warn.callCount, 0);
         assert.ok(document.body.querySelector('first-page'));
         assert.ok(!document.body.querySelector('second-page'));
         component.remove();
@@ -233,13 +239,13 @@ describe('Router Component', function() {
         window.history.pushState({}, document.title, '/page');
         document.body.appendChild(tpl.content);
         // showing first page
-        assert.doesNotThrow(() => component.show('/page/2'));
+        component.show('/page/2');
         assert.ok(document.body.querySelector('first-page'));
         assert.ok(!document.body.querySelector('second-page'));
         component.remove();
     });
 
-    it('should switch to the child that has the path that matches the current location after link has been clicked', function(done) {
+    it('should switch to the child that has the path that matches the current location after link has been clicked', function() {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
             <router-component>
@@ -253,17 +259,13 @@ describe('Router Component', function() {
         document.body.appendChild(tpl.content);
         window.history.pushState({}, document.title, '/page1');
         const firstPageLink = document.querySelector('first-page a');
-        const timer = setTimeout(() => {
-            firstPageLink.click();
-            assert.ok(!document.body.querySelector('first-page'));
-            assert.ok(document.body.querySelector('second-page'));
-            component.remove();
-            clearTimeout(timer);
-            done();
-        }, 201);
+        firstPageLink.click();
+        assert.ok(!document.body.querySelector('first-page'));
+        assert.ok(document.body.querySelector('second-page'));
+        component.remove();
     });
 
-    it('should switch to the / route if clicking a link that has / as its pathname', function(done) {
+    it('should switch to the / route if clicking a link that has / as its pathname', function() {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
             <router-component>
@@ -277,17 +279,13 @@ describe('Router Component', function() {
         window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
         const firstPageLink = document.querySelector('first-page a');
-        const timer = setTimeout(() => {
-            firstPageLink.click();
-            assert.ok(!document.body.querySelector('first-page'));
-            assert.ok(document.body.querySelector('home-page'));
-            component.remove();
-            clearTimeout(timer);
-            done();
-        }, 201);
+        firstPageLink.click();
+        assert.ok(!document.body.querySelector('first-page'));
+        assert.ok(document.body.querySelector('home-page'));
+        component.remove();
     });
 
-    it('should switch to the catch all route that has the path that matches the current location after link has been clicked', function(done) {
+    it('should switch to the catch all route that has the path that matches the current location after link has been clicked', function() {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
             <router-component>
@@ -301,17 +299,13 @@ describe('Router Component', function() {
         document.body.appendChild(tpl.content);
         window.history.pushState({}, document.title, '/page1');
         const firstPageLink = document.querySelector('first-page a');
-        const timer = setTimeout(() => {
-            firstPageLink.click();
-            assert.ok(!document.body.querySelector('first-page'));
-            assert.ok(document.body.querySelector('fallback-page'));
-            component.remove();
-            clearTimeout(timer);
-            done();
-        }, 201);
+        firstPageLink.click();
+        assert.ok(!document.body.querySelector('first-page'));
+        assert.ok(document.body.querySelector('fallback-page'));
+        component.remove();
     });
 
-    it('should continue to show current page when clicking a link with a non-relative href', function(done) {
+    it('should continue to show current page when clicking a link with a non-relative href', function() {
         const tpl = document.createElement('template');
         tpl.innerHTML = `
             <router-component>
@@ -325,16 +319,12 @@ describe('Router Component', function() {
         window.history.pushState({}, document.title, '/page1');
         document.body.appendChild(tpl.content);
         const firstPageLink = document.querySelector('first-page a');
-        const timer = setTimeout(() => {
-            const evt = new Event('click');
-            evt.preventDefault();
-            firstPageLink.dispatchEvent(evt);
-            assert.ok(document.body.querySelector('first-page'));
-            assert.ok(!document.body.querySelector('second-page'));
-            component.remove();
-            clearTimeout(timer);
-            done();
-        }, 201);
+        const evt = new Event('click');
+        evt.preventDefault();
+        firstPageLink.dispatchEvent(evt);
+        assert.ok(document.body.querySelector('first-page'));
+        assert.ok(!document.body.querySelector('second-page'));
+        component.remove();
     });
 
     it('should switch to the path that matches the current location after calling pushState', function() {
@@ -442,6 +432,55 @@ describe('Router Component', function() {
         window.history.pushState({}, document.title, '/nested/pages/2');
         assert.ok(childRouter.querySelector('nested-two'));
         parentRouter.remove();
+    });
+
+    describe('when triggerRouteChange is set to false when pushing new state', function() {
+        let component;
+        beforeEach(function() {
+            const tpl = document.createElement('template');
+            tpl.innerHTML = `
+            <router-component>
+                <first-page path="/page1"></first-page>
+                <second-page path="/page2"></second-page>
+            </router-component>
+        `;
+            component = tpl.content.querySelector('router-component');
+            window.history.pushState({}, document.title, '/page1');
+            document.body.appendChild(tpl.content);
+        });
+
+        afterEach(function() {
+            component.remove();
+        });
+
+        it('should update the window pathname', function() {
+            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            assert.equal(location.pathname, '/page3');
+        });
+
+        it('should cleanup the triggerRouteChange from the history state', function() {
+            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            assert.equal(history.state.triggerRouteChange, undefined);
+        });
+
+        it('should not call console warning', function() {
+            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            assert.equal(console.warn.callCount, 0);
+        });
+
+        it('should not fire a route change event', function() {
+            const routeChangedSpy = sinon.spy();
+            component.addEventListener('route-changed', routeChangedSpy);
+            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            assert.equal(routeChangedSpy.callCount, 0);
+        });
+
+        it('should continue to show current route that was showing before pushState call', function() {
+            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            assert.equal(console.warn.callCount, 0);
+            assert.ok(document.body.querySelector('first-page'));
+            assert.ok(!document.body.querySelector('second-page'));
+        });
     });
 
     describe('extractPathParams', function() {

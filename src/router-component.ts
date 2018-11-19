@@ -40,7 +40,6 @@ export class RouterComponent extends HTMLElement {
 
     changedUrl(e: PopStateEvent) {
         const { pathname } = this.location;
-        if (this.shownPage && this.shownPage.getAttribute('path') === pathname) return;
         this.show(pathname);
     }
 
@@ -53,10 +52,15 @@ export class RouterComponent extends HTMLElement {
         // detect when consumer attempts to use and trigger a page load
         this.historyChangeStates = [window.history.pushState, window.history.replaceState];
         this.historyChangeStates.forEach(method => {
-            window.history[method.name] = (...args) => {
-                const [state] = args;
-                method.apply(history, args);
-                this.changedUrl(state);
+            window.history[method.name] = (state: any, title: string, url?: string | null) => {
+                const triggerRouteChange = state && state.triggerRouteChange === false;
+                if (triggerRouteChange) {
+                    delete state.triggerRouteChange;
+                }
+                method.call(history, state, title, url);
+                if (!triggerRouteChange) {
+                    this.changedUrl(state);
+                }
             };
         });
         let path = this.location.pathname;
@@ -113,9 +117,7 @@ export class RouterComponent extends HTMLElement {
         let router;
 
         const element = this.getRouteElementByPath(pathname);
-        if (this.shownPage === element) {
-            return;
-        }
+        if ((this.shownPage && this.shownPage.getAttribute('path') === pathname) || this.shownPage === element) return;
         if (!element) {
             router = this.getExternalRouterByPath(pathname);
             if (router) {
@@ -124,7 +126,7 @@ export class RouterComponent extends HTMLElement {
         }
 
         if (!element) {
-            throw new Error(
+            return console.warn(
                 `Navigated to path "${pathname}" but there is no matching element with a path ` +
                     `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`
             );

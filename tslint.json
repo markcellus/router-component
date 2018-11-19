@@ -8,7 +8,8 @@
   "rules": {
     "member-access": false,
     "curly": false,
-    "typedef": [true, "parameter", "member-variable-declaration"]
+    "typedef": [true, "parameter", "member-variable-declaration"],
+    "no-console": [true, "log", "error"]
 
   },
   "rulesDirectory": []

@@ -115,8 +115,16 @@ There are two ways that a route can be changed.
 window.history.pushState({}, null, '/new-url');
 
 ```
+Each method will trigger the `route-changed` event that is dispatched by the router component itself, which is illustrated in the next section below. 
 
-Each method will trigger the `route-changed` event that is dispatched by the router component itself, which is illustrated in the next section below.
+In the rare case you would like to push a new state or change the current location without triggering a new route, you 
+can pass `triggerRouteChange` flag like this:
+
+```javascript
+window.history.pushState({triggerRouteChange: false}, null, '/new-url');
+``` 
+
+Router will clean up the `triggerRoute` property in `history.state`, so you don't need to worry about clearing it out.
 
 ### Detecting Route Changes
 
