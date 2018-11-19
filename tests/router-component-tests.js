@@ -434,6 +434,27 @@ describe('Router Component', function() {
         parentRouter.remove();
     });
 
+    it('should only call on router show once per click', function() {
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <first-page path="/page1">
+                    <a href="/page2">To page 2</a>
+                </first-page>
+                <second-page path="/page2"></second-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/page1');
+        document.body.appendChild(tpl.content);
+        const firstPage = document.querySelector('first-page');
+        sinon.spy(component, 'show');
+        const firstPageLink = firstPage.querySelector('a');
+        firstPageLink.click();
+        assert.ok(component.show.callCount, 1);
+        component.remove();
+    });
+
     describe('when triggerRouteChange is set to false when pushing new state', function() {
         let component;
 
