@@ -1,5 +1,5 @@
 /*!
- * Router-component v0.4.1
+ * Router-component v0.5.0
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
@@ -33,24 +33,25 @@ class RouterComponent extends HTMLElement {
             this.fragment.appendChild(element);
         }
     }
-    changedUrl(e) {
-        const { pathname } = this.location;
-        if (this.shownPage && this.shownPage.getAttribute('path') === pathname)
-            return;
-        this.show(pathname);
-    }
     connectedCallback() {
-        this.changedUrlListener = this.changedUrl.bind(this);
-        window.addEventListener('popstate', this.changedUrlListener);
+        this.popStateChangedListener = this.popStateChanged.bind(this);
+        window.addEventListener('popstate', this.popStateChangedListener);
         this.bindLinks();
         // we must hijack pushState and replaceState because we need to
         // detect when consumer attempts to use and trigger a page load
         this.historyChangeStates = [window.history.pushState, window.history.replaceState];
         this.historyChangeStates.forEach(method => {
-            window.history[method.name] = (...args) => {
-                const [state] = args;
-                method.apply(history, args);
-                this.changedUrl(state);
+            window.history[method.name] = (state, title, url) => {
+                const triggerRouteChange = !state || state.triggerRouteChange !== false;
+                if (!triggerRouteChange) {
+                    // this.prevLocation = `${location.pathname}${location.search}`;
+                    this.invalid = true;
+                    delete state.triggerRouteChange;
+                }
+                method.call(history, state, title, url);
+                if (triggerRouteChange) {
+                    this.show(url);
+                }
             };
         });
         let path = this.location.pathname;
@@ -74,12 +75,6 @@ class RouterComponent extends HTMLElement {
         }
         return frags[frags.length - 1];
     }
-    matchPathWithRegex(pathname = '', regex) {
-        if (!pathname.startsWith('/')) {
-            pathname = `${this.directory}${pathname.replace(/^\//, '')}`;
-        }
-        return pathname.match(regex);
-    }
     getRouteElementByPath(pathname) {
         let element;
         if (!pathname)
@@ -102,9 +97,10 @@ class RouterComponent extends HTMLElement {
             return;
         let router;
         const element = this.getRouteElementByPath(pathname);
-        if (this.shownPage === element) {
+        if ((this.shownPage && this.shownPage.getAttribute('path') === pathname) ||
+            (this.shownPage === element && !this.invalid))
             return;
-        }
+        this.invalid = false;
         if (!element) {
             router = this.getExternalRouterByPath(pathname);
             if (router) {
@@ -112,7 +108,7 @@ class RouterComponent extends HTMLElement {
             }
         }
         if (!element) {
-            throw new Error(`Navigated to path "${pathname}" but there is no matching element with a path ` +
+            return console.warn(`Navigated to path "${pathname}" but there is no matching element with a path ` +
                 `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`);
         }
         if (this.shownPage) {
@@ -131,7 +127,7 @@ class RouterComponent extends HTMLElement {
         // no-op
     }
     disconnectedCallback() {
-        window.removeEventListener('popstate', this.changedUrlListener);
+        window.removeEventListener('popstate', this.popStateChangedListener);
         this.historyChangeStates.forEach(method => {
             window.history[method.name] = method;
         });
@@ -151,9 +147,7 @@ class RouterComponent extends HTMLElement {
             return;
         if (link.origin === this.location.origin) {
             e.preventDefault();
-            const popStateEvent = new PopStateEvent('popstate', {});
             window.history.pushState({}, document.title, `${link.pathname}${link.search}`);
-            this.changedUrl(popStateEvent);
         }
     }
     bindLinks() {
@@ -172,6 +166,15 @@ class RouterComponent extends HTMLElement {
     }
     unbindLinks() {
         document.body.removeEventListener('click', this.clickedLinkListener);
+    }
+    matchPathWithRegex(pathname = '', regex) {
+        if (!pathname.startsWith('/')) {
+            pathname = `${this.directory}${pathname.replace(/^\//, '')}`;
+        }
+        return pathname.match(regex);
+    }
+    popStateChanged() {
+        this.show(this.location.pathname);
     }
     setupElement(element) {
         this.originalDocumentTitle = document.title;
