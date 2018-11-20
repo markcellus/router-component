@@ -124,7 +124,7 @@ can pass `triggerRouteChange` flag like this:
 window.history.pushState({triggerRouteChange: false}, null, '/new-url');
 ``` 
 
-Router will clean up the `triggerRoute` property in `history.state`, so you don't need to worry about clearing it out.
+Router will clean up the `triggerRouteChange` property in `history.state`, so you don't need to worry about clearing it out.
 
 ### Detecting Route Changes
 
