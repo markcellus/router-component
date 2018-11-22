@@ -1,5 +1,5 @@
 /*!
- * Router-component v0.5.0
+ * Router-component v0.6.0
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
@@ -54,26 +54,7 @@ class RouterComponent extends HTMLElement {
                 }
             };
         });
-        let path = this.location.pathname;
-        if (this.extension && this.directory !== '/') {
-            path = `/${this.filename}`;
-        }
-        this.show(path);
-    }
-    get filename() {
-        return this.location.pathname.replace(this.directory, '');
-    }
-    get directory() {
-        const { pathname } = this.location;
-        return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
-    }
-    get extension() {
-        const { pathname } = this.location;
-        const frags = pathname.split('.');
-        if (frags.length <= 1) {
-            return '';
-        }
-        return frags[frags.length - 1];
+        this.show(this.location.pathname);
     }
     getRouteElementByPath(pathname) {
         let element;
@@ -123,9 +104,6 @@ class RouterComponent extends HTMLElement {
     get location() {
         return window.location;
     }
-    set location(value) {
-        // no-op
-    }
     disconnectedCallback() {
         window.removeEventListener('popstate', this.popStateChangedListener);
         this.historyChangeStates.forEach(method => {
@@ -169,7 +147,7 @@ class RouterComponent extends HTMLElement {
     }
     matchPathWithRegex(pathname = '', regex) {
         if (!pathname.startsWith('/')) {
-            pathname = `${this.directory}${pathname.replace(/^\//, '')}`;
+            pathname = `${pathname.replace(/^\//, '')}`;
         }
         return pathname.match(regex);
     }
