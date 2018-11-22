@@ -46,37 +46,6 @@ describe('Router Component', function() {
         component.remove();
     });
 
-    it('should show the / route when initial window location is a file name', function() {
-        const tpl = document.createElement('template');
-        tpl.innerHTML = `
-            <router-component>
-                <first-page path="/"></first-page>
-            </router-component>
-        `;
-        const component = tpl.content.querySelector('router-component');
-        window.history.pushState({}, document.title, '/blah.html');
-        document.body.appendChild(tpl.content);
-        const firstPage = document.body.querySelector('first-page');
-        assert.deepEqual(firstPage.parentElement, component);
-        component.remove();
-    });
-
-    it('should show / route when initial window location is a path with a file name', function() {
-        const tpl = document.createElement('template');
-        tpl.innerHTML = `
-            <router-component>
-                <first-page path="/"></first-page>
-            </router-component>
-        `;
-        const component = tpl.content.querySelector('router-component');
-        const dir = 'this/is/a/deep/path/with/a/';
-        window.history.pushState({}, document.title, `${dir}file.html`);
-        document.body.appendChild(tpl.content);
-        const firstPage = document.body.querySelector('first-page');
-        assert.deepEqual(firstPage.parentElement, component);
-        component.remove();
-    });
-
     it('should show the correct route element when navigating to a multi-segment path', function() {
         const tpl = document.createElement('template');
         tpl.innerHTML = `

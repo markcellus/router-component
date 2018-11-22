@@ -61,29 +61,7 @@ export class RouterComponent extends HTMLElement {
                 }
             };
         });
-        let path = this.location.pathname;
-        if (this.extension && this.directory !== '/') {
-            path = `/${this.filename}`;
-        }
-        this.show(path);
-    }
-
-    get filename(): string {
-        return this.location.pathname.replace(this.directory, '');
-    }
-
-    get directory(): string {
-        const { pathname } = this.location;
-        return pathname.substring(0, pathname.lastIndexOf('/')) + '/';
-    }
-
-    get extension(): string {
-        const { pathname } = this.location;
-        const frags = pathname.split('.');
-        if (frags.length <= 1) {
-            return '';
-        }
-        return frags[frags.length - 1];
+        this.show(this.location.pathname);
     }
 
     getRouteElementByPath(pathname: string): Element | undefined {
@@ -142,9 +120,6 @@ export class RouterComponent extends HTMLElement {
         return window.location;
     }
 
-    set location(value: Location) {
-        // no-op
-    }
     disconnectedCallback() {
         window.removeEventListener('popstate', this.popStateChangedListener);
         this.historyChangeStates.forEach(method => {
@@ -164,7 +139,6 @@ export class RouterComponent extends HTMLElement {
         const location = window.location;
         const origin = location.origin || location.protocol + '//' + location.host;
         if (href.indexOf(origin) !== 0) return;
-
         if (link.origin === this.location.origin) {
             e.preventDefault();
             window.history.pushState({}, document.title, `${link.pathname}${link.search}`);
@@ -193,7 +167,7 @@ export class RouterComponent extends HTMLElement {
 
     private matchPathWithRegex(pathname: string = '', regex: string): RegExpMatchArray {
         if (!pathname.startsWith('/')) {
-            pathname = `${this.directory}${pathname.replace(/^\//, '')}`;
+            pathname = `${pathname.replace(/^\//, '')}`;
         }
         return pathname.match(regex);
     }
