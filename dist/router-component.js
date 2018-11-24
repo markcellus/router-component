@@ -1,5 +1,5 @@
 /*!
- * Router-component v0.6.0
+ * Router-component v0.6.1
  * https://npm.com/router-component
  *
  * Copyright (c) 2018 Mark Kennedy
@@ -78,8 +78,10 @@ class RouterComponent extends HTMLElement {
             return;
         let router;
         const element = this.getRouteElementByPath(pathname);
-        if ((this.shownPage && this.shownPage.getAttribute('path') === pathname) ||
-            (this.shownPage === element && !this.invalid))
+        if (this.shownPage && this.shownPage.getAttribute('path') !== pathname) {
+            this.invalid = true;
+        }
+        if (this.shownPage === element && !this.invalid)
             return;
         this.invalid = false;
         if (!element) {
