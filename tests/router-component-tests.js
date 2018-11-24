@@ -425,6 +425,74 @@ describe('Router Component', function() {
         component.remove();
     });
 
+    it('should re-render the route again if requested path matches the pattern of the current route but is a different path', function() {
+        const connectedCallbackSpy = sinon.spy();
+        const disconnectedCallbackSpy = sinon.spy();
+        customElements.define(
+            'test-page',
+            class extends HTMLElement {
+                connectedCallback() {
+                    connectedCallbackSpy();
+                }
+                disconnectedCallback() {
+                    disconnectedCallbackSpy();
+                }
+            }
+        );
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <test-page path="/page[0-9]"></test-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/page1');
+        document.body.appendChild(tpl.content);
+        connectedCallbackSpy.resetHistory();
+        disconnectedCallbackSpy.resetHistory();
+        const page = document.body.querySelector('test-page');
+        assert.ok(page);
+        window.history.pushState({}, document.title, '/page2');
+        assert.equal(connectedCallbackSpy.callCount, 1);
+        assert.equal(disconnectedCallbackSpy.callCount, 1);
+        component.remove();
+    });
+
+    it('should re-render the route again if clicking to a path matches the pattern of the current route', function() {
+        const connectedCallbackSpy = sinon.spy();
+        const disconnectedCallbackSpy = sinon.spy();
+        customElements.define(
+            'test-click-page',
+            class extends HTMLElement {
+                connectedCallback() {
+                    connectedCallbackSpy();
+                }
+                disconnectedCallback() {
+                    disconnectedCallbackSpy();
+                }
+            }
+        );
+        const tpl = document.createElement('template');
+        tpl.innerHTML = `
+            <router-component>
+                <test-click-page path="/page[0-9]">
+                    <a href="/page2">To page 2</a>
+                </test-click-page>
+            </router-component>
+        `;
+        const component = tpl.content.querySelector('router-component');
+        window.history.pushState({}, document.title, '/page1');
+        document.body.appendChild(tpl.content);
+        const firstPage = document.querySelector('test-click-page');
+        connectedCallbackSpy.resetHistory();
+        disconnectedCallbackSpy.resetHistory();
+        const firstPageLink = firstPage.querySelector('a');
+        firstPageLink.click();
+        assert.equal(connectedCallbackSpy.callCount, 1);
+        assert.equal(disconnectedCallbackSpy.callCount, 1);
+        component.remove();
+    });
+
     describe('when triggerRouteChange is set to false when pushing new state', function() {
         let component;
 

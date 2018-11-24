@@ -86,11 +86,10 @@ export class RouterComponent extends HTMLElement {
         let router;
 
         const element = this.getRouteElementByPath(pathname);
-        if (
-            (this.shownPage && this.shownPage.getAttribute('path') === pathname) ||
-            (this.shownPage === element && !this.invalid)
-        )
-            return;
+        if (this.shownPage && this.shownPage.getAttribute('path') !== pathname) {
+            this.invalid = true;
+        }
+        if (this.shownPage === element && !this.invalid) return;
         this.invalid = false;
         if (!element) {
             router = this.getExternalRouterByPath(pathname);
