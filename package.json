@@ -41,6 +41,7 @@
     "mocha": "^5.2.0",
     "rollup": "^0.67.0",
     "rollup-plugin-node-resolve": "^3.4.0",
+    "rollup-plugin-typescript2": "^0.18.1",
     "sinon": "^7.1.1",
     "tslint": "^5.11.0",
     "tslint-config-prettier": "^1.15.0",
@@ -59,7 +60,5 @@
     "lint": "tslint src/**/*",
     "start-server": "http-server ./ -p 3239"
   },
-  "dependencies": {
-    "rollup-plugin-typescript2": "^0.18.1"
-  }
+  "dependencies": {}
 }
