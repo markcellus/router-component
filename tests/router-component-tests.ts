@@ -1,6 +1,6 @@
 import { extractPathParams } from '../src/router-component';
-import '../node_modules/chai/chai.js';
-import sinon from '../node_modules/sinon/pkg/sinon-esm.js';
+import 'chai/chai';
+import sinon from 'sinon/pkg/sinon-esm';
 
 const { assert } = chai;
 const origDocTitle = document.title;
