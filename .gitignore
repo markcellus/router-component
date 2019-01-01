@@ -2,3 +2,5 @@ node_modules
 .idea/
 *\.DS_Store
 .DS_Store
+coverage
+.rpt2_cache

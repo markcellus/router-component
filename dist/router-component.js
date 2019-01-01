@@ -1,11 +1,3 @@
-/*!
- * Router-component v0.6.1
- * https://npm.com/router-component
- *
- * Copyright (c) 2018 Mark Kennedy
- * Licensed under the MIT license
- */
-
 function extractPathParams(pattern, path) {
     const regex = new RegExp(pattern);
     const matches = regex.exec(path);
@@ -28,7 +20,7 @@ class RouterComponent extends HTMLElement {
         routeComponents.add(this);
         const children = this.children;
         while (children.length > 0) {
-            const [element] = children;
+            const element = children[0];
             this.routeElements.add(element);
             this.fragment.appendChild(element);
         }
