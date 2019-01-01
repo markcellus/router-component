@@ -33,7 +33,7 @@ export class RouterComponent extends HTMLElement {
         routeComponents.add(this);
         const children: HTMLCollection = this.children;
         while (children.length > 0) {
-            const [element] = children;
+            const element = children[0];
             this.routeElements.add(element);
             this.fragment.appendChild(element);
         }
