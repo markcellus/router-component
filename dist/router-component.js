@@ -1,3 +1,11 @@
+/*!
+ * Router-component v0.7.0
+ * https://npm.com/router-component
+ *
+ * Copyright (c) 2019 Mark Kennedy
+ * Licensed under the MIT license
+ */
+
 function extractPathParams(pattern, path) {
     const regex = new RegExp(pattern);
     const matches = regex.exec(path);
