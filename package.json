@@ -24,7 +24,7 @@
     "polymer router"
   ],
   "license": "MIT",
-  "main": "dist/router-component.js",
+  "module": "dist/router-component.js",
   "types": "dist/router-component.d.ts",
   "devDependencies": {
     "@types/chai": "^4.1.7",
