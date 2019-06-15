@@ -1,3 +1,11 @@
+/*!
+ * Router-component v0.8.0
+ * https://npm.com/router-component
+ *
+ * Copyright (c) 2019 Mark Kennedy
+ * Licensed under the MIT license
+ */
+
 'use strict';
 
 Object.defineProperty(exports, '__esModule', { value: true });
