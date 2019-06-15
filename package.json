@@ -24,7 +24,8 @@
     "polymer router"
   ],
   "license": "MIT",
-  "main": "dist/router-component.js",
+  "main": "dist/router-component.common.js",
+  "module": "dist/router-component.js",
   "types": "dist/router-component.d.ts",
   "devDependencies": {
     "@types/chai": "^4.1.7",
@@ -41,7 +42,7 @@
     "mocha": "^5.2.0",
     "rollup": "^0.67.0",
     "rollup-plugin-node-resolve": "^3.4.0",
-    "rollup-plugin-typescript2": "^0.18.1",
+    "rollup-plugin-typescript2": "^0.21.1",
     "sinon": "^7.1.1",
     "tslint": "^5.11.0",
     "tslint-config-prettier": "^1.15.0",
