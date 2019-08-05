@@ -39,8 +39,11 @@
     "@types/chai": "^4.1.7",
     "@types/mocha": "^5.2.7",
     "@types/sinon": "^7.0.13",
+    "@typescript-eslint/eslint-plugin": "^1.13.0",
+    "@typescript-eslint/parser": "^1.13.0",
     "banner-cli": "^0.14.0",
     "chai": "^4.2.0",
+    "eslint": "^6.1.0",
     "http-server": "^0.11.1",
     "karma": "^4.2.0",
     "karma-chrome-launcher": "^3.0.0",
@@ -51,7 +54,6 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript2": "^0.22.1",
     "sinon": "^7.4.0",
-    "tslint": "^5.18.0",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.5.3",
     "uglify-es": "^3.3.9"
@@ -64,7 +66,7 @@
     "build": "rm -rf dist/* && rollup -c && npm run minify",
     "banner": "banner-cli dist/*.js",
     "start": "rollup -c --watch",
-    "lint": "tslint src/**/*",
+    "lint": "eslint '**/*.{js,ts}'",
     "start-server": "http-server ./ -p 3239"
   },
   "dependencies": {}

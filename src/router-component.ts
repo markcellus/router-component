@@ -185,6 +185,7 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
+    // eslint-disable-next-line no-unused-vars
     private teardownElement(element: Element) {
         document.title = this.originalDocumentTitle;
     }

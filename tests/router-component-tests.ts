@@ -1,5 +1,6 @@
 import * as chai from 'chai';
 import * as sinon from 'sinon';
+// eslint-disable-next-line no-unused-vars
 import { extractPathParams, RouterComponent } from '../src/router-component';
 
 const { assert } = chai;
@@ -7,7 +8,6 @@ const origDocTitle = document.title;
 const originalPathName = document.location.pathname;
 
 describe('Router Component', () => {
-
     let consoleWarn;
     beforeEach(() => {
         consoleWarn = sinon.stub(console, 'warn');
