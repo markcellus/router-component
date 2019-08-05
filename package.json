@@ -14,14 +14,22 @@
     "node": ">=8.9.0"
   },
   "keywords": [
+    "lit router",
+    "spa router",
+    "webcomponent router",
+    "custom element-router",
+    "js router",
+    "lit element router",
+    "declarative router",
+    "router component",
+    "web-router",
     "router",
-    "routing",
     "router element",
     "route management",
-    "router component",
+    "route component",
     "routing urls",
-    "lit router",
-    "polymer router"
+    "polymer router",
+    "html router"
   ],
   "license": "MIT",
   "main": "dist/router-component.common.js",
