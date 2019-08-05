@@ -1,5 +1,5 @@
 /*!
-  * Router-component v0.8.1
+  * Router-component v0.8.2
   * https://npm.com/router-component
   *
   * Copyright (c) 2019 Mark Kennedy
@@ -170,6 +170,7 @@ class RouterComponent extends HTMLElement {
             document.title = this.originalDocumentTitle;
         }
     }
+    // eslint-disable-next-line no-unused-vars
     teardownElement(element) {
         document.title = this.originalDocumentTitle;
     }
