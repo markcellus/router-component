@@ -1,7 +1,7 @@
 {
   "name": "router-component",
   "version": "0.8.1",
-  "description": "A simple router for web components",
+  "description": "A simple, declarative router for web components",
   "repository": {
     "type": "git",
     "url": "https://github.com/mkay581/router-component.git"
