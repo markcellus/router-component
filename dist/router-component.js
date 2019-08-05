@@ -172,4 +172,4 @@ class RouterComponent extends HTMLElement {
 }
 customElements.define('router-component', RouterComponent);
 
-export { extractPathParams, RouterComponent };
+export { RouterComponent, extractPathParams };

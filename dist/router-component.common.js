@@ -1,9 +1,9 @@
 /*!
- * Router-component v0.8.0
- * https://npm.com/router-component
- *
- * Copyright (c) 2019 Mark Kennedy
- * Licensed under the MIT license
+  * Router-component v0.8.1
+  * https://npm.com/router-component
+  *
+  * Copyright (c) 2019 Mark Kennedy
+  * Licensed under the MIT license
  */
 
 'use strict';
@@ -184,5 +184,5 @@ class RouterComponent extends HTMLElement {
 }
 customElements.define('router-component', RouterComponent);
 
-exports.extractPathParams = extractPathParams;
 exports.RouterComponent = RouterComponent;
+exports.extractPathParams = extractPathParams;
