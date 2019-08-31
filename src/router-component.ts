@@ -63,7 +63,8 @@ export class RouterComponent extends HTMLElement {
                 }
             };
         });
-        this.show(this.location.pathname);
+        const { pathname, hash } = this.location;
+        this.show(`${pathname}${hash}`);
     }
 
     getRouteElementByPath(pathname: string): Element | undefined {
