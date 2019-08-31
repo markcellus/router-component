@@ -1,3 +1,5 @@
+import { querySelectorDeep } from 'query-selector-shadow-dom';
+
 export function extractPathParams(pattern: string, path: string): string[] {
     const regex = new RegExp(pattern);
     const matches = regex.exec(path);
@@ -113,6 +115,9 @@ export class RouterComponent extends HTMLElement {
         this.setupElement(element);
         if (hash) {
             window.location.hash = hash;
+            const hashId = hash.replace('#', '');
+            const hashElement = querySelectorDeep(`[id=${hashId}]`, element) as HTMLElement;
+            hashElement && hashElement.scrollIntoView();
         }
 
         this.dispatchEvent(new CustomEvent('route-changed'));
