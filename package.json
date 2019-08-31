@@ -69,5 +69,7 @@
     "lint": "eslint '**/*.{js,ts}'",
     "start-server": "http-server ./ -p 3239"
   },
-  "dependencies": {}
+  "dependencies": {
+    "query-selector-shadow-dom": "^0.3.3"
+  }
 }
