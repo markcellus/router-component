@@ -1,9 +1,8 @@
-import * as chai from 'chai';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
+import { expect, fixture, html } from '@open-wc/testing';
 // eslint-disable-next-line no-unused-vars
 import { extractPathParams, RouterComponent } from '../src/router-component';
 
-const { assert } = chai;
 const origDocTitle = document.title;
 const originalPathName = document.location.pathname;
 
