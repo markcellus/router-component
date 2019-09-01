@@ -5,3 +5,4 @@ node_modules
 coverage
 .rpt2_cache
 dist
+.coverage

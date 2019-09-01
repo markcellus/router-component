@@ -1,3 +1,5 @@
+import { querySelectorDeep } from 'query-selector-shadow-dom';
+
 export function extractPathParams(pattern: string, path: string): string[] {
     const regex = new RegExp(pattern);
     const matches = regex.exec(path);
@@ -61,7 +63,8 @@ export class RouterComponent extends HTMLElement {
                 }
             };
         });
-        this.show(this.location.pathname);
+        const { pathname, hash } = this.location;
+        this.show(`${pathname}${hash}`);
     }
 
     getRouteElementByPath(pathname: string): Element | undefined {
@@ -81,10 +84,10 @@ export class RouterComponent extends HTMLElement {
         return element;
     }
 
-    show(pathname: string) {
-        if (!pathname) return;
+    show(location: string) {
+        if (!location) return;
         let router;
-
+        const [pathname, hash] = location.split('#');
         const element = this.getRouteElementByPath(pathname);
         if (this.shownPage && this.shownPage.getAttribute('path') !== pathname) {
             this.invalid = true;
@@ -111,6 +114,12 @@ export class RouterComponent extends HTMLElement {
         this.shownPage = element;
         this.appendChild(element);
         this.setupElement(element);
+        if (hash) {
+            window.location.hash = hash;
+            const hashId = hash.replace('#', '');
+            const hashElement = querySelectorDeep(`[id=${hashId}]`, element) as HTMLElement;
+            hashElement && hashElement.scrollIntoView();
+        }
 
         this.dispatchEvent(new CustomEvent('route-changed'));
     }
@@ -135,12 +144,12 @@ export class RouterComponent extends HTMLElement {
         const { href } = link;
         if (!href || href.indexOf('mailto:') !== -1) return;
 
-        const location = window.location;
+        const { location } = window;
         const origin = location.origin || location.protocol + '//' + location.host;
         if (href.indexOf(origin) !== 0) return;
         if (link.origin === this.location.origin) {
             e.preventDefault();
-            window.history.pushState({}, document.title, `${link.pathname}${link.search}`);
+            window.history.pushState({}, document.title, `${link.pathname}${link.search}${link.hash}`);
         }
     }
 
