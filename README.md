@@ -3,16 +3,16 @@
 
 # Router Component
 
-A small, declarative router component for single-page apps that allows you to load web pages (or any web component) 
+A simple, declarative router component for single-page apps that allows you to load [Web Components](https://www.webcomponents.org/introduction)
 dynamically when urls are requested, without performing a hard reload of the entire page.
 
 ## Benefits
 
-* Very lightweight (there is very little code in this library)
-* No dependencies -- only provides routing needs and nothing more
-* Easy, declarative html syntax -- no complex configuration files or routing engines
-* Automatically intercepts all `<a>` tags on a page (that contain relative `href`s) to prevent them from causing page
-reloads, which use [pushState()](http://w3c.github.io/html/browsers.html#dom-history-pushstate) API.
+-   Very lightweight (there is very little code in this library)
+-   Only provides routing needs and nothing more
+-   Easy, declarative html syntax -- no complex configuration files or routing engines
+-   Automatically intercepts all `<a>` tags on a page (that contain relative `href`s) to prevent them from causing page
+    reloads, which use [pushState()](http://w3c.github.io/html/browsers.html#dom-history-pushstate) API.
 
 ## Installation
 
@@ -22,20 +22,22 @@ npm i router-component
 
 ## Prerequisites
 
-This library assumes you are using a browser that supports [Web Components](https://www.webcomponents.org/introduction). 
-and that you are using them as your routed elements. They are the future of the web and are already implemented 
+This library assumes you are using a browser that supports [Web Components](https://www.webcomponents.org/introduction)
+and that you are using them as your routed elements. They are the future of the web and are already implemented
 natively in browsers.
 
 For advanced usage of this library, you will need to know
-[Regular Expressions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions) and how 
+[Regular Expressions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions) and how
 they work in JavaScript.
 
 ## Usage
 
 ### Basic Example
 
+<!-- prettier-ignore -->
 ```html
 <!-- index.html -->
+
 <html>
 <head>
     <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
@@ -85,20 +87,17 @@ npm run start-server
 
 Which will make the examples available at http://localhost:3239/examples/.
 
-
-
 ## Route API
 
-Each child element of `<router-component>` should extend 
+Each child element of `<router-component>` should extend
 [CustomElement](https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements) so that the following attributes
 can be passed to them:
 
-| Option | Type | Description |
-|--------|--------|--------|
-| `path`| String | A regex expression that the browser URL needs to match in order for the component to render. Capture groups are also supported to allow for dynamic parameters in URLs.
-| `search-params`| String | A search string regex that the requested page would need to have in order to match. Setting this value to `foo=[bar\|baz]` would match `index.html?foo=bar` for instance)
-| `document-title`| String | The [title of the document](https://html.spec.whatwg.org/multipage/dom.html#document.title) that will be shown when the route is active
-
+| Option           | Type   | Description                                                                                                                                                               |
+| ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `path`           | String | A regex expression that the browser URL needs to match in order for the component to render. Capture groups are also supported to allow for dynamic parameters in URLs.   |
+| `search-params`  | String | A search string regex that the requested page would need to have in order to match. Setting this value to `foo=[bar\|baz]` would match `index.html?foo=bar` for instance) |
+| `document-title` | String | The [title of the document](https://html.spec.whatwg.org/multipage/dom.html#document.title) that will be shown when the route is active                                   |
 
 ## Router API
 
@@ -108,21 +107,21 @@ The goal of this package is to leverage the use of existing browser APIs, while 
 
 There are two ways that a route can be changed.
 
-1. By clicking on a relative link that is nested within a route element or 
+1. By clicking on a relative link that is nested within a route element or
 1. Programmatically using the [`pushState()`](http://w3c.github.io/html/browsers.html#dom-history-pushstate) or [`replaceState()`](http://w3c.github.io/html/browsers.html#dom-history-replacestate) API
 
 ```javascript
 window.history.pushState({}, null, '/new-url');
-
 ```
-Each method will trigger the `route-changed` event that is dispatched by the router component itself, which is illustrated in the next section below. 
 
-In the rare case you would like to push a new state or change the current location without triggering a new route, you 
+Each method will trigger the `route-changed` event that is dispatched by the router component itself, which is illustrated in the next section below.
+
+In the rare case you would like to push a new state or change the current location without triggering a new route, you
 can pass `triggerRouteChange` flag like this:
 
 ```javascript
-window.history.pushState({triggerRouteChange: false}, null, '/new-url');
-``` 
+window.history.pushState({ triggerRouteChange: false }, null, '/new-url');
+```
 
 Router will clean up the `triggerRouteChange` property in `history.state`, so you don't need to worry about clearing it out.
 
@@ -132,21 +131,21 @@ You can listen to route changes that are triggered either by link clicks or via 
 
 ```html
 <html>
-<head>
-    <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
-    <script type="module">
-        const router = document.body.querySelector('router-component');
-        router.addEventListener('route-changed', () => {
-            // called everytime the route changes!
-        })
-    </script>
-</head>
-<body>
-<router-component>
-    <other-page path="/other[/]?"></other-page>
-    <fallback-page path=".*"></fallback-page>
-</router-component>
-</body>
+    <head>
+        <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
+        <script type="module">
+            const router = document.body.querySelector('router-component');
+            router.addEventListener('route-changed', () => {
+                // called everytime the route changes!
+            });
+        </script>
+    </head>
+    <body>
+        <router-component>
+            <other-page path="/other[/]?"></other-page>
+            <fallback-page path=".*"></fallback-page>
+        </router-component>
+    </body>
 </html>
 ```
 
@@ -163,5 +162,3 @@ To debug and run locally:
 ```bash
 npm start
 ```
-
-
