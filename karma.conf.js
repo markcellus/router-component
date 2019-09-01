@@ -1,19 +1,21 @@
 module.exports = function(config) {
     config.set({
-        files: ['tests/**/*.ts', 'src/**/*.ts'],
-        preprocessors: {
-            '**/*.ts': ['karma-typescript'],
+        files: [{ pattern: 'tests/**/*.ts', type: 'module' }],
+
+        plugins: [require.resolve('@open-wc/karma-esm'), 'karma-mocha', 'karma-chrome-launcher', 'karma-coverage'],
+        esm: {
+            nodeResolve: true,
+            compatibility: 'all',
+            fileExtensions: ['.ts'],
+            babel: true
         },
-        karmaTypescriptConfig: {
-            compilerOptions: {
-                module: "commonjs",
-                sourceMap: true,
-                target: "es6"
-            },
-            exclude: ["node_modules"]
+        coverageReporter: {
+            includeAllSources: true,
+            dir: '.coverage',
+            reporters: [{ type: 'lcov', subdir: '.' }, { type: 'text-summary' }]
         },
-        reporters: ['progress', 'karma-typescript'],
-        frameworks: ['mocha', 'karma-typescript'],
+        reporters: ['progress', 'coverage'],
+        frameworks: ['esm', 'mocha'],
         port: 9876,
         colors: true,
         logLevel: config.LOG_INFO,
