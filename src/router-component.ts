@@ -85,6 +85,8 @@ export class RouterComponent extends HTMLElement {
     }
 
     private handleHash(element?: Element, wait: boolean = false): void {
+        const delayAttribute = this.getAttribute('hash-scroll-delay');
+        const delay = delayAttribute ? Number(delayAttribute) : 1;
         const scrollToHash = () => {
             const hashId = this.location.hash.replace('#', '');
             const hashElement = querySelectorDeep(`[id=${hashId}]`, element) as HTMLElement;
@@ -98,7 +100,7 @@ export class RouterComponent extends HTMLElement {
             const timer = setTimeout(() => {
                 scrollToHash();
                 clearTimeout(timer);
-            }, 500);
+            }, delay);
         }
     }
 
