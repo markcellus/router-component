@@ -13,6 +13,15 @@ export function extractPathParams(pattern: string, path: string): string[] {
     }
 }
 
+function delay(milliseconds: string | number = 0) {
+    return new Promise(resolve => {
+        const timer = setTimeout(() => {
+            resolve();
+            clearTimeout(timer);
+        }, Number(milliseconds));
+    });
+}
+
 const routeComponents: Set<RouterComponent> = new Set();
 
 export class RouterComponent extends HTMLElement {
@@ -105,7 +114,7 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
-    show(location: string, initialLoad: boolean = false) {
+    async show(location: string, initialLoad: boolean = false) {
         if (!location) return;
         let router;
         const [pathname, hash] = location.split('#');
@@ -129,11 +138,23 @@ export class RouterComponent extends HTMLElement {
             );
         }
         if (this.shownPage) {
+            this.dispatchEvent(
+                new CustomEvent('hiding-page', {
+                    detail: this.shownPage
+                })
+            );
+            await delay(this.getAttribute('hide-delay'));
             this.fragment.appendChild(this.shownPage);
             this.teardownElement(this.shownPage);
         }
         this.shownPage = element;
         this.appendChild(element);
+        this.dispatchEvent(
+            new CustomEvent('showing-page', {
+                detail: element
+            })
+        );
+        await delay(this.getAttribute('show-delay'));
         this.setupElement(element);
         if (hash) {
             window.location.hash = hash;
