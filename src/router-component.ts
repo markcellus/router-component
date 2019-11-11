@@ -137,7 +137,8 @@ export class RouterComponent extends HTMLElement {
                     `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`
             );
         }
-        if (this.shownPage) {
+
+        if (this.shownPage && this.shownPage !== element) {
             this.dispatchEvent(
                 new CustomEvent('hiding-page', {
                     detail: this.shownPage
@@ -147,15 +148,17 @@ export class RouterComponent extends HTMLElement {
             this.fragment.appendChild(this.shownPage);
             this.teardownElement(this.shownPage);
         }
-        this.shownPage = element;
-        this.appendChild(element);
-        this.dispatchEvent(
-            new CustomEvent('showing-page', {
-                detail: element
-            })
-        );
-        await delay(this.getAttribute('show-delay'));
-        this.setupElement(element);
+        if (this.shownPage !== element) {
+            this.shownPage = element;
+            this.appendChild(element);
+            this.dispatchEvent(
+                new CustomEvent('showing-page', {
+                    detail: element
+                })
+            );
+            await delay(this.getAttribute('show-delay'));
+            this.setupElement(element);
+        }
         if (hash) {
             window.location.hash = hash;
             this.handleHash(element, initialLoad);
