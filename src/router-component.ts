@@ -86,11 +86,12 @@ export class RouterComponent extends HTMLElement {
 
     private handleHash(element?: Element, wait: boolean = false): void {
         const delayAttribute = this.getAttribute('hash-scroll-delay');
+        const behaviorAttribute = this.getAttribute('hash-scroll-behavior') as ScrollBehavior;
         const delay = delayAttribute ? Number(delayAttribute) : 1;
         const scrollToHash = () => {
             const hashId = this.location.hash.replace('#', '');
             const hashElement = querySelectorDeep(`[id=${hashId}]`, element) as HTMLElement;
-            hashElement && hashElement.scrollIntoView({ behavior: 'smooth' });
+            hashElement && hashElement.scrollIntoView({ behavior: behaviorAttribute || 'auto' });
         };
         if (!wait) {
             scrollToHash();
