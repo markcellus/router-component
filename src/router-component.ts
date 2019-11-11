@@ -88,7 +88,7 @@ export class RouterComponent extends HTMLElement {
         const scrollToHash = () => {
             const hashId = this.location.hash.replace('#', '');
             const hashElement = querySelectorDeep(`[id=${hashId}]`, element) as HTMLElement;
-            hashElement && hashElement.scrollIntoView();
+            hashElement && hashElement.scrollIntoView({ behavior: 'smooth' });
         };
         if (!wait) {
             scrollToHash();
