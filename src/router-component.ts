@@ -64,7 +64,7 @@ export class RouterComponent extends HTMLElement {
             };
         });
         const { pathname, hash } = this.location;
-        this.show(`${pathname}${hash}`);
+        this.show(`${pathname}${hash}`, true);
     }
 
     getRouteElementByPath(pathname: string): Element | undefined {
@@ -84,7 +84,28 @@ export class RouterComponent extends HTMLElement {
         return element;
     }
 
-    show(location: string) {
+    private handleHash(element?: Element, wait: boolean = false): void {
+        const delayAttribute = this.getAttribute('hash-scroll-delay');
+        const behaviorAttribute = this.getAttribute('hash-scroll-behavior') as ScrollBehavior;
+        const delay = delayAttribute ? Number(delayAttribute) : 1;
+        const scrollToHash = () => {
+            const hashId = this.location.hash.replace('#', '');
+            const hashElement = querySelectorDeep(`[id=${hashId}]`, element) as HTMLElement;
+            hashElement && hashElement.scrollIntoView({ behavior: behaviorAttribute || 'auto' });
+        };
+        if (!wait) {
+            scrollToHash();
+        } else {
+            // wait for custom element to connect to the DOM so we
+            // can scroll to it, on certain browsers this takes a while
+            const timer = setTimeout(() => {
+                scrollToHash();
+                clearTimeout(timer);
+            }, delay);
+        }
+    }
+
+    show(location: string, initialLoad: boolean = false) {
         if (!location) return;
         let router;
         const [pathname, hash] = location.split('#');
@@ -116,9 +137,7 @@ export class RouterComponent extends HTMLElement {
         this.setupElement(element);
         if (hash) {
             window.location.hash = hash;
-            const hashId = hash.replace('#', '');
-            const hashElement = querySelectorDeep(`[id=${hashId}]`, element) as HTMLElement;
-            hashElement && hashElement.scrollIntoView();
+            this.handleHash(element, initialLoad);
         }
 
         this.dispatchEvent(new CustomEvent('route-changed'));
