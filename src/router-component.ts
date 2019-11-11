@@ -138,6 +138,8 @@ export class RouterComponent extends HTMLElement {
             );
         }
 
+        this.dispatchEvent(new CustomEvent('route-changed'));
+
         if (this.shownPage && this.shownPage !== element) {
             this.dispatchEvent(
                 new CustomEvent('hiding-page', {
@@ -163,8 +165,6 @@ export class RouterComponent extends HTMLElement {
             window.location.hash = hash;
             this.handleHash(element, initialLoad);
         }
-
-        this.dispatchEvent(new CustomEvent('route-changed'));
     }
 
     get location(): Location {
