@@ -87,6 +87,19 @@ npm run start-server
 
 Which will make the examples available at http://localhost:3239/examples/.
 
+## `<router-component>` API
+
+The `<router-component>` can be passed the following:
+
+| Option                 | Type                                                               | Description                                                                                                                                                                                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hash-scroll-behavior` | Number                                                             | The [ScrollBehavior](https://drafts.csswg.org/cssom-view/#enumdef-scrollbehavior) value that will be used when the router scrolls to the [anchored element with an `id` attribute that matches the hash identifier in the URL requested](https://www.w3.org/TR/html401/struct/links.html#h-12.2.3). |
+| `hash-scroll-delay`    | Number                                                             | The number of milliseconds to delay the router's scrolling to the anchored element on a page                                                                                                                                                                                                        |
+| `show-delay`           | Number                                                             | The number of milliseconds to delay before the router adds each page to the DOM and triggers its `connectedCallback` (useful to implement some sort of animation or transition of a previous page first)                                                                                            |
+| `hide-delay`           | Number                                                             | The number of milliseconds to delay before the router removes each page from the DOM and triggers its `disconnectedCallback`                                                                                                                                                                        |
+| `showing-page`         | [Custom Event](https://dom.spec.whatwg.org/#interface-customevent) | Event that is triggered when the page is added to the DOM. The page that is added is passed as the `detail` property on the emitted event.                                                                                                                                                          |
+| `hiding-page`          | [Custom Event](https://dom.spec.whatwg.org/#interface-customevent) | Event that is triggered when the page is removed from the DOM. The page being removed is passed as the `detail` property on the emitted event.                                                                                                                                                      |
+
 ## Route API
 
 Each child element of `<router-component>` should be a
@@ -99,7 +112,7 @@ can be passed to them:
 | `search-params`  | String | A search string regex that the requested page would need to have in order to match. Setting this value to `foo=[bar\|baz]` would match `index.html?foo=bar` for instance) |
 | `document-title` | String | The [title of the document](https://html.spec.whatwg.org/multipage/dom.html#document.title) that will be shown when the route is active                                   |
 
-## Router API
+## Routing
 
 The goal of this package is to leverage the use of existing browser APIs, while providing only a few key pieces of logic that make routing easier, which is identified below.
 
