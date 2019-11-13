@@ -140,27 +140,32 @@ export class RouterComponent extends HTMLElement {
 
         this.dispatchEvent(new CustomEvent('route-changed'));
 
-        if (this.shownPage && this.shownPage !== element) {
+        if (this.shownPage) {
             this.dispatchEvent(
                 new CustomEvent('hiding-page', {
                     detail: this.shownPage
                 })
             );
-            await delay(this.getAttribute('hide-delay'));
+            const hideDelayAttribute = this.getAttribute('hide-delay');
+            if (hideDelayAttribute) {
+                await delay(hideDelayAttribute);
+            }
             this.fragment.appendChild(this.shownPage);
             this.teardownElement(this.shownPage);
         }
-        if (this.shownPage !== element) {
-            this.shownPage = element;
-            this.appendChild(element);
-            this.dispatchEvent(
-                new CustomEvent('showing-page', {
-                    detail: element
-                })
-            );
-            await delay(this.getAttribute('show-delay'));
-            this.setupElement(element);
+        this.shownPage = element;
+        this.appendChild(element);
+        this.dispatchEvent(
+            new CustomEvent('showing-page', {
+                detail: element
+            })
+        );
+        const showDelayAttribute = this.getAttribute('show-delay');
+        if (showDelayAttribute) {
+            await delay(showDelayAttribute);
         }
+        this.setupElement(element);
+
         if (hash) {
             window.location.hash = hash;
             this.handleHash(element, initialLoad);
