@@ -13,6 +13,15 @@ export function extractPathParams(pattern: string, path: string): string[] {
     }
 }
 
+function delay(milliseconds: string | number = 0) {
+    return new Promise(resolve => {
+        const timer = setTimeout(() => {
+            resolve();
+            clearTimeout(timer);
+        }, Number(milliseconds));
+    });
+}
+
 const routeComponents: Set<RouterComponent> = new Set();
 
 export class RouterComponent extends HTMLElement {
@@ -105,7 +114,7 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
-    show(location: string, initialLoad: boolean = false) {
+    async show(location: string, initialLoad: boolean = false) {
         if (!location) return;
         let router;
         const [pathname, hash] = location.split('#');
@@ -128,19 +137,39 @@ export class RouterComponent extends HTMLElement {
                     `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`
             );
         }
+
+        this.dispatchEvent(new CustomEvent('route-changed'));
+
         if (this.shownPage) {
+            this.dispatchEvent(
+                new CustomEvent('hiding-page', {
+                    detail: this.shownPage
+                })
+            );
+            const hideDelayAttribute = this.getAttribute('hide-delay');
+            if (hideDelayAttribute) {
+                await delay(hideDelayAttribute);
+            }
             this.fragment.appendChild(this.shownPage);
             this.teardownElement(this.shownPage);
         }
         this.shownPage = element;
         this.appendChild(element);
+        this.dispatchEvent(
+            new CustomEvent('showing-page', {
+                detail: element
+            })
+        );
+        const showDelayAttribute = this.getAttribute('show-delay');
+        if (showDelayAttribute) {
+            await delay(showDelayAttribute);
+        }
         this.setupElement(element);
+
         if (hash) {
             window.location.hash = hash;
             this.handleHash(element, initialLoad);
         }
-
-        this.dispatchEvent(new CustomEvent('route-changed'));
     }
 
     get location(): Location {
