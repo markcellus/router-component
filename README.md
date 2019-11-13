@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/mkay581/router-component.svg?branch=master)](https://travis-ci.org/mkay581/router-component)
 [![npm version](https://badge.fury.io/js/router-component.svg)](https://www.npmjs.com/package/router-component)
 
-# Router Component
+# `<router-component>`
 
 A simple, declarative router component for single-page apps that allows you to load [Web Components](https://www.webcomponents.org/introduction)
 dynamically when urls are requested, without performing a hard reload of the entire page.
