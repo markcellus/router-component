@@ -89,7 +89,7 @@ Which will make the examples available at http://localhost:3239/examples/.
 
 ## Route API
 
-Each child element of `<router-component>` should extend
+Each child element of `<router-component>` should be a
 [CustomElement](https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements) so that the following attributes
 can be passed to them:
 
