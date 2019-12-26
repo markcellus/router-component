@@ -347,7 +347,7 @@ describe('<router-component>', async () => {
         expect(showSpy.callCount).to.equal(1);
     });
 
-    it('re-renders the route again if requested path matches the pattern of the current route but is a different path', async () => {
+    it('does not destroy route node if requested path matches the pattern of the current route but is a different path', async () => {
         const connectedCallbackSpy = sinon.spy();
         const disconnectedCallbackSpy = sinon.spy();
         customElements.define(
@@ -374,11 +374,11 @@ describe('<router-component>', async () => {
         const page = document.body.querySelector('test-page');
         expect(page).to.not.be.null;
         window.history.pushState({}, document.title, '/page2');
-        expect(connectedCallbackSpy.callCount).to.equal(1);
-        expect(disconnectedCallbackSpy.callCount).to.equal(1);
+        expect(connectedCallbackSpy.callCount).to.equal(0);
+        expect(disconnectedCallbackSpy.callCount).to.equal(0);
     });
 
-    it('re-renders the route again if clicking to a path matches the pattern of the current route', async () => {
+    it('does not destroy the route when clicking to a path that matches the pattern of the current route', async () => {
         const connectedCallbackSpy = sinon.spy();
         const disconnectedCallbackSpy = sinon.spy();
         customElements.define(
@@ -406,8 +406,47 @@ describe('<router-component>', async () => {
         disconnectedCallbackSpy.resetHistory();
         const firstPageLink = firstPage.querySelector('a');
         firstPageLink.click();
-        expect(connectedCallbackSpy.callCount).to.equal(1);
-        expect(disconnectedCallbackSpy.callCount).to.equal(1);
+        expect(connectedCallbackSpy.callCount).to.equal(0);
+        expect(disconnectedCallbackSpy.callCount).to.equal(0);
+    });
+
+    describe('when dealing with hash changes', () => {
+        let router: RouterComponent;
+        beforeEach(async () => {
+            router = await fixture(html`
+                <router-component>
+                    <first-page path="/page[0-9]">
+                        <div id="test"></div>
+                        <a href="#test">To section</a>
+                    </first-page>
+                </router-component>
+            `);
+        });
+        it('adds the hash to the the window.location.href when clicking a link that contains only a hash', async () => {
+            window.history.pushState({}, document.title, '/page1');
+            const page = router.querySelector('first-page');
+            const pageLink = page.querySelector('a');
+            pageLink.click();
+            expect(window.location.href).to.equal(pageLink.href);
+        });
+
+        // it('scrolls to the element on the route that matches the id of the hash after popstate has been called', async () => {
+        //     window.history.pushState({}, document.title, '/page1#test');
+        //     const hashedElement = router.querySelector('first-page div[id="test"]');
+        //     const popstate = new PopStateEvent('popstate', { state: {} });
+        //     const scrollIntoViewStub = sinon.spy(hashedElement, 'scrollIntoView');
+        //     window.dispatchEvent(popstate);
+        //     expect(scrollIntoViewStub).to.be.calledOnceWithExactly({ behavior: 'auto' });
+        // });
+
+        it('scrolls back to top of page if there is no hash', async () => {
+            window.history.pushState({}, document.title, '/page1');
+            const popstate = new PopStateEvent('popstate', { state: {} });
+            const windowScrollToStub = sinon.stub(window, 'scrollTo');
+            window.dispatchEvent(popstate);
+            expect(windowScrollToStub).to.be.calledOnceWithExactly({ behavior: 'auto', top: 0 });
+            windowScrollToStub.restore();
+        });
     });
 
     describe('when triggerRouteChange is set to false when pushing new state', async () => {

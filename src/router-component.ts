@@ -93,22 +93,28 @@ export class RouterComponent extends HTMLElement {
         return element;
     }
 
-    private handleHash(element?: Element, wait: boolean = false): void {
-        const delayAttribute = this.getAttribute('hash-scroll-delay');
+    private scrollToHash(hash: string = this.location.hash): void {
         const behaviorAttribute = this.getAttribute('hash-scroll-behavior') as ScrollBehavior;
+        const hashId = hash.replace('#', '');
+        const hashElement = querySelectorDeep(`[id=${hashId}]`, this.shownPage) as HTMLElement;
+
+        if (hashElement) {
+            hashElement.scrollIntoView({ behavior: behaviorAttribute || 'auto' });
+        }
+    }
+
+    private handleHash(hash: string = '', wait: boolean = false): void {
+        const delayAttribute = this.getAttribute('hash-scroll-delay');
+
         const delay = delayAttribute ? Number(delayAttribute) : 1;
-        const scrollToHash = () => {
-            const hashId = this.location.hash.replace('#', '');
-            const hashElement = querySelectorDeep(`[id=${hashId}]`, element) as HTMLElement;
-            hashElement && hashElement.scrollIntoView({ behavior: behaviorAttribute || 'auto' });
-        };
+
         if (!wait) {
-            scrollToHash();
+            this.scrollToHash(hash);
         } else {
             // wait for custom element to connect to the DOM so we
             // can scroll to it, on certain browsers this takes a while
             const timer = setTimeout(() => {
-                scrollToHash();
+                this.scrollToHash(hash);
                 clearTimeout(timer);
             }, delay);
         }
@@ -117,9 +123,13 @@ export class RouterComponent extends HTMLElement {
     async show(location: string, initialLoad: boolean = false) {
         if (!location) return;
         let router;
-        const [pathname, hash] = location.split('#');
+        const [pathname, hashString] = location.split('#');
         const element = this.getRouteElementByPath(pathname);
-        if (this.shownPage && this.shownPage.getAttribute('path') !== pathname) {
+        if (
+            this.shownPage &&
+            window.location.pathname !== pathname &&
+            this.shownPage.getAttribute('path') !== pathname
+        ) {
             this.invalid = true;
         }
         if (this.shownPage === element && !this.invalid) return;
@@ -166,9 +176,8 @@ export class RouterComponent extends HTMLElement {
         }
         this.setupElement(element);
 
-        if (hash) {
-            window.location.hash = hash;
-            this.handleHash(element, initialLoad);
+        if (hashString) {
+            this.handleHash(`#${hashString}`, initialLoad);
         }
     }
 
@@ -192,10 +201,12 @@ export class RouterComponent extends HTMLElement {
         const { href } = link;
         if (!href || href.indexOf('mailto:') !== -1) return;
 
-        const { location } = window;
+        const { location } = this;
         const origin = location.origin || location.protocol + '//' + location.host;
         if (href.indexOf(origin) !== 0) return;
-        if (link.origin === this.location.origin) {
+        if (link.pathname === location.pathname) {
+            this.scrollToHash(link.hash);
+        } else if (link.origin === location.origin) {
             e.preventDefault();
             window.history.pushState({}, document.title, `${link.pathname}${link.search}${link.hash}`);
         }
@@ -229,7 +240,16 @@ export class RouterComponent extends HTMLElement {
     }
 
     private popStateChanged() {
-        this.show(this.location.pathname);
+        const { pathname, hash, search } = this.location;
+        const path = `${pathname}${search}${hash}`;
+        this.show(path);
+        if (!hash) {
+            const behaviorAttribute = this.getAttribute('hash-scroll-behavior') as ScrollBehavior;
+            window.scrollTo({
+                top: 0,
+                behavior: behaviorAttribute || 'auto'
+            });
+        }
     }
 
     private setupElement(element: Element) {
