@@ -50,6 +50,8 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
+    private previousLocation: Location;
+
     connectedCallback() {
         this.popStateChangedListener = this.popStateChanged.bind(this);
         window.addEventListener('popstate', this.popStateChangedListener);
@@ -62,7 +64,7 @@ export class RouterComponent extends HTMLElement {
             window.history[method.name] = (state: any, title: string, url?: string | null) => {
                 const triggerRouteChange = !state || state.triggerRouteChange !== false;
                 if (!triggerRouteChange) {
-                    // this.prevLocation = `${location.pathname}${location.search}`;
+                    this.previousLocation = location;
                     this.invalid = true;
                     delete state.triggerRouteChange;
                 }
@@ -132,7 +134,7 @@ export class RouterComponent extends HTMLElement {
         ) {
             this.invalid = true;
         }
-        if (this.shownPage === element && !this.invalid) return;
+        // if (this.shownPage === element && !this.invalid) return;
         this.invalid = false;
         if (!element) {
             router = this.getExternalRouterByPath(pathname);
@@ -204,12 +206,14 @@ export class RouterComponent extends HTMLElement {
         const { location } = this;
         const origin = location.origin || location.protocol + '//' + location.host;
         if (href.indexOf(origin) !== 0) return;
-        if (link.pathname === location.pathname) {
+        if (link.origin !== location.origin) return;
+        e.preventDefault();
+        const state: any = {};
+        if (link.hash && link.pathname === location.pathname) {
             this.scrollToHash(link.hash);
-        } else if (link.origin === location.origin) {
-            e.preventDefault();
-            window.history.pushState({}, document.title, `${link.pathname}${link.search}${link.hash}`);
+            state.triggerRouteChange = false;
         }
+        window.history.pushState(state, document.title, `${link.pathname}${link.search}${link.hash}`);
     }
 
     bindLinks() {
@@ -242,8 +246,14 @@ export class RouterComponent extends HTMLElement {
     private popStateChanged() {
         const { pathname, hash, search } = this.location;
         const path = `${pathname}${search}${hash}`;
-        this.show(path);
-        if (!hash) {
+        if (!this.previousLocation || this.previousLocation !== this.location) {
+            this.show(path);
+            return;
+        }
+
+        if (hash) {
+            this.scrollToHash(hash);
+        } else if (!hash) {
             const behaviorAttribute = this.getAttribute('hash-scroll-behavior') as ScrollBehavior;
             window.scrollTo({
                 top: 0,
