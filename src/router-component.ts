@@ -50,8 +50,6 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
-    private previousLocation: Location;
-
     connectedCallback() {
         this.popStateChangedListener = this.popStateChanged.bind(this);
         window.addEventListener('popstate', this.popStateChangedListener);
@@ -64,8 +62,6 @@ export class RouterComponent extends HTMLElement {
             window.history[method.name] = (state: any, title: string, url?: string | null) => {
                 const triggerRouteChange = !state || state.triggerRouteChange !== false;
                 if (!triggerRouteChange) {
-                    this.previousLocation = location;
-                    this.invalid = true;
                     delete state.triggerRouteChange;
                 }
                 method.call(history, state, title, url);
@@ -75,7 +71,7 @@ export class RouterComponent extends HTMLElement {
             };
         });
         const { pathname, hash } = this.location;
-        this.show(`${pathname}${hash}`, true);
+        this.show(`${pathname}${hash}`);
     }
 
     getRouteElementByPath(pathname: string): Element | undefined {
@@ -95,11 +91,19 @@ export class RouterComponent extends HTMLElement {
         return element;
     }
 
+    private get storedScrollPosition(): number | undefined {
+        const positionString = sessionStorage.getItem('currentScrollPosition');
+        return positionString && Number(positionString);
+    }
+
+    private set storedScrollPosition(value: number) {
+        sessionStorage.setItem('currentScrollPosition', value.toString());
+    }
+
     private scrollToHash(hash: string = this.location.hash): void {
         const behaviorAttribute = this.getAttribute('hash-scroll-behavior') as ScrollBehavior;
         const hashId = hash.replace('#', '');
         const hashElement = querySelectorDeep(`[id=${hashId}]`, this.shownPage) as HTMLElement;
-
         if (hashElement) {
             hashElement.scrollIntoView({ behavior: behaviorAttribute || 'auto' });
         }
@@ -122,19 +126,15 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
-    async show(location: string, initialLoad: boolean = false) {
+    async show(location: string) {
         if (!location) return;
         let router;
         const [pathname, hashString] = location.split('#');
         const element = this.getRouteElementByPath(pathname);
-        if (
-            this.shownPage &&
-            window.location.pathname !== pathname &&
-            this.shownPage.getAttribute('path') !== pathname
-        ) {
+        if (this.shownPage && this.shownPage.getAttribute('path') !== pathname) {
             this.invalid = true;
         }
-        // if (this.shownPage === element && !this.invalid) return;
+        if (this.shownPage === element && !this.invalid) return;
         this.invalid = false;
         if (!element) {
             router = this.getExternalRouterByPath(pathname);
@@ -178,8 +178,19 @@ export class RouterComponent extends HTMLElement {
         }
         this.setupElement(element);
 
+        let scrollToPosition = 0;
+        if (this.storedScrollPosition && window.history.scrollRestoration === 'manual') {
+            scrollToPosition = this.storedScrollPosition;
+            sessionStorage.removeItem('currentScrollPosition');
+        }
+
         if (hashString) {
-            this.handleHash(`#${hashString}`, initialLoad);
+            this.handleHash(`#${hashString}`);
+        } else {
+            window.scrollTo({
+                top: scrollToPosition,
+                behavior: 'auto' // we dont wanna scroll here
+            });
         }
     }
 
@@ -205,9 +216,14 @@ export class RouterComponent extends HTMLElement {
 
         const { location } = this;
         const origin = location.origin || location.protocol + '//' + location.host;
-        if (href.indexOf(origin) !== 0) return;
-        if (link.origin !== location.origin) return;
+        if (href.indexOf(origin) !== 0 || link.origin !== location.origin) {
+            // external links
+            window.history.scrollRestoration = 'manual';
+            sessionStorage.setItem('currentScrollPosition', document.documentElement.scrollTop.toString());
+            return;
+        }
         e.preventDefault();
+
         const state: any = {};
         if (link.hash && link.pathname === location.pathname) {
             this.scrollToHash(link.hash);
@@ -243,23 +259,10 @@ export class RouterComponent extends HTMLElement {
         return pathname.match(regex);
     }
 
-    private popStateChanged() {
+    private async popStateChanged() {
         const { pathname, hash, search } = this.location;
         const path = `${pathname}${search}${hash}`;
-        if (!this.previousLocation || this.previousLocation !== this.location) {
-            this.show(path);
-            return;
-        }
-
-        if (hash) {
-            this.scrollToHash(hash);
-        } else if (!hash) {
-            const behaviorAttribute = this.getAttribute('hash-scroll-behavior') as ScrollBehavior;
-            window.scrollTo({
-                top: 0,
-                behavior: behaviorAttribute || 'auto'
-            });
-        }
+        this.show(path);
     }
 
     private setupElement(element: Element) {

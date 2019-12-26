@@ -121,6 +121,7 @@ describe('<router-component>', async () => {
 
         window.history.pushState({}, document.title, '/page1');
         const newPath = 'nope';
+        consoleWarn.resetHistory();
         component.show(newPath);
         expect(consoleWarn.args[0]).to.deep.equal([
             `Navigated to path "${newPath}" but there is no matching ` +
@@ -150,6 +151,7 @@ describe('<router-component>', async () => {
 
         const pathname = '/page1';
         window.history.pushState({}, document.title, pathname);
+        consoleWarn.resetHistory();
         component.show(pathname);
         expect(consoleWarn.callCount).to.equal(0);
         expect(document.body.querySelector('first-page')).to.not.be.null;
@@ -347,7 +349,7 @@ describe('<router-component>', async () => {
         expect(showSpy.callCount).to.equal(1);
     });
 
-    it('does not destroy route node if requested path matches the pattern of the current route but is a different path', async () => {
+    it('re-renders route node if requested path matches the pattern of the current route but is a different path', async () => {
         const connectedCallbackSpy = sinon.spy();
         const disconnectedCallbackSpy = sinon.spy();
         customElements.define(
@@ -374,11 +376,11 @@ describe('<router-component>', async () => {
         const page = document.body.querySelector('test-page');
         expect(page).to.not.be.null;
         window.history.pushState({}, document.title, '/page2');
-        expect(connectedCallbackSpy.callCount).to.equal(0);
-        expect(disconnectedCallbackSpy.callCount).to.equal(0);
+        expect(connectedCallbackSpy.callCount).to.equal(1);
+        expect(disconnectedCallbackSpy.callCount).to.equal(1);
     });
 
-    it('does not destroy the route when clicking to a path that matches the pattern of the current route', async () => {
+    it('re-renders the route when clicking to a path that matches the pattern of the current route', async () => {
         const connectedCallbackSpy = sinon.spy();
         const disconnectedCallbackSpy = sinon.spy();
         customElements.define(
@@ -406,8 +408,8 @@ describe('<router-component>', async () => {
         disconnectedCallbackSpy.resetHistory();
         const firstPageLink = firstPage.querySelector('a');
         firstPageLink.click();
-        expect(connectedCallbackSpy.callCount).to.equal(0);
-        expect(disconnectedCallbackSpy.callCount).to.equal(0);
+        expect(connectedCallbackSpy.callCount).to.equal(1);
+        expect(disconnectedCallbackSpy.callCount).to.equal(1);
     });
 
     describe('when dealing with hash changes', () => {
@@ -460,6 +462,7 @@ describe('<router-component>', async () => {
                 </router-component>
             `);
             window.history.pushState({}, document.title, '/page1');
+            consoleWarn.resetHistory();
         });
 
         afterEach(() => {});
