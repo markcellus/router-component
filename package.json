@@ -40,7 +40,7 @@
     "@babel/preset-typescript": "^7.7.2",
     "@open-wc/karma-esm": "^2.9.8",
     "@open-wc/testing": "^2.3.9",
-    "@types/mocha": "^5.2.7",
+    "@types/mocha": "^7.0.2",
     "@types/sinon": "^7.5.0",
     "@typescript-eslint/eslint-plugin": "^2.6.1",
     "@typescript-eslint/parser": "^2.6.1",
