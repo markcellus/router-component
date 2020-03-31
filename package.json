@@ -41,7 +41,7 @@
     "@open-wc/karma-esm": "^2.9.8",
     "@open-wc/testing": "^2.3.9",
     "@types/mocha": "^7.0.2",
-    "@types/sinon": "^7.5.0",
+    "@types/sinon": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^2.6.1",
     "@typescript-eslint/parser": "^2.6.1",
     "banner-cli": "^0.14.1",
