@@ -55,7 +55,7 @@
     "karma-typescript": "^5.0.1",
     "lit-html": "^1.1.2",
     "mocha": "^7.1.1",
-    "rollup": "^1.26.5",
+    "rollup": "^2.3.3",
     "rollup-plugin-typescript2": "^0.27.0",
     "sinon": "^9.0.1",
     "tslint-config-prettier": "^1.18.0",
