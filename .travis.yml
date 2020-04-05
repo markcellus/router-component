@@ -1,13 +1,10 @@
 language: node_js
 node_js:
-- "8"
-dist: trusty
-sudo: required
-addons:
-  chrome: stable
-cache:
-  directories:
-  - node_modules
+- "10"
+script:
+  - npm test
+  - npm run build
+  - npm run banner
 branches:
   only:
   - master
