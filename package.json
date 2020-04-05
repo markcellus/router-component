@@ -63,17 +63,16 @@
     "prettier": "^2.0.2",
     "pretty-quick": "^2.0.1",
     "rollup": "^2.3.3",
+    "rollup-plugin-terser": "^5.3.0",
     "rollup-plugin-typescript2": "^0.27.0",
     "sinon": "^9.0.1",
-    "typescript": "^3.7.2",
-    "uglify-es": "^3.3.9"
+    "typescript": "^3.7.2"
   },
   "scripts": {
     "test": "karma start karma.conf.js && npm run lint",
     "test-server": "karma start karma.conf.js --single-run=false",
     "preversion": "npm test",
-    "minify": "uglifyjs dist/router-component.js -o dist/router-component.min.js",
-    "build": "rm -rf dist/* && rollup -c && npm run minify && npm run banner",
+    "build": "rm -rf dist/* && rollup -c && npm run banner",
     "banner": "banner-cli dist/**/*.js",
     "start": "rollup -c --watch",
     "lint": "eslint '**/*.{js,ts}'",

@@ -1,5 +1,6 @@
 import typescript from 'rollup-plugin-typescript2';
 import resolve from '@rollup/plugin-node-resolve';
+import { terser } from 'rollup-plugin-terser';
 
 export default {
     input: 'src/router-component.ts',
@@ -13,7 +14,15 @@ export default {
             file: 'dist/router-component.js',
         },
     ],
-    plugins: [resolve(), typescript()],
+    plugins: [
+        resolve(),
+        typescript(),
+        !process.env.ROLLUP_WATCH &&
+            terser({
+                compress: true,
+                mangle: true,
+            }),
+    ],
     watch: {
         include: 'src/**',
     },
