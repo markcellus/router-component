@@ -5,7 +5,7 @@ module.exports = function(config) {
         plugins: [require.resolve('@open-wc/karma-esm'), 'karma-mocha', 'karma-chrome-launcher', 'karma-coverage'],
         esm: {
             nodeResolve: true,
-            compatibility: 'all',
+            compatibility: 'min',
             fileExtensions: ['.ts'],
             babel: true
         },
