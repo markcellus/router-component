@@ -1,4 +1,9 @@
 module.exports = {
+    env: {
+        development: {
+            compact: false,
+        },
+    },
     presets: [
         '@babel/preset-typescript',
         [
