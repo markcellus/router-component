@@ -125,7 +125,7 @@ describe('<router-component>', async () => {
         component.show(newPath);
         expect(consoleWarn.args[0]).to.deep.equal([
             `Navigated to path "${newPath}" but there is no matching ` +
-                `element with a path that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`
+                `element with a path that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`,
         ]);
     });
 
@@ -384,7 +384,7 @@ describe('<router-component>', async () => {
         const connectedCallbackSpy = sinon.spy();
         const disconnectedCallbackSpy = sinon.spy();
         customElements.define(
-            'test-click-page', // tslint:disable:max-classes-per-file
+            'test-click-page',
             class extends HTMLElement {
                 connectedCallback() {
                     connectedCallbackSpy();

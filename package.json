@@ -58,7 +58,6 @@
     "rollup": "^2.3.3",
     "rollup-plugin-typescript2": "^0.27.0",
     "sinon": "^9.0.1",
-    "tslint-config-prettier": "^1.18.0",
     "typescript": "^3.7.2",
     "uglify-es": "^3.3.9"
   },
