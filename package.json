@@ -11,7 +11,7 @@
   },
   "author": "Mark Kennedy <mark@heyimmark.com> (heyimmark.com)",
   "engines": {
-    "node": ">=8.9.0"
+    "node": ">=10.16"
   },
   "keywords": [
     "lit router",
