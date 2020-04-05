@@ -1,10 +1,9 @@
 language: node_js
 node_js:
-- "10"
+    - '10'
 script:
-  - npm test
-  - npm run build
-  - npm run banner
+    - npm test
+    - npm run build
 branches:
-  only:
-  - master
+    only:
+        - master

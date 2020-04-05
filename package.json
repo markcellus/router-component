@@ -67,10 +67,11 @@
     "test-server": "karma start karma.conf.js --single-run=false",
     "preversion": "npm test",
     "minify": "uglifyjs dist/router-component.js -o dist/router-component.min.js",
-    "build": "rm -rf dist/* && rollup -c && npm run minify",
+    "build": "rm -rf dist/* && rollup -c && npm run minify && npm run banner",
     "banner": "banner-cli dist/*.js",
     "start": "rollup -c --watch",
     "lint": "eslint '**/*.{js,ts}'",
+    "lint:format": "prettier --check '**/*'",
     "start-server": "http-server ./ -p 3239"
   },
   "dependencies": {
