@@ -9,6 +9,7 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
+  "homepage": "https://github.com/mkay581/router-component",
   "author": "Mark Kennedy <mark@heyimmark.com> (heyimmark.com)",
   "engines": {
     "node": ">=10.16"
