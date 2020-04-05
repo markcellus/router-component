@@ -3,15 +3,15 @@ module.exports = {
         commitMessage: '${version}',
         requireCleanWorkingDir: false,
         requireUpstream: false,
-        tagName: 'v${version}'
+        tagName: 'v${version}',
     },
     github: {
         release: true,
         releaseName: '${version}',
-        releaseNotes: null
+        releaseNotes: null,
     },
     hooks: {
         'after:bump': 'npm run build',
-        'before:init': ['npm test']
-    }
+        'before:init': ['npm test'],
+    },
 };

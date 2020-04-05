@@ -6,15 +6,15 @@ export default {
     output: [
         {
             format: 'cjs',
-            file: 'dist/router-component.common.js'
+            file: 'dist/router-component.common.js',
         },
         {
             format: 'esm',
-            file: 'dist/router-component.js'
-        }
+            file: 'dist/router-component.js',
+        },
     ],
     plugins: [resolve(), typescript()],
     watch: {
-        include: 'src/**'
-    }
+        include: 'src/**',
+    },
 };

@@ -1,17 +1,10 @@
 {
-  "compilerOptions": {
-    "target": "es6",
-    "module": "esnext",
-    "declaration": true,
-    "moduleResolution": "node",
-    "lib": [
-      "es5",
-      "es6",
-      "es2015",
-      "dom"
-    ]
-  },
-  "include": [
-    "src/**/*"
-  ]
+    "compilerOptions": {
+        "target": "es6",
+        "module": "esnext",
+        "declaration": true,
+        "moduleResolution": "node",
+        "lib": ["es5", "es6", "es2015", "dom"]
+    },
+    "include": ["src/**/*"]
 }

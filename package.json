@@ -35,7 +35,9 @@
   "main": "dist/router-component.common.js",
   "module": "dist/router-component.js",
   "types": "dist/router-component.d.ts",
-  "files": ["dist/**/*"],
+  "files": [
+    "dist/**/*"
+  ],
   "devDependencies": {
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-typescript": "^7.7.2",
@@ -49,6 +51,7 @@
     "banner-cli": "^0.14.1",
     "eslint": "^6.6.0",
     "http-server": "^0.12.1",
+    "husky": "^4.2.3",
     "karma": "^4.4.1",
     "karma-chrome-launcher": "^3.1.0",
     "karma-coverage": "^2.0.1",
@@ -56,6 +59,8 @@
     "karma-typescript": "^5.0.1",
     "lit-html": "^1.1.2",
     "mocha": "^7.1.1",
+    "prettier": "^2.0.2",
+    "pretty-quick": "^2.0.1",
     "rollup": "^2.3.3",
     "rollup-plugin-typescript2": "^0.27.0",
     "sinon": "^9.0.1",

@@ -1,53 +1,56 @@
 <html>
-<head>
-    <base href="/examples/dynamic-routing/" />
-    <style>
-        header {
-            display: flex;
-            width: 100vw;
-            background-color: #f1f1f1;
-        }
+    <head>
+        <base href="/examples/dynamic-routing/" />
+        <style>
+            header {
+                display: flex;
+                width: 100vw;
+                background-color: #f1f1f1;
+            }
 
-        header ul {
-            display: flex;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
+            header ul {
+                display: flex;
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
 
-        header ul li {
-            padding: 10px;
-        }
-
-    </style>
-    <script type="module" src="../../dist/router-component.js"></script>
-    <script type="module" src="home-page.js"></script>
-    <script type="module" src="the-first-page.js"></script>
-    <script type="module" src="page-number-too.js"></script>
-    <script type="module" src="third-page/index.js"></script>
-    <script type="module" src="third-page/third-nested-page.js"></script>
-    <script type="module" src="four-oh-four-page.js"></script>
-
-</head>
-<body>
-
-    <header>
-        <ul>
-            <li><a href="page1?foo=bar">Page 1</a></li>
-            <li><a href="second/page/851/johnDoe/">Page 2</a></li>
-            <li><a href="my/page/3/">Page 3</a></li>
-            <li><a href="my/page/3/nested/page">Nested Page 4</a></li>
-            <li><a href="wrong">Wrong Page</a></li>
-        </ul>
-    </header>
-    <router-component>
-        <home-page path="dynamic-routing/$"></home-page>
-        <the-first-page path="page1" search-params="foo=[bar|baz]"></the-first-page>
-        <page-number-too path="/second/page/([0-9]+)/([a-zA-Z]+)/?"></page-number-too>
-        <third-page path="/my/page/3/$"></third-page>
-        <third-nested-page path="/my/page/3/nested/page"></third-nested-page>
-        <four-oh-four-page path=".*"></four-oh-four-page>
-    </router-component>
-
-</body>
+            header ul li {
+                padding: 10px;
+            }
+        </style>
+        <script type="module" src="../../dist/router-component.js"></script>
+        <script type="module" src="home-page.js"></script>
+        <script type="module" src="the-first-page.js"></script>
+        <script type="module" src="page-number-too.js"></script>
+        <script type="module" src="third-page/index.js"></script>
+        <script type="module" src="third-page/third-nested-page.js"></script>
+        <script type="module" src="four-oh-four-page.js"></script>
+    </head>
+    <body>
+        <header>
+            <ul>
+                <li><a href="page1?foo=bar">Page 1</a></li>
+                <li><a href="second/page/851/johnDoe/">Page 2</a></li>
+                <li><a href="my/page/3/">Page 3</a></li>
+                <li><a href="my/page/3/nested/page">Nested Page 4</a></li>
+                <li><a href="wrong">Wrong Page</a></li>
+            </ul>
+        </header>
+        <router-component>
+            <home-page path="dynamic-routing/$"></home-page>
+            <the-first-page
+                path="page1"
+                search-params="foo=[bar|baz]"
+            ></the-first-page>
+            <page-number-too
+                path="/second/page/([0-9]+)/([a-zA-Z]+)/?"
+            ></page-number-too>
+            <third-page path="/my/page/3/$"></third-page>
+            <third-nested-page
+                path="/my/page/3/nested/page"
+            ></third-nested-page>
+            <four-oh-four-page path=".*"></four-oh-four-page>
+        </router-component>
+    </body>
 </html>

@@ -14,7 +14,7 @@ export function extractPathParams(pattern: string, path: string): string[] {
 }
 
 function delay(milliseconds: string | number = 0) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
         const timer = setTimeout(() => {
             resolve();
             clearTimeout(timer);
@@ -57,10 +57,18 @@ export class RouterComponent extends HTMLElement {
 
         // we must hijack pushState and replaceState because we need to
         // detect when consumer attempts to use and trigger a page load
-        this.historyChangeStates = [window.history.pushState, window.history.replaceState];
-        this.historyChangeStates.forEach(method => {
-            window.history[method.name] = (state: any, title: string, url?: string | null) => {
-                const triggerRouteChange = !state || state.triggerRouteChange !== false;
+        this.historyChangeStates = [
+            window.history.pushState,
+            window.history.replaceState,
+        ];
+        this.historyChangeStates.forEach((method) => {
+            window.history[method.name] = (
+                state: any,
+                title: string,
+                url?: string | null
+            ) => {
+                const triggerRouteChange =
+                    !state || state.triggerRouteChange !== false;
                 if (!triggerRouteChange) {
                     delete state.triggerRouteChange;
                 }
@@ -101,11 +109,18 @@ export class RouterComponent extends HTMLElement {
     }
 
     private scrollToHash(hash: string = this.location.hash): void {
-        const behaviorAttribute = this.getAttribute('hash-scroll-behavior') as ScrollBehavior;
+        const behaviorAttribute = this.getAttribute(
+            'hash-scroll-behavior'
+        ) as ScrollBehavior;
         const hashId = hash.replace('#', '');
-        const hashElement = querySelectorDeep(`[id=${hashId}]`, this.shownPage) as HTMLElement;
+        const hashElement = querySelectorDeep(
+            `[id=${hashId}]`,
+            this.shownPage
+        ) as HTMLElement;
         if (hashElement) {
-            hashElement.scrollIntoView({ behavior: behaviorAttribute || 'auto' });
+            hashElement.scrollIntoView({
+                behavior: behaviorAttribute || 'auto',
+            });
         }
     }
 
@@ -131,7 +146,10 @@ export class RouterComponent extends HTMLElement {
         let router;
         const [pathname, hashString] = location.split('#');
         const element = this.getRouteElementByPath(pathname);
-        if (this.shownPage && this.shownPage.getAttribute('path') !== pathname) {
+        if (
+            this.shownPage &&
+            this.shownPage.getAttribute('path') !== pathname
+        ) {
             this.invalid = true;
         }
         if (this.shownPage === element && !this.invalid) return;
@@ -155,7 +173,7 @@ export class RouterComponent extends HTMLElement {
         if (this.shownPage) {
             this.dispatchEvent(
                 new CustomEvent('hiding-page', {
-                    detail: this.shownPage
+                    detail: this.shownPage,
                 })
             );
             const hideDelayAttribute = this.getAttribute('hide-delay');
@@ -169,7 +187,7 @@ export class RouterComponent extends HTMLElement {
         this.appendChild(element);
         this.dispatchEvent(
             new CustomEvent('showing-page', {
-                detail: element
+                detail: element,
             })
         );
         const showDelayAttribute = this.getAttribute('show-delay');
@@ -179,7 +197,10 @@ export class RouterComponent extends HTMLElement {
         this.setupElement(element);
 
         let scrollToPosition = 0;
-        if (this.storedScrollPosition && window.history.scrollRestoration === 'manual') {
+        if (
+            this.storedScrollPosition &&
+            window.history.scrollRestoration === 'manual'
+        ) {
             scrollToPosition = this.storedScrollPosition;
             sessionStorage.removeItem('currentScrollPosition');
         }
@@ -189,7 +210,7 @@ export class RouterComponent extends HTMLElement {
         } else {
             window.scrollTo({
                 top: scrollToPosition,
-                behavior: 'auto' // we dont wanna scroll here
+                behavior: 'auto', // we dont wanna scroll here
             });
         }
     }
@@ -200,7 +221,7 @@ export class RouterComponent extends HTMLElement {
 
     disconnectedCallback() {
         window.removeEventListener('popstate', this.popStateChangedListener);
-        this.historyChangeStates.forEach(method => {
+        this.historyChangeStates.forEach((method) => {
             window.history[method.name] = method;
         });
         if (this.shownPage) {
@@ -215,11 +236,15 @@ export class RouterComponent extends HTMLElement {
         if (!href || href.indexOf('mailto:') !== -1) return;
 
         const { location } = this;
-        const origin = location.origin || location.protocol + '//' + location.host;
+        const origin =
+            location.origin || location.protocol + '//' + location.host;
         if (href.indexOf(origin) !== 0 || link.origin !== location.origin) {
             // external links
             window.history.scrollRestoration = 'manual';
-            sessionStorage.setItem('currentScrollPosition', document.documentElement.scrollTop.toString());
+            sessionStorage.setItem(
+                'currentScrollPosition',
+                document.documentElement.scrollTop.toString()
+            );
             return;
         }
         e.preventDefault();
@@ -229,15 +254,21 @@ export class RouterComponent extends HTMLElement {
             this.scrollToHash(link.hash);
             state.triggerRouteChange = false;
         }
-        window.history.pushState(state, document.title, `${link.pathname}${link.search}${link.hash}`);
+        window.history.pushState(
+            state,
+            document.title,
+            `${link.pathname}${link.search}${link.hash}`
+        );
     }
 
     bindLinks() {
         // TODO: update this to be more performant
         // listening to body to allow detection inside of shadow roots
-        this.clickedLinkListener = e => {
+        this.clickedLinkListener = (e) => {
             if (e.defaultPrevented) return;
-            const link = e.composedPath().filter(n => (n as HTMLElement).tagName === 'A')[0] as
+            const link = e
+                .composedPath()
+                .filter((n) => (n as HTMLElement).tagName === 'A')[0] as
                 | HTMLAnchorElement
                 | undefined;
             if (!link) {
@@ -252,7 +283,10 @@ export class RouterComponent extends HTMLElement {
         document.body.removeEventListener('click', this.clickedLinkListener);
     }
 
-    private matchPathWithRegex(pathname: string = '', regex: string): RegExpMatchArray {
+    private matchPathWithRegex(
+        pathname: string = '',
+        regex: string
+    ): RegExpMatchArray {
         if (!pathname.startsWith('/')) {
             pathname = `${pathname.replace(/^\//, '')}`;
         }
@@ -280,7 +314,9 @@ export class RouterComponent extends HTMLElement {
         document.title = this.originalDocumentTitle;
     }
 
-    private getExternalRouterByPath(pathname: string): RouterComponent | undefined {
+    private getExternalRouterByPath(
+        pathname: string
+    ): RouterComponent | undefined {
         for (const component of routeComponents) {
             const routeElement = component.getRouteElementByPath(pathname);
             if (routeElement) {

@@ -145,7 +145,10 @@ You can listen to route changes that are triggered either by link clicks or via 
 ```html
 <html>
     <head>
-        <script type="module" src="node_modules/router-component/dist/router-component.js"></script>
+        <script
+            type="module"
+            src="node_modules/router-component/dist/router-component.js"
+        ></script>
         <script type="module">
             const router = document.body.querySelector('router-component');
             router.addEventListener('route-changed', () => {

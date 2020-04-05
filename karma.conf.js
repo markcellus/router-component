@@ -1,18 +1,26 @@
-module.exports = function(config) {
+module.exports = function (config) {
     config.set({
         files: [{ pattern: 'tests/**/*.ts', type: 'module' }],
 
-        plugins: [require.resolve('@open-wc/karma-esm'), 'karma-mocha', 'karma-chrome-launcher', 'karma-coverage'],
+        plugins: [
+            require.resolve('@open-wc/karma-esm'),
+            'karma-mocha',
+            'karma-chrome-launcher',
+            'karma-coverage',
+        ],
         esm: {
             nodeResolve: true,
             compatibility: 'min',
             fileExtensions: ['.ts'],
-            babel: true
+            babel: true,
         },
         coverageReporter: {
             includeAllSources: true,
             dir: '.coverage',
-            reporters: [{ type: 'lcov', subdir: '.' }, { type: 'text-summary' }]
+            reporters: [
+                { type: 'lcov', subdir: '.' },
+                { type: 'text-summary' },
+            ],
         },
         reporters: ['progress', 'coverage'],
         frameworks: ['esm', 'mocha'],
@@ -22,6 +30,6 @@ module.exports = function(config) {
         browsers: ['ChromeHeadless'],
         autoWatch: true,
         singleRun: true,
-        concurrency: Infinity
+        concurrency: Infinity,
     });
 };

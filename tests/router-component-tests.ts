@@ -75,7 +75,10 @@ describe('<router-component>', async () => {
     it('shows the route whose path and search params regex matches the current window location and its search params ', async () => {
         await fixture(html`
             <router-component>
-                <first-page path="page1" search-params="foo=[bar|baz]"></first-page>
+                <first-page
+                    path="page1"
+                    search-params="foo=[bar|baz]"
+                ></first-page>
             </router-component>
         `);
         window.history.pushState({}, document.title, '/page1?foo=baz');
@@ -183,7 +186,9 @@ describe('<router-component>', async () => {
         `);
 
         window.history.pushState({}, document.title, '/page1');
-        const firstPageLink = document.querySelector('first-page a') as HTMLAnchorElement;
+        const firstPageLink = document.querySelector(
+            'first-page a'
+        ) as HTMLAnchorElement;
         firstPageLink.click();
         expect(document.body.querySelector('first-page')).to.be.null;
         expect(document.body.querySelector('second-page')).to.not.be.null;
@@ -200,7 +205,9 @@ describe('<router-component>', async () => {
         `);
 
         window.history.pushState({}, document.title, '/page1');
-        const firstPageLink = document.querySelector('first-page a') as HTMLAnchorElement;
+        const firstPageLink = document.querySelector(
+            'first-page a'
+        ) as HTMLAnchorElement;
         firstPageLink.click();
         expect(document.body.querySelector('first-page')).to.be.null;
         expect(document.body.querySelector('home-page')).to.not.be.null;
@@ -217,7 +224,9 @@ describe('<router-component>', async () => {
         `);
 
         window.history.pushState({}, document.title, '/page1');
-        const firstPageLink = document.querySelector('first-page a') as HTMLAnchorElement;
+        const firstPageLink = document.querySelector(
+            'first-page a'
+        ) as HTMLAnchorElement;
         firstPageLink.click();
         expect(document.body.querySelector('first-page')).to.be.null;
         expect(document.body.querySelector('fallback-page')).to.not.be.null;
@@ -324,7 +333,9 @@ describe('<router-component>', async () => {
         `);
         window.history.pushState({}, document.title, '/page1'); // ensure we start on first page
         window.history.pushState({}, document.title, '/nested/pages');
-        const childRouter = parentRouter.querySelector('router-component') as RouterComponent;
+        const childRouter = parentRouter.querySelector(
+            'router-component'
+        ) as RouterComponent;
         expect(childRouter.children.length).to.equal(0);
         window.history.pushState({}, document.title, '/nested/pages/2');
         expect(childRouter.querySelector('nested-two')).to.not.be.null;
@@ -446,7 +457,10 @@ describe('<router-component>', async () => {
             const popstate = new PopStateEvent('popstate', { state: {} });
             const windowScrollToStub = sinon.stub(window, 'scrollTo');
             window.dispatchEvent(popstate);
-            expect(windowScrollToStub).to.be.calledOnceWithExactly({ behavior: 'auto', top: 0 });
+            expect(windowScrollToStub).to.be.calledOnceWithExactly({
+                behavior: 'auto',
+                top: 0,
+            });
             windowScrollToStub.restore();
         });
     });
@@ -468,29 +482,49 @@ describe('<router-component>', async () => {
         afterEach(() => {});
 
         it('updates the window pathname', async () => {
-            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            window.history.pushState(
+                { triggerRouteChange: false },
+                null,
+                '/page3'
+            );
             expect(location.pathname).to.equal('/page3');
         });
 
         it('cleans up the triggerRouteChange from the history state', async () => {
-            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            window.history.pushState(
+                { triggerRouteChange: false },
+                null,
+                '/page3'
+            );
             expect(history.state.triggerRouteChange, undefined);
         });
 
         it('does not call console warning', async () => {
-            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            window.history.pushState(
+                { triggerRouteChange: false },
+                null,
+                '/page3'
+            );
             expect(consoleWarn.callCount).to.equal(0);
         });
 
         it('does not fire a route change event', async () => {
             const routeChangedSpy = sinon.spy();
             component.addEventListener('route-changed', routeChangedSpy);
-            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            window.history.pushState(
+                { triggerRouteChange: false },
+                null,
+                '/page3'
+            );
             expect(routeChangedSpy.callCount).to.equal(0);
         });
 
         it('continues to show current route that was showing before pushState call', async () => {
-            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            window.history.pushState(
+                { triggerRouteChange: false },
+                null,
+                '/page3'
+            );
             expect(consoleWarn.callCount).to.equal(0);
             expect(document.body.querySelector('first-page')).to.not.be.null;
             expect(document.body.querySelector('second-page')).to.be.null;
@@ -501,7 +535,11 @@ describe('<router-component>', async () => {
             expect(document.body.querySelector('first-page')).to.not.be.null;
         });
         it('goes back to previous route and continue to show previous page when requested', async () => {
-            window.history.pushState({ triggerRouteChange: false }, null, '/page3');
+            window.history.pushState(
+                { triggerRouteChange: false },
+                null,
+                '/page3'
+            );
             window.history.pushState({}, null, '/page1');
             expect(location.pathname, '/page1');
             expect(document.body.querySelector('first-page')).to.not.be.null;
@@ -512,7 +550,9 @@ describe('<router-component>', async () => {
         it('returns the captured groups of the string with the supplied regex', async () => {
             const testPath = 'test';
             const id = '8';
-            expect(extractPathParams('([a-z]+)/([0-9])', `${testPath}/${id}`)).to.deep.equal([testPath, id]);
+            expect(
+                extractPathParams('([a-z]+)/([0-9])', `${testPath}/${id}`)
+            ).to.deep.equal([testPath, id]);
         });
     });
 });
