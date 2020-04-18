@@ -43,7 +43,7 @@
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-typescript": "^7.7.2",
     "@open-wc/karma-esm": "^2.13.22",
-    "@open-wc/testing": "^2.3.9",
+    "@open-wc/testing": "^3.0.0",
     "@rollup/plugin-node-resolve": "^7.1.1",
     "@types/mocha": "^7.0.2",
     "@types/sinon": "^9.0.0",
