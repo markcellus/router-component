@@ -80,6 +80,6 @@
     "start-server": "http-server ./ -p 3239"
   },
   "dependencies": {
-    "query-selector-shadow-dom": "^0.4.5"
+    "query-selector-shadow-dom": "^0.5.0"
   }
 }
