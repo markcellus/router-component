@@ -51,7 +51,6 @@
     "@typescript-eslint/parser": "^3.0.0",
     "banner-cli": "^0.14.1",
     "eslint": "^7.0.0",
-    "http-server": "^0.12.1",
     "husky": "^4.2.3",
     "karma": "^5.0.2",
     "karma-chrome-launcher": "^3.1.0",
@@ -65,6 +64,7 @@
     "rollup": "^2.3.3",
     "rollup-plugin-terser": "^6.0.0",
     "rollup-plugin-typescript2": "^0.27.0",
+    "servor": "^4.0.2",
     "sinon": "^9.0.1",
     "typescript": "^3.7.2"
   },
@@ -77,7 +77,7 @@
     "start": "rollup -c --watch",
     "lint": "eslint '**/*.{js,ts}'",
     "lint:format": "prettier --check '**/*'",
-    "start-server": "http-server ./ -p 3239"
+    "start-server": "servor ./ 3239 --browse"
   },
   "dependencies": {
     "query-selector-shadow-dom": "^0.5.0"
