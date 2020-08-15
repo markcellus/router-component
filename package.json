@@ -45,7 +45,7 @@
     "@open-wc/karma-esm": "^2.13.22",
     "@open-wc/testing": "^2.5.19",
     "@rollup/plugin-node-resolve": "^8.0.0",
-    "@types/mocha": "^7.0.2",
+    "@types/mocha": "^8.0.2",
     "@types/sinon": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^3.0.0",
     "@typescript-eslint/parser": "^3.0.0",
