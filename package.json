@@ -80,6 +80,6 @@
     "start-server": "servor ./ 3239 --browse"
   },
   "dependencies": {
-    "query-selector-shadow-dom": "^0.6.1"
+    "query-selector-shadow-dom": "^0.7.1"
   }
 }
