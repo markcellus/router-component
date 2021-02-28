@@ -63,7 +63,7 @@
     "pretty-quick": "^3.0.0",
     "rollup": "^2.3.3",
     "rollup-plugin-terser": "^7.0.0",
-    "rollup-plugin-typescript2": "^0.27.0",
+    "rollup-plugin-typescript2": "^0.30.0",
     "servor": "^4.0.2",
     "sinon": "^9.0.1",
     "typescript": "^4.0.3"
