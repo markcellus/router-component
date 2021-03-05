@@ -14,7 +14,7 @@ export function extractPathParams(pattern: string, path: string): string[] {
 }
 
 function delay(milliseconds: string | number = 0) {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
         const timer = setTimeout(() => {
             resolve();
             clearTimeout(timer);
