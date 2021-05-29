@@ -4,12 +4,12 @@
   "description": "A simple, declarative router for web components",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mkay581/router-component.git"
+    "url": "https://github.com/markcellus/router-component.git"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "homepage": "https://github.com/mkay581/router-component",
+  "homepage": "https://github.com/markcellus/router-component",
   "author": "Mark Kennedy <mark@heyimmark.com> (heyimmark.com)",
   "engines": {
     "node": ">=10.16"
