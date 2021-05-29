@@ -32,8 +32,8 @@ export class RouterComponent extends HTMLElement {
     private clickedLinkListener: (e: any) => void;
     // TODO: fix below so that we are using pushState and replaceState method signatures on History type
     private historyChangeStates: [
-        (data: any, title?: string, url?: string) => void,
-        (data: any, title?: string, url?: string) => void
+        typeof history.pushState,
+        typeof history.replaceState
     ];
     private originalDocumentTitle: string;
     private invalid: boolean;
@@ -124,7 +124,7 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
-    private handleHash(hash: string = '', wait: boolean = false): void {
+    private handleHash(hash = '', wait = false): void {
         const delayAttribute = this.getAttribute('hash-scroll-delay');
 
         const delay = delayAttribute ? Number(delayAttribute) : 1;
@@ -284,7 +284,7 @@ export class RouterComponent extends HTMLElement {
     }
 
     private matchPathWithRegex(
-        pathname: string = '',
+        pathname = '',
         regex: string
     ): RegExpMatchArray {
         if (!pathname.startsWith('/')) {

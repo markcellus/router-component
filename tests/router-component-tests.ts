@@ -479,8 +479,6 @@ describe('<router-component>', async () => {
             consoleWarn.resetHistory();
         });
 
-        afterEach(() => {});
-
         it('updates the window pathname', async () => {
             window.history.pushState(
                 { triggerRouteChange: false },
