@@ -1,5 +1,5 @@
 import sinon from 'sinon';
-import { expect, fixture, html } from '@open-wc/testing';
+import { expect, fixture, html, nextFrame } from '@open-wc/testing';
 // eslint-disable-next-line no-unused-vars
 import { extractPathParams, RouterComponent } from '../src/router-component';
 
@@ -96,40 +96,6 @@ describe('<router-component>', async () => {
         const firstPage = document.body.querySelector('first-page');
         expect(firstPage.parentElement).to.deep.equal(component);
         expect(document.body.querySelector('second-page')).to.be.null;
-    });
-
-    it('switches to the child that has the path that matches the current location after popstate has been called', async () => {
-        await fixture(html`
-            <router-component>
-                <first-page path="/page1"></first-page>
-                <second-page path="/page2"></second-page>
-            </router-component>
-        `);
-
-        window.history.pushState({}, document.title, '/page1');
-        window.history.pushState({}, document.title, '/page2');
-        const popstate = new PopStateEvent('popstate', { state: {} });
-        window.dispatchEvent(popstate);
-        expect(document.body.querySelector('first-page')).to.be.null;
-        expect(document.body.querySelector('second-page')).to.not.be.null;
-    });
-
-    it('shows a warning when attempting to go to a route that is not handled after popstate is called', async () => {
-        const component: RouterComponent = await fixture(html`
-            <router-component>
-                <first-page path="/page1"></first-page>
-                <second-page path="/page2"></second-page>
-            </router-component>
-        `);
-
-        window.history.pushState({}, document.title, '/page1');
-        const newPath = 'nope';
-        consoleWarn.resetHistory();
-        component.show(newPath);
-        expect(consoleWarn.args[0]).to.deep.equal([
-            `Navigated to path "${newPath}" but there is no matching ` +
-                `element with a path that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`,
-        ]);
     });
 
     it('shows the child whose path matches the catch all url', async () => {
@@ -380,6 +346,62 @@ describe('<router-component>', async () => {
         firstPageLink.click();
         expect(connectedCallbackSpy.callCount).to.equal(1);
         expect(disconnectedCallbackSpy.callCount).to.equal(1);
+    });
+
+    describe('when popstate is triggered', () => {
+        it('switches to the child that has the path that matches the current location', async () => {
+            await fixture(html`
+                <router-component>
+                    <first-page path="/page1"></first-page>
+                    <second-page path="/page2"></second-page>
+                </router-component>
+            `);
+
+            window.history.pushState({}, document.title, '/page1');
+            window.history.pushState({}, document.title, '/page2');
+            const popstate = new PopStateEvent('popstate', { state: {} });
+            window.dispatchEvent(popstate);
+            expect(document.body.querySelector('first-page')).to.be.null;
+            expect(document.body.querySelector('second-page')).to.not.be.null;
+        });
+
+        it('shows a warning when attempting to go to a route that is not handled', async () => {
+            const component: RouterComponent = await fixture(html`
+                <router-component>
+                    <first-page path="/page1"></first-page>
+                    <second-page path="/page2"></second-page>
+                </router-component>
+            `);
+
+            window.history.pushState({}, document.title, '/page1');
+            const newPath = 'nope';
+            consoleWarn.resetHistory();
+            component.show(newPath);
+            expect(consoleWarn.args[0]).to.deep.equal([
+                `Navigated to path "${newPath}" but there is no matching ` +
+                    `element with a path that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`,
+            ]);
+        });
+
+        it('removes previous route element after clicking back button', async () => {
+            await fixture(html`
+                <router-component>
+                    <first-page path="/page1">
+                        <a href="/page2">To page 2</a>
+                    </first-page>
+                    <second-page path="/page2"></second-page>
+                </router-component>
+            `);
+
+            window.history.pushState({}, document.title, '/page1');
+            const firstPageLink: HTMLAnchorElement =
+                document.querySelector('first-page a');
+            firstPageLink.click(); // go to second
+            window.history.back();
+            await nextFrame();
+            expect(document.body.querySelector('first-page')).to.not.be.null;
+            expect(document.body.querySelector('second-page')).to.be.null;
+        });
     });
 
     describe('when pushState or replaceState is overridden', () => {

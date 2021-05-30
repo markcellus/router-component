@@ -73,12 +73,14 @@ export class RouterComponent extends HTMLElement {
                 if (!triggerRouteChange) {
                     delete state.triggerRouteChange;
                 }
-                this.previousLocation = { ...this.location };
                 method.call(history, state, title, url);
-
-                if (triggerRouteChange) {
-                    this.showRoute(url);
+                if (!triggerRouteChange) {
+                    return;
                 }
+                if (this.previousLocation) {
+                    this.hideRoute(this.previousLocation.pathname);
+                }
+                this.showRoute(url);
             };
         }
         this.showRoute(this.getFullPathname(this.location));
@@ -154,7 +156,7 @@ export class RouterComponent extends HTMLElement {
         if (!location) return;
         const [pathname, hashString] = location.split('#');
         const routeElement = this.getRouteElementByPath(pathname);
-
+        this.previousLocation = { ...this.location };
         if (!routeElement) {
             return console.warn(
                 `Navigated to path "${pathname}" but there is no matching element with a path ` +
@@ -316,10 +318,9 @@ export class RouterComponent extends HTMLElement {
 
     private async popStateChanged() {
         const path = this.getFullPathname(this.location);
-        if (this.location.href !== this.previousLocation.href) {
-            this.hideRoute(this.previousLocation.pathname);
-        }
-        this.showRoute(path);
+        // although popstate was called we still need to trigger
+        // replaceState so all stateful operations can be performed
+        window.history.replaceState({}, document.title, path);
     }
 
     private setupElement(routeElement: Element) {
