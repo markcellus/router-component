@@ -49,6 +49,7 @@
     "@web/dev-server-esbuild": "^0.2.12",
     "@web/test-runner": "^0.13.5",
     "banner-cli": "^0.14.1",
+    "dotenv": "^10.0.0",
     "eslint": "^7.0.0",
     "husky": "^6.0.0",
     "lit-html": "^1.1.2",

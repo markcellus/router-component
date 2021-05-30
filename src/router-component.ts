@@ -25,45 +25,46 @@ function delay(milliseconds: string | number = 0) {
 const routeComponents: Set<RouterComponent> = new Set();
 
 export class RouterComponent extends HTMLElement {
-    private shownPage: Element | undefined;
     private fragment: DocumentFragment;
     private popStateChangedListener: () => void;
-    private routeElements: Set<Element> = new Set();
+    private routeElements = [];
+    private shownRouteElements: Map<string, Element> = new Map();
+    private previousLocation: Location;
     private clickedLinkListener: (e: any) => void;
     // TODO: fix below so that we are using pushState and replaceState method signatures on History type
-    private historyChangeStates: [
-        typeof history.pushState,
-        typeof history.replaceState
-    ];
+    private historyChangeStates: Map<
+        typeof history.pushState | typeof history.replaceState,
+        'pushState' | 'replaceState'
+    >;
     private originalDocumentTitle: string;
     private invalid: boolean;
 
     constructor() {
         super();
-        this.fragment = document.createDocumentFragment();
         routeComponents.add(this);
+        this.fragment = document.createDocumentFragment();
         const children: HTMLCollection = this.children;
         while (children.length > 0) {
             const element = children[0];
-            this.routeElements.add(element);
+            this.routeElements.push(element);
             this.fragment.appendChild(element);
         }
     }
 
-    connectedCallback() {
+    connectedCallback(): void {
         this.popStateChangedListener = this.popStateChanged.bind(this);
         window.addEventListener('popstate', this.popStateChangedListener);
         this.bindLinks();
 
         // we must hijack pushState and replaceState because we need to
         // detect when consumer attempts to use and trigger a page load
-        this.historyChangeStates = [
-            window.history.pushState,
-            window.history.replaceState,
-        ];
-        this.historyChangeStates.forEach((method) => {
-            window.history[method.name] = (
-                state: any,
+        this.historyChangeStates = new Map([
+            [window.history.pushState, 'pushState'],
+            [window.history.replaceState, 'replaceState'],
+        ]);
+        for (const [method, name] of this.historyChangeStates) {
+            window.history[name] = (
+                state: Record<'triggerRouteChange', boolean> | never,
                 title: string,
                 url?: string | null
             ) => {
@@ -72,14 +73,15 @@ export class RouterComponent extends HTMLElement {
                 if (!triggerRouteChange) {
                     delete state.triggerRouteChange;
                 }
+                this.previousLocation = { ...this.location };
                 method.call(history, state, title, url);
+
                 if (triggerRouteChange) {
-                    this.show(url);
+                    this.showRoute(url);
                 }
             };
-        });
-        const { pathname, hash } = this.location;
-        this.show(`${pathname}${hash}`);
+        }
+        this.showRoute(this.getFullPathname(this.location));
     }
 
     getRouteElementByPath(pathname: string): Element | undefined {
@@ -91,6 +93,7 @@ export class RouterComponent extends HTMLElement {
             if (search) {
                 path = `${pathname}?${search}`;
             }
+
             if (this.matchPathWithRegex(path, child.getAttribute('path'))) {
                 element = child;
                 break;
@@ -115,7 +118,7 @@ export class RouterComponent extends HTMLElement {
         const hashId = hash.replace('#', '');
         const hashElement = querySelectorDeep(
             `[id=${hashId}]`,
-            this.shownPage
+            this
         ) as HTMLElement;
         if (hashElement) {
             hashElement.scrollIntoView({
@@ -141,60 +144,47 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
-    async show(location: string) {
-        if (!location) return;
-        let router;
-        const [pathname, hashString] = location.split('#');
-        const element = this.getRouteElementByPath(pathname);
-        if (
-            this.shownPage &&
-            this.shownPage.getAttribute('path') !== pathname
-        ) {
-            this.invalid = true;
-        }
-        if (this.shownPage === element && !this.invalid) return;
-        this.invalid = false;
-        if (!element) {
-            router = this.getExternalRouterByPath(pathname);
-            if (router) {
-                return router.show(pathname);
-            }
-        }
+    /**
+     * @deprecated since 0.15.0
+     * TODO: remove this in next major version
+     */
+    show = this.showRoute;
 
-        if (!element) {
+    async showRoute(location: string): Promise<void> {
+        if (!location) return;
+        const [pathname, hashString] = location.split('#');
+        const routeElement = this.getRouteElementByPath(pathname);
+
+        if (!routeElement) {
             return console.warn(
                 `Navigated to path "${pathname}" but there is no matching element with a path ` +
                     `that matches. Maybe you should implement a catch-all route with the path attribute of ".*"?`
             );
         }
+        const child = this.children[0];
 
-        this.dispatchEvent(new CustomEvent('route-changed'));
-
-        if (this.shownPage) {
-            this.dispatchEvent(
-                new CustomEvent('hiding-page', {
-                    detail: this.shownPage,
-                })
-            );
-            const hideDelayAttribute = this.getAttribute('hide-delay');
-            if (hideDelayAttribute) {
-                await delay(hideDelayAttribute);
-            }
-            this.fragment.appendChild(this.shownPage);
-            this.teardownElement(this.shownPage);
+        if (
+            child &&
+            this.previousLocation.href !== this.location.href &&
+            !querySelectorDeep('router-component', child)
+        ) {
+            this.hideRoute(this.previousLocation.pathname);
         }
-        this.shownPage = element;
-        this.appendChild(element);
+        if (!this.shownRouteElements.has(pathname)) {
+            this.shownRouteElements.set(pathname, routeElement);
+        }
+        this.dispatchEvent(new CustomEvent('route-changed'));
+        this.appendChild(routeElement);
         this.dispatchEvent(
             new CustomEvent('showing-page', {
-                detail: element,
+                detail: routeElement,
             })
         );
         const showDelayAttribute = this.getAttribute('show-delay');
         if (showDelayAttribute) {
             await delay(showDelayAttribute);
         }
-        this.setupElement(element);
+        this.setupElement(routeElement);
 
         let scrollToPosition = 0;
         if (
@@ -215,23 +205,44 @@ export class RouterComponent extends HTMLElement {
         }
     }
 
+    async hideRoute(location = ''): Promise<void> {
+        if (!location) {
+            return;
+        }
+        const [pathname] = location.split('#');
+        const routeElement = this.getRouteElementByPath(pathname);
+        if (!routeElement) {
+            return;
+        }
+
+        this.dispatchEvent(
+            new CustomEvent('hiding-page', {
+                detail: routeElement,
+            })
+        );
+        const hideDelayAttribute = this.getAttribute('hide-delay');
+        if (hideDelayAttribute) {
+            await delay(hideDelayAttribute);
+        }
+        this.fragment.appendChild(routeElement);
+        this.teardownElement(routeElement);
+    }
+
     get location(): Location {
         return window.location;
     }
 
-    disconnectedCallback() {
+    disconnectedCallback(): void {
         window.removeEventListener('popstate', this.popStateChangedListener);
-        this.historyChangeStates.forEach((method) => {
-            window.history[method.name] = method;
-        });
-        if (this.shownPage) {
-            this.teardownElement(this.shownPage);
+        for (const [method, name] of this.historyChangeStates) {
+            window.history[name] = method;
         }
         this.unbindLinks();
-        this.routeElements.clear();
+        this.shownRouteElements.clear();
+        this.previousLocation = undefined;
     }
 
-    clickedLink(link: HTMLAnchorElement, e: Event) {
+    clickedLink(link: HTMLAnchorElement, e: Event): void {
         const { href } = link;
         if (!href || href.indexOf('mailto:') !== -1) return;
 
@@ -261,7 +272,7 @@ export class RouterComponent extends HTMLElement {
         );
     }
 
-    bindLinks() {
+    bindLinks(): void {
         // TODO: update this to be more performant
         // listening to body to allow detection inside of shadow roots
         this.clickedLinkListener = (e) => {
@@ -279,33 +290,51 @@ export class RouterComponent extends HTMLElement {
         document.body.addEventListener('click', this.clickedLinkListener);
     }
 
-    unbindLinks() {
+    unbindLinks(): void {
         document.body.removeEventListener('click', this.clickedLinkListener);
     }
 
-    private matchPathWithRegex(
-        pathname = '',
-        regex: string
-    ): RegExpMatchArray {
+    private matchPathWithRegex(pathname = '', regex: string): RegExpMatchArray {
         if (!pathname.startsWith('/')) {
             pathname = `${pathname.replace(/^\//, '')}`;
         }
         return pathname.match(regex);
     }
 
-    private async popStateChanged() {
-        const { pathname, hash, search } = this.location;
-        const path = `${pathname}${search}${hash}`;
-        this.show(path);
+    /**
+     * Returns href without the hostname and stuff.
+     * @param location
+     * @returns
+     */
+    private getFullPathname(location: Location): string {
+        if (!location) {
+            return '';
+        }
+        const { pathname, search, hash } = location;
+        return `${pathname}${search}${hash}`;
     }
 
-    private setupElement(element: Element) {
+    private async popStateChanged() {
+        const path = this.getFullPathname(this.location);
+        if (this.location.href !== this.previousLocation.href) {
+            this.hideRoute(this.previousLocation.pathname);
+        }
+        this.showRoute(path);
+    }
+
+    private setupElement(routeElement: Element) {
+        const { pathname } = this.location;
         this.originalDocumentTitle = document.title;
-        const title = element.getAttribute('document-title');
+        const title = routeElement.getAttribute('document-title');
         if (title) {
             document.title = title;
         } else {
             document.title = this.originalDocumentTitle;
+        }
+        const nestedRouterComponent: RouterComponent =
+            routeElement.querySelector('router-component');
+        if (nestedRouterComponent) {
+            nestedRouterComponent.showRoute(pathname);
         }
     }
 

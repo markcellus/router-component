@@ -319,48 +319,7 @@ describe('<router-component>', async () => {
         expect(routeChangedSpy.callCount).to.equal(2);
     });
 
-    it('changes to appropriate routes when nested routes exist', async () => {
-        const parentRouter: RouterComponent = await fixture(html`
-            <router-component>
-                <first-page path="/page1"></first-page>
-                <nested-second-page path="/nested/pages$">
-                    <router-component>
-                        <nested-one path="/nested/pages/1"></nested-one>
-                        <nested-two path="/nested/pages/2"></nested-two>
-                    </router-component>
-                </nested-second-page>
-            </router-component>
-        `);
-        window.history.pushState({}, document.title, '/page1'); // ensure we start on first page
-        window.history.pushState({}, document.title, '/nested/pages');
-        const childRouter = parentRouter.querySelector(
-            'router-component'
-        ) as RouterComponent;
-        expect(childRouter.children.length).to.equal(0);
-        window.history.pushState({}, document.title, '/nested/pages/2');
-        expect(childRouter.querySelector('nested-two')).to.not.be.null;
-        parentRouter.remove();
-    });
-
-    it('only calls on router show once per click', async () => {
-        const component: RouterComponent = await fixture(html`
-            <router-component>
-                <first-page path="/page1">
-                    <a href="/page2">To page 2</a>
-                </first-page>
-                <second-page path="/page2"></second-page>
-            </router-component>
-        `);
-        window.history.pushState({}, document.title, '/page1');
-        const showSpy = sinon.spy(component, 'show');
-        const firstPage = document.querySelector('first-page');
-        expect(showSpy.callCount).to.equal(0);
-        const firstPageLink = firstPage.querySelector('a');
-        firstPageLink.click();
-        expect(showSpy.callCount).to.equal(1);
-    });
-
-    it('re-renders route node if requested path matches the pattern of the current route but is a different path', async () => {
+    it('re-renders route node and connectedCallback/disconnectedCallback if requested path matches the pattern of the current route but is a different path', async () => {
         const connectedCallbackSpy = sinon.spy();
         const disconnectedCallbackSpy = sinon.spy();
         customElements.define(
@@ -391,7 +350,7 @@ describe('<router-component>', async () => {
         expect(disconnectedCallbackSpy.callCount).to.equal(1);
     });
 
-    it('re-renders the route when clicking to a path that matches the pattern of the current route', async () => {
+    it('connectedCallback and disconnectedCallback are triggered again when clicking to a path that matches the pattern of the current route', async () => {
         const connectedCallbackSpy = sinon.spy();
         const disconnectedCallbackSpy = sinon.spy();
         customElements.define(
@@ -414,13 +373,61 @@ describe('<router-component>', async () => {
         `);
 
         window.history.pushState({}, document.title, '/page1');
-        const firstPage = document.querySelector('test-click-page');
         connectedCallbackSpy.resetHistory();
         disconnectedCallbackSpy.resetHistory();
-        const firstPageLink = firstPage.querySelector('a');
+        const firstPageLink =
+            document.querySelector<HTMLAnchorElement>('test-click-page a');
         firstPageLink.click();
         expect(connectedCallbackSpy.callCount).to.equal(1);
         expect(disconnectedCallbackSpy.callCount).to.equal(1);
+    });
+
+    describe('when pushState or replaceState is overridden', () => {
+        const origPushState = window.history.pushState;
+        const origReplaceState = window.history.replaceState;
+        afterEach(() => {
+            window.history.pushState = origPushState;
+            window.history.replaceState = origReplaceState;
+        });
+        it('renders the route when clicking to a path while pushState is anonymously overridden', async () => {
+            const customPushStateSpy = sinon.spy();
+            window.history.pushState = customPushStateSpy;
+            const router = await fixture(html`
+                <router-component>
+                    <first-page path="/page1">
+                        <a href="/page2">To page 2</a>
+                    </first-page>
+                    <second-page path="/page2"></second-page>
+                </router-component>
+            `);
+            window.history.pushState({}, document.title, '/page1');
+            customPushStateSpy.resetHistory();
+            const firstPageLink: HTMLAnchorElement =
+                document.querySelector('first-page a');
+            firstPageLink.click();
+            expect(document.querySelector('second-page')).not.to.be.null;
+            expect(customPushStateSpy.callCount).to.equal(1);
+            router.remove(); // must remove router to reset pushState/replaceState overrides
+        });
+
+        it('renders the route when clicking to a path while replaceState is anonymously overridden', async () => {
+            const customReplaceStateSpy = sinon.spy();
+            window.history.replaceState = customReplaceStateSpy;
+            const router = await fixture(html`
+                <router-component>
+                    <first-page path="/page1">
+                        <a href="/page2">To page 2</a>
+                    </first-page>
+                    <second-page path="/page2"></second-page>
+                </router-component>
+            `);
+            window.history.pushState({}, document.title, '/page1');
+            customReplaceStateSpy.resetHistory();
+            window.history.replaceState({}, document.title, '/page2');
+            expect(document.querySelector('second-page')).not.to.be.null;
+            expect(customReplaceStateSpy.callCount).to.equal(1);
+            router.remove(); // must remove router to reset pushState/replaceState overrides
+        });
     });
 
     describe('when dealing with hash changes', () => {
@@ -443,14 +450,21 @@ describe('<router-component>', async () => {
             expect(window.location.href).to.equal(pageLink.href);
         });
 
-        // it('scrolls to the element on the route that matches the id of the hash after popstate has been called', async () => {
-        //     window.history.pushState({}, document.title, '/page1#test');
-        //     const hashedElement = router.querySelector('first-page div[id="test"]');
-        //     const popstate = new PopStateEvent('popstate', { state: {} });
-        //     const scrollIntoViewStub = sinon.spy(hashedElement, 'scrollIntoView');
-        //     window.dispatchEvent(popstate);
-        //     expect(scrollIntoViewStub).to.be.calledOnceWithExactly({ behavior: 'auto' });
-        // });
+        it('scrolls to the element on the route that matches the id of the hash after popstate has been called', async () => {
+            window.history.pushState({}, document.title, '/page1#test');
+            const hashedElement = router.querySelector(
+                'first-page div[id="test"]'
+            );
+            const popstate = new PopStateEvent('popstate', { state: {} });
+            const scrollIntoViewStub = sinon.spy(
+                hashedElement,
+                'scrollIntoView'
+            );
+            window.dispatchEvent(popstate);
+            expect(scrollIntoViewStub).to.be.calledOnceWithExactly({
+                behavior: 'auto',
+            });
+        });
 
         it('scrolls back to top of page if there is no hash', async () => {
             window.history.pushState({}, document.title, '/page1');
@@ -483,16 +497,16 @@ describe('<router-component>', async () => {
             window.history.pushState(
                 { triggerRouteChange: false },
                 null,
-                '/page3'
+                '/page2'
             );
-            expect(location.pathname).to.equal('/page3');
+            expect(location.pathname).to.equal('/page2');
         });
 
         it('cleans up the triggerRouteChange from the history state', async () => {
             window.history.pushState(
                 { triggerRouteChange: false },
                 null,
-                '/page3'
+                '/page2'
             );
             expect(history.state.triggerRouteChange, undefined);
         });
@@ -501,7 +515,7 @@ describe('<router-component>', async () => {
             window.history.pushState(
                 { triggerRouteChange: false },
                 null,
-                '/page3'
+                '/page2'
             );
             expect(consoleWarn.callCount).to.equal(0);
         });
@@ -512,7 +526,7 @@ describe('<router-component>', async () => {
             window.history.pushState(
                 { triggerRouteChange: false },
                 null,
-                '/page3'
+                '/page2'
             );
             expect(routeChangedSpy.callCount).to.equal(0);
         });
@@ -521,26 +535,48 @@ describe('<router-component>', async () => {
             window.history.pushState(
                 { triggerRouteChange: false },
                 null,
-                '/page3'
+                '/page2'
             );
             expect(consoleWarn.callCount).to.equal(0);
             expect(document.body.querySelector('first-page')).to.not.be.null;
             expect(document.body.querySelector('second-page')).to.be.null;
         });
 
-        it('does not change the route if null is passed as the state', async () => {
-            window.history.pushState(null, null, '/page3');
-            expect(document.body.querySelector('first-page')).to.not.be.null;
-        });
         it('goes back to previous route and continue to show previous page when requested', async () => {
             window.history.pushState(
                 { triggerRouteChange: false },
                 null,
-                '/page3'
+                '/page2'
             );
             window.history.pushState({}, null, '/page1');
             expect(location.pathname, '/page1');
             expect(document.body.querySelector('first-page')).to.not.be.null;
+        });
+    });
+
+    describe('nested routes', () => {
+        it('changes to appropriate routes when nested routes exist', async () => {
+            const parentRouter: RouterComponent = await fixture(html`
+                <router-component>
+                    <first-page path="/page1"></first-page>
+                    <nested-second-page path="/nested/pages$">
+                        <router-component>
+                            <nested-one path="/nested/pages/1"></nested-one>
+                            <nested-two path="/nested/pages/2"></nested-two>
+                        </router-component>
+                    </nested-second-page>
+                </router-component>
+            `);
+            window.history.pushState({}, document.title, '/page1'); // ensure we start on first page
+            window.history.pushState({}, document.title, '/nested/pages');
+            const childRouter = parentRouter.querySelector(
+                'router-component'
+            ) as RouterComponent;
+            expect(childRouter.children.length).to.equal(0);
+            window.history.pushState({}, document.title, '/nested/pages/2');
+            expect(childRouter.querySelector('nested-two')).to.not.be.null;
+            childRouter.remove();
+            parentRouter.remove();
         });
     });
 
