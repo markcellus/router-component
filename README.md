@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/mkay581/router-component.svg?branch=master)](https://travis-ci.org/mkay581/router-component)
+[![Build Status](https://travis-ci.org/markcellus/router-component.svg?branch=master)](https://travis-ci.org/markcellus/router-component)
 [![npm version](https://badge.fury.io/js/router-component.svg)](https://www.npmjs.com/package/router-component)
 
 # `<router-component>`
