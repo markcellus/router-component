@@ -2,14 +2,18 @@ import sinon from 'sinon';
 import { expect, fixture, html, nextFrame } from '@open-wc/testing';
 // eslint-disable-next-line no-unused-vars
 import { extractPathParams, RouterComponent } from '../src/router-component';
+import { querySelectorDeep as realQuerySelectorDeep } from 'query-selector-shadow-dom';
 
 const origDocTitle = document.title;
 const originalPathName = document.location.pathname;
 
 describe('<router-component>', async () => {
     let consoleWarn;
+    let querySelectorDeep: sinon.SinonStub;
     beforeEach(() => {
+        querySelectorDeep = realQuerySelectorDeep as sinon.SinonStub;
         consoleWarn = sinon.stub(console, 'warn');
+        querySelectorDeep.reset();
     });
 
     afterEach(() => {
@@ -473,10 +477,9 @@ describe('<router-component>', async () => {
         });
 
         it('scrolls to the element on the route that matches the id of the hash after popstate has been called', async () => {
+            const hashedElement = document.createElement('div');
+            querySelectorDeep.returns(hashedElement);
             window.history.pushState({}, document.title, '/page1#test');
-            const hashedElement = router.querySelector(
-                'first-page div[id="test"]'
-            );
             const popstate = new PopStateEvent('popstate', { state: {} });
             const scrollIntoViewStub = sinon.spy(
                 hashedElement,
