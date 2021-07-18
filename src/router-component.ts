@@ -118,14 +118,22 @@ export class RouterComponent extends HTMLElement {
             'hash-scroll-behavior'
         ) as ScrollBehavior;
         const hashId = hash.replace('#', '');
-        const hashElement = querySelectorDeep(
-            `[id=${hashId}]`,
-            this
-        ) as HTMLElement;
-        if (hashElement) {
-            hashElement.scrollIntoView({
-                behavior: behaviorAttribute || 'auto',
-            });
+        try {
+            const hashElement = querySelectorDeep(
+                `[id=${hashId}]`,
+                this
+            ) as HTMLElement;
+            if (hashElement) {
+                hashElement.scrollIntoView({
+                    behavior: behaviorAttribute || 'auto',
+                });
+            }
+        } catch (e) {
+            // id attributes can only have valid characters, if invalid, skip
+            console.warn(
+                `Cannot scroll to element with the id of "${hashId}".`
+            );
+            return;
         }
     }
 

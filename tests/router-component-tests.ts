@@ -491,6 +491,17 @@ describe('<router-component>', async () => {
             });
         });
 
+        it('warns when hash passed to querySelectorDeep throws because there is no matching element', async () => {
+            const hash = 'test';
+            querySelectorDeep.throws('error');
+            window.history.pushState({}, document.title, `/page1#${hash}`);
+            const popstate = new PopStateEvent('popstate', { state: {} });
+            window.dispatchEvent(popstate);
+            expect(consoleWarn).to.be.calledWithExactly(
+                `Cannot scroll to element with the id of "${hash}".`
+            );
+        });
+
         it('scrolls back to top of page if there is no hash', async () => {
             window.history.pushState({}, document.title, '/page1');
             const popstate = new PopStateEvent('popstate', { state: {} });
