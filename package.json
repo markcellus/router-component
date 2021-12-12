@@ -40,7 +40,7 @@
     "dist/**/*"
   ],
   "devDependencies": {
-    "@open-wc/testing": "^2.5.19",
+    "@open-wc/testing": "^3.0.3",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "@types/mocha": "^9.0.0",
     "@types/sinon": "^10.0.1",
