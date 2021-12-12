@@ -42,7 +42,7 @@
   "devDependencies": {
     "@open-wc/testing": "^2.5.19",
     "@rollup/plugin-node-resolve": "^13.0.0",
-    "@types/mocha": "^8.0.2",
+    "@types/mocha": "^9.0.0",
     "@types/sinon": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^4.25.0",
     "@typescript-eslint/parser": "^4.25.0",
