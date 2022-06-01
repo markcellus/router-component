@@ -52,7 +52,7 @@
     "banner-cli": "^0.14.1",
     "dotenv": "^16.0.0",
     "eslint": "^7.0.0",
-    "husky": "^7.0.0",
+    "husky": "^8.0.1",
     "lit-html": "^2.0.2",
     "mocha": "^9.0.2",
     "prettier": "^2.0.2",
