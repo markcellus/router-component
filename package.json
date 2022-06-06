@@ -12,7 +12,7 @@
   "homepage": "https://github.com/markcellus/router-component",
   "author": "Mark Kennedy <mark@heyimmark.com> (heyimmark.com)",
   "engines": {
-    "node": ">=14"
+    "node": "14.x"
   },
   "keywords": [
     "lit router",
