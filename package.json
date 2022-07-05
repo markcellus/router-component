@@ -12,7 +12,7 @@
   "homepage": "https://github.com/markcellus/router-component",
   "author": "Mark",
   "engines": {
-    "node": "14.x"
+    "node": ">=14"
   },
   "keywords": [
     "lit router",
